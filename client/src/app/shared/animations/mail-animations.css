@@ -1,0 +1,385 @@
+:root {
+  --mail-motion-instant: 90ms;
+  --mail-motion-fast: 140ms;
+  --mail-motion-base: 190ms;
+  --mail-motion-slow: 260ms;
+  --mail-motion-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --mail-motion-standard: cubic-bezier(0.2, 0, 0, 1);
+  --mail-motion-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+app-root button:not(:disabled),
+app-root a[href] {
+  -webkit-tap-highlight-color: transparent;
+  transition-duration: var(--mail-motion-fast);
+  transition-property: color, background-color, border-color, box-shadow, opacity, translate;
+  transition-timing-function: var(--mail-motion-standard);
+}
+
+app-root :is(input, textarea, select) {
+  transition: background-color var(--mail-motion-fast) var(--mail-motion-standard),
+    border-color var(--mail-motion-fast) var(--mail-motion-standard),
+    box-shadow var(--mail-motion-fast) var(--mail-motion-standard);
+}
+
+app-root input:is([type="checkbox"], [type="radio"]) {
+  transition: box-shadow var(--mail-motion-fast) var(--mail-motion-standard);
+}
+
+app-root button app-icon,
+app-root a app-icon {
+  transform-origin: center;
+  transition: transform var(--mail-motion-fast) var(--mail-motion-standard);
+}
+
+app-root [data-mail-action="back"]:active app-icon,
+app-root [data-mail-action="reply"]:active app-icon,
+app-root [data-mail-action="previous"]:active app-icon {
+  transform: translateX(-0.2rem);
+}
+
+app-root [data-mail-action="forward"]:active app-icon,
+app-root [data-mail-action="next"]:active app-icon,
+app-root [data-mail-action="send"]:active app-icon {
+  transform: translateX(0.2rem);
+}
+
+app-root [data-mail-action="archive"]:active app-icon,
+app-root [data-mail-action="download"]:active app-icon {
+  transform: translateY(0.18rem);
+}
+
+app-root [data-mail-action="restore"]:active app-icon {
+  transform: translateY(-0.18rem);
+}
+
+app-root [data-mail-action="delete"]:active app-icon,
+app-root [data-mail-action="delete-forever"]:active app-icon {
+  transform: rotate(7deg);
+}
+
+app-root [data-mail-action="star"]:active app-icon {
+  transform: rotate(-10deg);
+}
+
+app-root [data-mail-action="mark-read"]:active app-icon,
+app-root [data-mail-action="mark-unread"]:active app-icon {
+  transform: translateY(-0.12rem);
+}
+
+app-root [data-mail-action="report"]:active app-icon,
+app-root [data-mail-action="block"]:active app-icon {
+  transform: rotate(-4deg);
+}
+
+app-root [data-mail-action="refresh"]:active app-icon {
+  transform: rotate(42deg);
+}
+
+.mail-motion-page {
+  animation: mail-page-in var(--mail-motion-base) var(--mail-motion-enter) backwards;
+}
+
+.mail-motion-content-enter {
+  animation: mail-content-in var(--mail-motion-base) var(--mail-motion-enter) both;
+}
+
+.mail-motion-menu-enter {
+  animation: mail-menu-in var(--mail-motion-base) var(--mail-motion-enter) both;
+  transform-origin: var(--mail-menu-origin, top right);
+}
+
+.mail-motion-menu-leave {
+  animation: mail-menu-out var(--mail-motion-fast) var(--mail-motion-exit) both;
+  pointer-events: none;
+  transform-origin: var(--mail-menu-origin, top right);
+}
+
+.mail-motion-dialog-backdrop-enter {
+  animation: mail-backdrop-in var(--mail-motion-base) ease-out both;
+}
+
+.mail-motion-dialog-backdrop-leave {
+  animation: mail-backdrop-out var(--mail-motion-fast) ease-in both;
+  pointer-events: none;
+}
+
+.mail-motion-dialog-panel-enter {
+  animation: mail-dialog-in var(--mail-motion-slow) var(--mail-motion-enter) both;
+  transform-origin: center;
+}
+
+.mail-motion-dialog-panel-leave {
+  animation: mail-dialog-out var(--mail-motion-fast) var(--mail-motion-exit) both;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.mail-motion-notice-enter {
+  animation: mail-notice-in var(--mail-motion-base) var(--mail-motion-enter) both;
+}
+
+.mail-motion-notice-leave {
+  animation: mail-notice-out var(--mail-motion-fast) var(--mail-motion-exit) both;
+  pointer-events: none;
+}
+
+.mail-motion-row-enter {
+  animation: mail-row-in var(--mail-motion-base) var(--mail-motion-enter) both;
+}
+
+.mail-motion-row-leave {
+  animation: mail-row-out var(--mail-motion-base) var(--mail-motion-exit) both;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mail-motion-chip-enter {
+  animation: mail-chip-in var(--mail-motion-base) var(--mail-motion-enter) both;
+}
+
+.mail-motion-chip-leave {
+  animation: mail-chip-out var(--mail-motion-fast) var(--mail-motion-exit) both;
+  pointer-events: none;
+}
+
+.mail-motion-progress {
+  overflow: hidden;
+  position: relative;
+}
+
+.mail-motion-progress-bar {
+  animation: mail-progress 1.15s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  transform-origin: left center;
+  will-change: transform;
+}
+
+@keyframes mail-page-in {
+  from {
+    translate: 0 0.16rem;
+  }
+
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes mail-content-in {
+  from {
+    translate: 0 0.16rem;
+  }
+
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes mail-menu-in {
+  from {
+    opacity: 0%;
+    transform: translateY(-0.3rem);
+  }
+
+  to {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mail-menu-out {
+  from {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0%;
+    transform: translateY(-0.2rem);
+  }
+}
+
+@keyframes mail-backdrop-in {
+  from {
+    opacity: 0%;
+  }
+
+  to {
+    opacity: 100%;
+  }
+}
+
+@keyframes mail-backdrop-out {
+  from {
+    opacity: 100%;
+  }
+
+  to {
+    opacity: 0%;
+  }
+}
+
+@keyframes mail-dialog-in {
+  from {
+    opacity: 0%;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mail-dialog-out {
+  from {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0%;
+    transform: translateY(0.45rem);
+  }
+}
+
+@keyframes mail-notice-in {
+  from {
+    opacity: 0%;
+    transform: translateY(-0.4rem);
+  }
+
+  to {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mail-notice-out {
+  from {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0%;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@keyframes mail-row-in {
+  from {
+    translate: 0 0.12rem;
+  }
+
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes mail-row-out {
+  from {
+    max-height: 5rem;
+    opacity: 100%;
+    transform: translateX(0);
+  }
+
+  to {
+    max-height: 0;
+    opacity: 0%;
+    transform: translateX(1rem);
+  }
+}
+
+@keyframes mail-chip-in {
+  from {
+    opacity: 0%;
+    transform: translateY(0.15rem);
+  }
+
+  to {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mail-chip-out {
+  from {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0%;
+    transform: translateY(0.15rem);
+  }
+}
+
+@keyframes mail-progress {
+  0% {
+    transform: translateX(-130%) scaleX(0.65);
+  }
+
+  55% {
+    transform: translateX(135%) scaleX(1.15);
+  }
+
+  100% {
+    transform: translateX(330%) scaleX(0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mail-motion-instant: 1ms;
+    --mail-motion-fast: 1ms;
+    --mail-motion-base: 1ms;
+    --mail-motion-slow: 1ms;
+  }
+
+  app-root *,
+  app-root *::before,
+  app-root *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .mail-motion-page,
+  .mail-motion-content-enter,
+  .mail-motion-menu-enter,
+  .mail-motion-menu-leave,
+  .mail-motion-dialog-backdrop-enter,
+  .mail-motion-dialog-backdrop-leave,
+  .mail-motion-dialog-panel-enter,
+  .mail-motion-dialog-panel-leave,
+  .mail-motion-notice-enter,
+  .mail-motion-notice-leave,
+  .mail-motion-row-enter,
+  .mail-motion-row-leave,
+  .mail-motion-chip-enter,
+  .mail-motion-chip-leave,
+  .mail-motion-progress-bar,
+  app-root input:is([type="checkbox"], [type="radio"]):checked {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media print {
+  .mail-motion-page,
+  .mail-motion-content-enter,
+  .mail-motion-menu-enter,
+  .mail-motion-menu-leave,
+  .mail-motion-dialog-backdrop-enter,
+  .mail-motion-dialog-backdrop-leave,
+  .mail-motion-dialog-panel-enter,
+  .mail-motion-dialog-panel-leave,
+  .mail-motion-notice-enter,
+  .mail-motion-notice-leave,
+  .mail-motion-row-enter,
+  .mail-motion-row-leave,
+  .mail-motion-chip-enter,
+  .mail-motion-chip-leave,
+  .mail-motion-progress-bar {
+    animation: none !important;
+  }
+}

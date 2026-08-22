@@ -1,0 +1,353 @@
+<article class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface" [attr.aria-busy]="loading()">
+  <header data-print-hidden class="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-row-line px-3">
+    <div class="flex min-w-0 items-center gap-0.5">
+      <button data-mail-action="back" type="button" (click)="goBack()" [title]="backTitle()" [attr.aria-label]="backTitle()" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+        <app-icon [name]="'back'" class="h-5 w-5" />
+      </button>
+
+      @if (message()) {
+        <span class="mx-1 h-6 w-px bg-line-soft"></span>
+        @if (message()?.folder === 'inbox') {
+          <button data-mail-action="archive" type="button" (click)="archiveMessage()" [disabled]="actionLoading()" title="Archive" aria-label="Archive" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-hover-soft hover:enabled:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-45"><app-icon [name]="'archive'" class="h-5 w-5" /></button>
+        }
+        @if (message()?.folder === 'archive' || message()?.folder === 'trash' || message()?.folder === 'spam') {
+          <button data-mail-action="restore" type="button" (click)="restoreMessage()" [disabled]="actionLoading()" [title]="message()?.folder === 'spam' ? 'Not spam' : 'Restore'" [attr.aria-label]="message()?.folder === 'spam' ? 'Not spam' : 'Restore'" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-hover-soft hover:enabled:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-45"><app-icon [name]="'restore'" class="h-5 w-5" /></button>
+        }
+        @if (message()?.direction === 'incoming' && !isRemovedFolder(message()?.folder)) {
+          <button data-mail-action="report" type="button" (click)="reportAs('spam')" [disabled]="actionLoading()" title="Report spam" aria-label="Report spam" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-danger-soft hover:enabled:text-danger focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-45 max-[860px]:hidden"><app-icon [name]="'spam'" class="h-5 w-5" /></button>
+        }
+        @if (!isRemovedFolder(message()?.folder)) {
+          <button data-mail-action="delete" type="button" (click)="moveToTrash()" [disabled]="actionLoading()" title="Move to Trash" aria-label="Move to Trash" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-danger-soft hover:enabled:text-danger focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-45"><app-icon [name]="'delete'" class="h-5 w-5" /></button>
+        } @else {
+          <button data-mail-action="delete-forever" type="button" (click)="permanentlyDelete()" [disabled]="actionLoading()" title="Delete permanently" aria-label="Delete permanently" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-danger-soft hover:enabled:text-danger focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-45"><app-icon [name]="'deleteForever'" class="h-5 w-5" /></button>
+        }
+        @if (message()?.direction === 'incoming') {
+          <button data-mail-action="mark-unread" type="button" (click)="markUnread()" [disabled]="actionLoading()" title="Mark as unread" aria-label="Mark as unread" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-hover-soft hover:enabled:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-45 max-[860px]:hidden"><app-icon [name]="'markUnread'" class="h-5 w-5" /></button>
+        }
+        <span class="mx-1 h-6 w-px bg-line-soft"></span>
+        <div class="relative max-[720px]:hidden" #movePicker>
+          <button data-mail-action="move" type="button" (click)="toggleMoveMenu()" [attr.aria-expanded]="moveMenuOpen()" aria-haspopup="menu" title="Move to" aria-label="Move to" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'moveTo'" class="h-5 w-5" /></button>
+          @if (moveMenuOpen()) {
+            <div role="menu" aria-label="Move message" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-40 w-52 overflow-hidden rounded-xl border border-line bg-surface p-2 shadow-[0_10px_30px_rgba(15,23,42,0.18)] [--mail-menu-origin:top_left]">
+              @if (message()?.direction === 'incoming' && message()?.folder !== 'inbox') { <button role="menuitem" type="button" (click)="moveMessage('inbox')" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'inbox'" class="h-4.5 w-4.5 text-icon" />Inbox</button> }
+              @if (message()?.direction === 'incoming' && message()?.folder !== 'archive') { <button role="menuitem" type="button" (click)="moveMessage('archive')" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'archive'" class="h-4.5 w-4.5 text-icon" />Archive</button> }
+              @if (message()?.direction === 'incoming' && message()?.folder !== 'spam') { <button role="menuitem" type="button" (click)="moveMessage('spam')" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'spam'" class="h-4.5 w-4.5 text-icon" />Spam</button> }
+              @if (message()?.direction === 'outgoing' && message()?.folder !== 'sent') { <button role="menuitem" type="button" (click)="moveMessage('sent')" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'send'" class="h-4.5 w-4.5 text-icon" />Sent</button> }
+              @if (message()?.folder !== 'trash') { <button role="menuitem" type="button" (click)="moveMessage('trash')" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'delete'" class="h-4.5 w-4.5 text-icon" />Trash</button> }
+            </div>
+          }
+        </div>
+        <div class="relative" #labelPicker>
+          <button data-mail-action="label" type="button" (click)="toggleLabelMenu()" [attr.aria-expanded]="labelMenuOpen()" aria-haspopup="true" title="Labels" aria-label="Labels" class="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
+            <app-icon [name]="'label'" class="h-5 w-5" />
+            @if (appliedLabels().length > 0) { <span class="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-semibold text-white">{{ appliedLabels().length }}</span> }
+          </button>
+          @if (labelMenuOpen()) {
+            <div animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-30 w-72 overflow-hidden rounded-xl border border-line bg-surface shadow-[0_10px_30px_rgba(15,23,42,0.18)] [--mail-menu-origin:top_left] max-[520px]:fixed max-[520px]:top-28 max-[520px]:right-3 max-[520px]:left-3 max-[520px]:w-auto">
+              <div class="border-b border-line-soft px-4 py-3"><p class="text-sm font-medium text-ink">Apply labels</p><p class="mt-0.5 text-xs text-muted">A message can use multiple labels.</p></div>
+              <div class="max-h-64 overflow-y-auto p-2">
+                @for (label of labelService.labels(); track label.id) {
+                  <label class="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-ink-soft hover:bg-hover-soft">
+                    <input type="checkbox" [checked]="labelIsSelected(label)" (change)="toggleDraftLabel(label.id)" class="h-4 w-4 accent-primary" />
+                    <span class="h-3 w-3 shrink-0 rounded-sm" [class]="labelColorClass(label.color)"></span>
+                    <span class="min-w-0 flex-1 truncate">{{ label.name }}</span>
+                  </label>
+                } @empty { <div class="px-3 py-6 text-center text-sm text-muted">No labels yet.</div> }
+              </div>
+              @if (labelErrorMessage()) { <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-3 mb-2 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{{ labelErrorMessage() }}</div> }
+              <div class="flex items-center justify-between border-t border-line-soft p-2">
+                <button type="button" (click)="manageLabels()" class="h-9 cursor-pointer rounded-full border-none bg-transparent px-3 text-xs font-medium text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Manage labels</button>
+                <button type="button" (click)="applyLabels()" [disabled]="savingLabels()" class="h-9 cursor-pointer rounded-full border-none bg-primary px-4 text-xs font-medium text-white hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ savingLabels() ? 'Saving…' : 'Apply' }}</button>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="relative" #moreMenu>
+          <button data-mail-action="more" type="button" (click)="toggleMoreMenu()" [attr.aria-expanded]="moreMenuOpen()" aria-haspopup="menu" title="More" aria-label="More email options" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'more'" class="h-5 w-5" /></button>
+          @if (moreMenuOpen()) {
+            <div role="menu" aria-label="More email options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_36px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left] max-[900px]:right-0 max-[900px]:left-auto max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
+              @if (message()?.direction === 'incoming') {
+                <button data-mail-action="reply" role="menuitem" type="button" (click)="reply()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'reply'" class="h-4.5 w-4.5 text-icon" />Reply</button>
+                <button role="menuitem" type="button" (click)="replyAll()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'replyAll'" class="h-4.5 w-4.5 text-icon" />Reply all</button>
+              }
+              <button data-mail-action="forward" role="menuitem" type="button" (click)="forward()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'forward'" class="h-4.5 w-4.5 text-icon" />Forward</button>
+
+              <div class="my-1 border-t border-line-soft"></div>
+              @if (!isRemovedFolder(message()?.folder)) {
+                <button data-mail-action="delete" role="menuitem" type="button" (click)="moveToTrash()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'delete'" class="h-4.5 w-4.5 text-icon" />Delete</button>
+              } @else {
+                <button data-mail-action="delete-forever" role="menuitem" type="button" (click)="permanentlyDelete()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-danger hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'deleteForever'" class="h-4.5 w-4.5" />Delete permanently</button>
+              }
+              @if (message()?.direction === 'incoming') {
+                <button data-mail-action="mark-unread" role="menuitem" type="button" (click)="markUnread()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'markUnread'" class="h-4.5 w-4.5 text-icon" />Mark as unread</button>
+              }
+              <button data-mail-action="star" role="menuitem" type="button" (click)="toggleStar()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="message()?.is_starred ? 'star' : 'starBorder'" class="h-4.5 w-4.5 text-icon" />{{ message()?.is_starred ? 'Remove star' : 'Add star' }}</button>
+              <button data-mail-action="important" role="menuitem" type="button" (click)="toggleImportant()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="message()?.is_important ? 'labelImportantFilled' : 'labelImportant'" class="h-4.5 w-4.5 text-icon" />{{ message()?.is_important ? 'Mark as not important' : 'Mark as important' }}</button>
+              <div class="hidden max-[720px]:block">
+                <div class="my-1 border-t border-line-soft"></div>
+                @if (message()?.direction === 'incoming' && message()?.folder !== 'inbox') {
+                  <button role="menuitem" type="button" (click)="moveMessage('inbox')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'inbox'" class="h-4.5 w-4.5 text-icon" />Move to Inbox</button>
+                }
+                @if (message()?.direction === 'incoming' && message()?.folder !== 'archive') {
+                  <button role="menuitem" type="button" (click)="moveMessage('archive')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'archive'" class="h-4.5 w-4.5 text-icon" />Move to Archive</button>
+                }
+                @if (message()?.direction === 'outgoing' && message()?.folder !== 'sent') {
+                  <button role="menuitem" type="button" (click)="moveMessage('sent')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'send'" class="h-4.5 w-4.5 text-icon" />Move to Sent</button>
+                }
+              </div>
+
+              @if (message()?.direction === 'incoming') {
+                <div class="my-1 border-t border-line-soft"></div>
+                <button data-mail-action="block" role="menuitem" type="button" (click)="toggleBlockSender()" [disabled]="message()?.safety?.globally_blocked" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55"><app-icon [name]="'block'" class="h-4.5 w-4.5 text-icon" />{{ message()?.safety?.globally_blocked ? 'Blocked by Orion' : message()?.safety?.sender_blocked ? 'Unblock ' + message()?.safety?.sender_domain : 'Block ' + message()?.safety?.sender_domain }}</button>
+                <button data-mail-action="report" role="menuitem" type="button" (click)="reportAs('spam')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger" [class.text-danger]="message()?.safety?.reported_as === 'spam'" [class.text-ink-soft]="message()?.safety?.reported_as !== 'spam'"><app-icon [name]="'spam'" class="h-4.5 w-4.5" />{{ message()?.safety?.reported_as === 'spam' ? 'Reported as spam' : 'Report spam' }}</button>
+                <button data-mail-action="report" role="menuitem" type="button" (click)="reportAs('phishing')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger" [class.text-danger]="message()?.safety?.reported_as === 'phishing'" [class.text-ink-soft]="message()?.safety?.reported_as !== 'phishing'"><app-icon [name]="'phishing'" class="h-4.5 w-4.5" />{{ message()?.safety?.reported_as === 'phishing' ? 'Reported as phishing' : 'Report phishing' }}</button>
+              }
+
+              <div class="my-1 border-t border-line-soft"></div>
+              <button data-mail-action="translate" role="menuitem" type="button" (click)="translateMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'translate'" class="h-4.5 w-4.5 text-icon" />Translate</button>
+              <button data-mail-action="print" role="menuitem" type="button" (click)="printMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'print'" class="h-4.5 w-4.5 text-icon" />Print</button>
+              @if (message()?.has_original_source) {
+              <button data-mail-action="download" role="menuitem" type="button" (click)="downloadMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'download'" class="h-4.5 w-4.5 text-icon" />Download message</button>
+              <button data-mail-action="source" role="menuitem" type="button" (click)="showOriginal()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'source'" class="h-4.5 w-4.5 text-icon" />Show original</button>
+              }
+              @if (message()?.safety && message()!.safety!.total_reports > 0) {
+                <div class="mx-3 mt-1 rounded-lg bg-danger-soft px-3 py-2 text-[11px] leading-4 text-danger">Domain reports: {{ message()!.safety!.spam_reports }} spam · {{ message()!.safety!.phishing_reports }} phishing. Each account counts once.</div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    @if (message()?.direction === 'incoming' && !isRemovedFolder(message()?.folder)) {
+      <button data-mail-action="reply" type="button" (click)="reply()" title="Reply" aria-label="Reply" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'reply'" class="h-5 w-5" /></button>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft">
+      <div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="m-5 rounded-xl border border-red-200 bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
+  }
+
+  @if (actionNotice()) {
+    <div data-print-hidden animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-5 mt-3 flex items-center justify-between gap-3 rounded-xl border border-line bg-primary-soft px-4 py-3 text-sm text-primary" role="status">
+      <span>{{ actionNotice() }}</span>
+      <button type="button" (click)="actionNotice.set('')" title="Dismiss" aria-label="Dismiss notification" class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-primary hover:bg-surface/60 focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'close'" class="h-4 w-4" /></button>
+    </div>
+  }
+
+  @if (message()) {
+    <div data-print-scroll animate.enter="mail-motion-content-enter" class="min-h-0 flex-1 overflow-y-auto">
+      <div class="mail-message-card mail-soft-white mx-auto my-5 w-[calc(100%-2.5rem)] max-w-5xl rounded-2xl border border-line-soft bg-surface px-10 pt-8 pb-14 max-[820px]:px-5 max-[720px]:my-2 max-[720px]:w-[calc(100%-1rem)] max-[720px]:rounded-xl max-[720px]:pt-5">
+        <div class="mb-7 flex flex-wrap items-center gap-3 max-[720px]:mb-5">
+          <h1 class="min-w-0 text-2xl leading-8 font-semibold tracking-[-0.025em] break-words text-ink max-[720px]:text-xl max-[720px]:leading-7">{{ message()?.subject || '(no subject)' }}</h1>
+          <span class="inline-flex h-6 items-center rounded-lg bg-primary-soft px-2 text-[11px] font-semibold text-primary">{{ sourceName() }}</span>
+          @for (label of appliedLabels(); track label.id) {
+            <span animate.enter="mail-motion-chip-enter" animate.leave="mail-motion-chip-leave" class="inline-flex h-6 items-center gap-1.5 rounded-lg bg-hover-soft px-2 text-[11px] font-medium text-ink-soft"><span class="h-2 w-2 rounded-sm" [class]="labelColorClass(label.color)"></span>{{ label.name }}</span>
+          }
+        </div>
+
+        <div class="flex items-start gap-3 border-b border-line-soft pb-6">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-bold uppercase text-primary">{{ message()?.sender_address?.charAt(0) }}</span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-start justify-between gap-5 max-[640px]:flex-col max-[640px]:gap-1">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold text-ink">{{ message()?.sender_address?.split('@')?.[0] }}</p>
+                <p class="mt-0.5 truncate text-xs text-muted" [title]="message()?.sender_address">{{ message()?.sender_address }}</p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1">
+                <time class="text-xs whitespace-nowrap text-muted">{{ formatFullMailDate(message()?.created_at) }}</time>
+                <button data-print-hidden data-mail-action="star" type="button" (click)="toggleStar()" [disabled]="actionLoading()" [title]="message()?.is_starred ? 'Remove star' : 'Add star'" [attr.aria-label]="message()?.is_starred ? 'Remove star from message' : 'Star message'" class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-45" [class.text-warning]="message()?.is_starred" [class.text-faint]="!message()?.is_starred"><app-icon [name]="message()?.is_starred ? 'star' : 'starBorder'" class="h-4.5 w-4.5" /></button>
+                <button data-print-hidden data-mail-action="important" type="button" (click)="toggleImportant()" [disabled]="actionLoading()" [title]="message()?.is_important ? 'Mark as not important' : 'Mark as important'" [attr.aria-label]="message()?.is_important ? 'Mark message as not important' : 'Mark message as important'" class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-45" [class.text-warning]="message()?.is_important" [class.text-faint]="!message()?.is_important"><app-icon [name]="message()?.is_important ? 'labelImportantFilled' : 'labelImportant'" class="h-4.5 w-4.5" /></button>
+              </div>
+            </div>
+            <div class="mt-2 flex min-w-0 items-center gap-1 text-xs text-muted">
+              <span class="shrink-0">to</span>
+              <span class="min-w-0 truncate font-medium text-ink-soft">{{ toRecipients().slice(0, 2).join(', ') }}</span>
+              @if (toRecipients().length > 2) {
+                <div data-print-hidden class="relative shrink-0" (click)="$event.stopPropagation()">
+                  <button type="button" (click)="toggleRecipientMenu('to')" class="flex h-6 cursor-pointer items-center gap-0.5 rounded-md border-none bg-transparent px-1.5 text-[11px] font-semibold text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary" [attr.aria-expanded]="recipientMenuOpen() === 'to'" aria-haspopup="menu">+{{ toRecipients().length - 2 }} more<app-icon [name]="'chevronDown'" class="h-3.5 w-3.5" /></button>
+                  @if (recipientMenuOpen() === 'to') {
+                    <div role="menu" aria-label="All To recipients" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-7 left-0 z-50 max-h-52 w-80 max-w-[calc(100vw-3rem)] overflow-y-auto rounded-lg border py-1">
+                      @for (address of toRecipients(); track address) {
+                        <div role="menuitem" class="mail-google-dropdown-option flex h-10 items-center gap-2.5 px-3 text-[13px]" [title]="address"><span class="mail-google-dropdown-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase">{{ address.charAt(0) }}</span><span class="min-w-0 flex-1 truncate">{{ address }}</span></div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+            @if (ccRecipients().length) {
+              <div class="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted">
+                <span class="shrink-0">cc</span>
+                <span class="min-w-0 truncate font-medium text-ink-soft">{{ ccRecipients().slice(0, 2).join(', ') }}</span>
+                @if (ccRecipients().length > 2) {
+                  <div data-print-hidden class="relative shrink-0" (click)="$event.stopPropagation()">
+                    <button type="button" (click)="toggleRecipientMenu('cc')" class="flex h-6 cursor-pointer items-center gap-0.5 rounded-md border-none bg-transparent px-1.5 text-[11px] font-semibold text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary" [attr.aria-expanded]="recipientMenuOpen() === 'cc'" aria-haspopup="menu">+{{ ccRecipients().length - 2 }} more<app-icon [name]="'chevronDown'" class="h-3.5 w-3.5" /></button>
+                    @if (recipientMenuOpen() === 'cc') {
+                      <div role="menu" aria-label="All Cc recipients" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-7 left-0 z-50 max-h-52 w-80 max-w-[calc(100vw-3rem)] overflow-y-auto rounded-lg border py-1">
+                        @for (address of ccRecipients(); track address) {
+                          <div role="menuitem" class="mail-google-dropdown-option flex h-10 items-center gap-2.5 px-3 text-[13px]" [title]="address"><span class="mail-google-dropdown-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase">{{ address.charAt(0) }}</span><span class="min-w-0 flex-1 truncate">{{ address }}</span></div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (message()?.safety?.sender_blocked || message()?.safety?.reported_as) {
+              <div data-print-hidden class="mt-2 flex flex-wrap items-center gap-1.5">
+                @if (message()?.safety?.sender_blocked) { <span class="inline-flex h-5 items-center gap-1 rounded-full bg-danger-soft px-2 text-[10px] font-semibold text-danger"><app-icon [name]="'block'" class="h-3 w-3" />Domain blocked</span> }
+                @if (message()?.safety?.reported_as) { <span class="inline-flex h-5 items-center gap-1 rounded-full bg-amber-soft px-2 text-[10px] font-semibold text-warning"><app-icon [name]="message()?.safety?.reported_as === 'phishing' ? 'phishing' : 'spam'" class="h-3 w-3" />Reported as {{ message()?.safety?.reported_as }}</span> }
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (hasHtmlBody()) {
+          @if (blockedImageCount() > 0) {
+            <div data-print-hidden class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-soft px-4 py-2.5 text-[13px] text-warning">
+              <span>Images are blocked to protect your privacy ({{ blockedImageCount() }} blocked).</span>
+              <button type="button" (click)="displayRemoteImages()" class="cursor-pointer rounded-full border-none bg-transparent px-3 py-1 text-xs font-semibold text-warning underline hover:bg-white/40 focus-visible:outline-2 focus-visible:outline-warning">Display images</button>
+            </div>
+          }
+          <div class="orion-html-body min-h-48 pt-7 text-[15px] leading-7 break-words text-ink-soft max-[720px]:pt-5" [innerHTML]="renderedHtml().html"></div>
+        } @else {
+          <div class="min-h-48 pt-7 text-[15px] leading-7 break-words whitespace-pre-wrap text-ink-soft max-[720px]:pt-5">{{ message()?.body }}</div>
+        }
+
+        @if (message()?.attachments && message()!.attachments.length > 0) {
+          <section class="mt-9 border-t border-line-soft pt-6" aria-labelledby="attachments-heading">
+            <div class="mb-3 flex items-center gap-2">
+              <app-icon [name]="'attach'" class="h-4 w-4 text-muted" />
+              <h2 id="attachments-heading" class="text-sm font-semibold text-ink">{{ message()!.attachments.length }} {{ message()!.attachments.length === 1 ? 'attachment' : 'attachments' }}</h2>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 max-[760px]:grid-cols-1">
+              @for (attachment of message()!.attachments; track attachment.id) {
+                <div animate.enter="mail-motion-chip-enter" class="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+                  @if (imagePreviews()[attachment.id]; as previewUrl) {
+                    <img [src]="previewUrl" alt="Attachment preview" [alt]="attachment.original_filename" class="h-11 w-11 shrink-0 rounded-xl object-cover" />
+                  } @else {
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-hover-soft text-muted">
+                      <app-icon [name]="'file'" class="h-5 w-5" />
+                    </span>
+                  }
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-xs font-semibold text-ink" [title]="attachment.original_filename">{{ attachment.original_filename }}</p>
+                    <p class="mt-1 text-[11px] text-muted">{{ attachment.size < 1024 ? '1 KB' : attachment.size < 1048576 ? (attachment.size / 1024).toFixed(0) + ' KB' : (attachment.size / 1048576).toFixed(2) + ' MB' }}</p>
+                  </div>
+                  @if (attachment.status === 'available') {
+                    <button data-mail-action="download" type="button" (click)="downloadAttachment(attachment.id, attachment.original_filename)" title="Download attachment" [attr.aria-label]="'Download ' + attachment.original_filename" class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface text-muted transition-colors hover:bg-primary-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
+                      <app-icon [name]="'download'" class="h-4.5 w-4.5" />
+                    </button>
+                  } @else {
+                    <span class="shrink-0 rounded-lg bg-amber-soft px-2 py-1 text-[10px] font-semibold text-warning">Expired</span>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+        }
+        @if (conversation().length > 0) {
+          <section data-print-hidden aria-label="Conversation" class="mt-7 rounded-xl border border-line-soft bg-surface-muted">
+            <h2 class="border-b border-line-soft px-4 py-2.5 text-xs font-semibold tracking-wide text-muted uppercase">Conversation ({{ conversation().length + 1 }} messages)</h2>
+            @for (item of conversation(); track item.id) {
+              <button type="button" (click)="openThreadMessage(item.id)" [title]="item.subject || '(no subject)'" class="flex w-full cursor-pointer items-center gap-3 border-none border-b border-row-line bg-transparent px-4 py-2.5 text-left last:border-b-0 transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm text-ink-soft">{{ item.direction === 'outgoing' ? 'You' : item.sender_address.split('@')[0] }}</span>
+                  <span class="mt-0.5 block truncate text-xs text-muted">{{ item.body }}</span>
+                </span>
+                <span class="shrink-0 text-[11px] whitespace-nowrap text-muted">{{ formatFullMailDate(item.created_at) }}</span>
+              </button>
+            }
+          </section>
+        }
+
+        @if (replyRequest(); as request) {
+          <app-compose data-print-hidden [inline]="true" [request]="request" (closed)="replyRequest.set(null)" (sent)="onReplySent($event)" />
+        } @else if (canReply()) {
+          <div data-print-hidden class="mt-6 flex flex-wrap items-center gap-2">
+            <button data-mail-action="reply" type="button" (click)="reply()" class="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'reply'" class="h-4.5 w-4.5" />Reply</button>
+            @if (message()?.direction === 'incoming') {
+              <button type="button" (click)="replyAll()" class="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'replyAll'" class="h-4.5 w-4.5" />Reply all</button>
+            }
+            <button data-mail-action="forward" type="button" (click)="forward()" class="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'forward'" class="h-4.5 w-4.5" />Forward</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  @if (sourceDialogOpen()) {
+    <div data-print-hidden animate.enter="mail-motion-dialog-backdrop-enter" animate.leave="mail-motion-dialog-backdrop-leave" class="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/45 p-5 backdrop-blur-[2px] max-[640px]:p-2" role="dialog" aria-modal="true" aria-labelledby="message-source-title" (click)="closeSourceDialog()">
+      <section animate.enter="mail-motion-dialog-panel-enter" animate.leave="mail-motion-dialog-panel-leave" class="mail-soft-white flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_70px_rgba(15,23,42,0.35)] backdrop-blur-xl" (click)="$event.stopPropagation()">
+        <header class="flex h-14 shrink-0 items-center justify-between border-b border-line-soft px-4">
+          <div class="min-w-0">
+            <h2 id="message-source-title" class="truncate text-sm font-semibold text-ink">Original message source</h2>
+            <p class="truncate text-[11px] text-muted">Exact SMTP/MIME source retained when the message was received or sent.</p>
+          </div>
+          <button type="button" (click)="closeSourceDialog()" title="Close" aria-label="Close message source" class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'close'" class="h-4.5 w-4.5" /></button>
+        </header>
+        @if (sourceLoading()) {
+          <div class="flex min-h-72 flex-1 items-center justify-center text-sm text-muted">Loading message source…</div>
+        } @else {
+          <pre class="min-h-0 flex-1 overflow-auto bg-surface-muted p-5 font-mono text-xs leading-5 whitespace-pre-wrap text-ink-soft max-[640px]:p-3">{{ messageSource() }}</pre>
+        }
+        <footer class="flex shrink-0 items-center justify-end gap-2 border-t border-line-soft p-3">
+          <button type="button" (click)="copySource()" [disabled]="sourceLoading()" class="h-9 cursor-pointer rounded-full border border-line bg-surface px-4 text-xs font-semibold text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-50">{{ sourceCopied() ? 'Copied' : 'Copy source' }}</button>
+          <button type="button" (click)="downloadMessage()" [disabled]="sourceLoading() || actionLoading()" class="h-9 cursor-pointer rounded-full border-none bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-50">Download .eml</button>
+        </footer>
+      </section>
+    </div>
+  }
+
+  @if (translationDialogOpen()) {
+    <div data-print-hidden animate.enter="mail-motion-dialog-backdrop-enter" animate.leave="mail-motion-dialog-backdrop-leave" class="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/45 p-5 backdrop-blur-[2px] max-[640px]:p-2" role="dialog" aria-modal="true" aria-labelledby="message-translation-title" (click)="closeTranslationDialog()">
+      <section animate.enter="mail-motion-dialog-panel-enter" animate.leave="mail-motion-dialog-panel-leave" class="mail-soft-white flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_70px_rgba(15,23,42,0.35)] backdrop-blur-xl" (click)="$event.stopPropagation()">
+        <header class="flex shrink-0 items-center justify-between gap-4 border-b border-line-soft px-5 py-4">
+          <div class="min-w-0">
+            <h2 id="message-translation-title" class="truncate text-sm font-semibold text-ink">Translate message</h2>
+            <p class="mt-0.5 text-[11px] text-muted">The full subject and body are sent to the configured translation provider and displayed here.</p>
+          </div>
+          <button type="button" (click)="closeTranslationDialog()" title="Close" aria-label="Close translation" class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'close'" class="h-4.5 w-4.5" /></button>
+        </header>
+        <div class="flex shrink-0 flex-wrap items-center gap-3 border-b border-line-soft px-5 py-3">
+          <label for="translation-language" class="text-xs font-semibold text-ink-soft">Translate to</label>
+          <select id="translation-language" [value]="translationTarget()" (change)="translationTarget.set($any($event.target).value)" class="h-9 min-w-48 rounded-lg border border-line bg-surface px-3 text-sm text-ink outline-none focus:border-primary">
+            @for (language of translationLanguages; track language[0]) {
+              <option [value]="language[0]">{{ language[1] }}</option>
+            }
+          </select>
+          <button data-mail-action="translate" type="button" (click)="runTranslation()" [disabled]="translationLoading()" class="h-9 cursor-pointer rounded-full border-none bg-primary px-5 text-xs font-semibold text-white hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-50">{{ translationLoading() ? 'Translating…' : 'Translate' }}</button>
+          <span class="text-[11px] text-muted">Translation is not saved to the message.</span>
+        </div>
+        @if (translationError()) {
+          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="m-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ translationError() }}</div>
+        }
+        @if (translationLoading()) {
+          <div class="flex min-h-64 flex-1 items-center justify-center text-sm text-muted">Translating the complete message…</div>
+        } @else if (translationResult()) {
+          <div class="min-h-0 flex-1 overflow-y-auto p-5">
+            <div class="mb-5 rounded-xl border border-line-soft bg-surface-muted p-4">
+              <p class="text-[11px] font-semibold tracking-wide text-muted uppercase">Subject</p>
+              <p class="mt-2 text-base font-semibold break-words text-ink">{{ translationResult()?.translated_subject }}</p>
+            </div>
+            <div class="text-[15px] leading-7 break-words whitespace-pre-wrap text-ink-soft">{{ translationResult()?.translated_body }}</div>
+            <p class="mt-6 text-[11px] text-muted">Detected language: {{ translationResult()?.source_language || 'unknown' }} · Translated to {{ translationResult()?.target_language_name }}</p>
+          </div>
+        } @else {
+          <div class="flex min-h-64 flex-1 flex-col items-center justify-center px-6 text-center">
+            <app-icon [name]="'translate'" class="mb-3 h-8 w-8 text-faint" />
+            <p class="text-sm text-ink-soft">Choose a language, then translate the complete message.</p>
+          </div>
+        }
+      </section>
+    </div>
+  }
+</article>

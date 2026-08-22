@@ -1,0 +1,100 @@
+<section aria-labelledby="label-manager-title" class="mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface">
+  <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-3">
+    <button data-mail-action="back" type="button" (click)="backToInbox()" title="Back to Inbox" aria-label="Back to Inbox" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+      <app-icon [name]="'back'" class="h-5 w-5" />
+    </button>
+    <h1 id="label-manager-title" class="text-base font-medium text-ink">Manage labels</h1>
+    <span class="ml-auto pr-2 text-xs text-muted">{{ labelService.labels().length }} of 100</span>
+  </header>
+
+  <div class="min-h-0 flex-1 overflow-y-auto px-6 py-7 max-[720px]:px-4 max-[720px]:py-5">
+    <div class="mx-auto w-full max-w-220">
+      @if (errorMessage()) {
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
+      }
+      @if (statusMessage()) {
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ statusMessage() }}</div>
+      }
+
+      <section aria-labelledby="saved-labels-title">
+        <div class="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 id="saved-labels-title" class="text-lg font-medium text-ink">Your labels</h2>
+            <p class="mt-1 text-sm text-muted">Edit colors and names, or permanently remove labels.</p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <button type="button" (click)="openCreateDialog()" class="flex h-9 cursor-pointer items-center gap-2 rounded-full border-none bg-primary-solid pr-4 pl-3 text-sm font-medium text-on-primary hover:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"><app-icon [name]="'plus'" class="h-4.5 w-4.5" />Create new label</button>
+          <button data-mail-action="refresh" type="button" (click)="reloadLabels()" [disabled]="labelService.loading()" title="Refresh labels" aria-label="Refresh labels" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
+            <app-icon [name]="'refresh'" class="h-5 w-5" [class.animate-spin]="labelService.loading()" />
+          </button>
+          </div>
+        </div>
+
+        <div class="mail-soft-white overflow-hidden rounded-2xl border border-line bg-surface">
+          @if (labelService.loading() && labelService.labels().length === 0) {
+            <div animate.enter="mail-motion-content-enter" class="flex items-center gap-3 px-5 py-5 text-sm text-muted">
+              <app-icon [name]="'refresh'" class="h-4.5 w-4.5 animate-spin" />
+              Loading labels…
+            </div>
+          } @else if (labelService.labels().length === 0) {
+            <div animate.enter="mail-motion-content-enter" class="flex flex-col items-center px-5 py-12 text-center">
+              <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-primary"><app-icon [name]="'label'" class="h-6 w-6" /></span>
+              <p class="text-sm font-medium text-ink-soft">No labels yet</p>
+              <p class="mt-1 text-sm text-muted">Use “Create new label” to add one.</p>
+            </div>
+          } @else {
+            @for (label of labelService.labels(); track label.id) {
+              <div animate.enter="mail-motion-row-enter" animate.leave="mail-motion-row-leave" class="border-b border-row-line last:border-b-0">
+                @if (editingId() === label.id) {
+                  <form [formGroup]="editForm" (ngSubmit)="saveLabel(label.id)" animate.enter="mail-motion-content-enter" class="bg-primary-soft/40 px-5 py-4">
+                    <div class="flex items-end gap-3 max-[640px]:flex-col max-[640px]:items-stretch">
+                      <label class="min-w-0 flex-1 text-xs font-medium text-muted">
+                        <span class="mb-1.5 block">Label name</span>
+                        <input type="text" formControlName="name" maxlength="40" class="h-10 w-full rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                      </label>
+                      <div class="flex items-center gap-2">
+                        <button type="button" (click)="cancelEditing()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Cancel</button>
+                        <button type="submit" [disabled]="saving()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ saving() ? 'Saving…' : 'Save' }}</button>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                      @for (color of palette; track color.value) {
+                        <button type="button" (click)="selectEditColor(color.value)" [attr.aria-label]="'Use color ' + color.value" [attr.aria-pressed]="editForm.controls.color.value === color.value" class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 focus-visible:outline-2 focus-visible:outline-primary" [class.border-ink]="editForm.controls.color.value === color.value" [class.border-transparent]="editForm.controls.color.value !== color.value" [class]="color.className">
+                          @if (editForm.controls.color.value === color.value) { <app-icon [name]="'check'" class="h-3.5 w-3.5 text-label-check" /> }
+                        </button>
+                      }
+                    </div>
+                  </form>
+                } @else if (deleteCandidateId() === label.id) {
+                  <div animate.enter="mail-motion-notice-enter" class="flex items-center gap-4 bg-danger-soft px-5 py-4 max-[600px]:items-start">
+                    <span class="mt-1 h-3 w-3 shrink-0 rounded-sm" [class]="labelColorClass(label.color)"></span>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-danger">Delete “{{ label.name }}”?</p>
+                      <p class="mt-1 text-xs text-danger/80">The label will be removed from {{ label.message_count }} {{ label.message_count === 1 ? 'message' : 'messages' }}. Your messages will not be deleted.</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1">
+                      <button type="button" (click)="cancelDelete()" class="h-9 cursor-pointer rounded-full border-none bg-transparent px-3 text-sm font-medium text-ink-soft hover:bg-surface/60 focus-visible:outline-2 focus-visible:outline-primary">Cancel</button>
+                      <button data-mail-action="delete" type="button" (click)="deleteLabel(label)" [disabled]="deleting()" class="h-9 cursor-pointer rounded-full border-none bg-danger-solid px-4 text-sm font-medium text-on-danger hover:enabled:bg-danger-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-55">{{ deleting() ? 'Deleting…' : 'Delete' }}</button>
+                    </div>
+                  </div>
+                } @else {
+                  <div animate.enter="mail-motion-content-enter" class="group flex min-h-15 items-center gap-4 px-5 py-3 hover:bg-hover-soft">
+                    <span class="h-3.5 w-3.5 shrink-0 rounded-sm" [class]="labelColorClass(label.color)"></span>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-medium text-ink-soft">{{ label.name }}</p>
+                      <p class="mt-0.5 text-xs text-muted">{{ label.message_count }} {{ label.message_count === 1 ? 'message' : 'messages' }}</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <button type="button" (click)="startEditing(label)" [attr.aria-label]="'Edit ' + label.name" title="Edit label" class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'edit'" class="h-4 w-4" /></button>
+                      <button data-mail-action="delete" type="button" (click)="requestDelete(label.id)" [attr.aria-label]="'Delete ' + label.name" title="Delete label" class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'delete'" class="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

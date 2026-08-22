@@ -1,0 +1,252 @@
+<div class="mail-shell-canvas isolate flex h-full flex-col overflow-hidden text-ink">
+  <header class="relative z-[100] flex h-16 shrink-0 items-center gap-3 overflow-visible bg-transparent px-3 max-[720px]:gap-2 max-[720px]:px-2" role="banner">
+    <div class="flex w-61 shrink-0 items-center max-[720px]:w-auto">
+      <button data-mail-action="more" type="button" (click)="toggleNavigation()" title="Main menu" aria-label="Toggle main menu" [attr.aria-expanded]="navigationExpanded()" class="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-primary">
+        <app-icon [name]="'menu'" class="h-6 w-6" />
+      </button>
+      <a routerLink="/inbox" aria-label="Orion Mail inbox" class="ml-1 flex min-w-0 items-center gap-2 no-underline max-[720px]:ml-0">
+        <span class="flex items-center max-[720px]:hidden">
+          <img src="assets/images/logo-wide.svg" alt="Orion Intelligence" class="orion-logo-light h-7 w-auto" />
+          <img src="assets/images/logo-wide-dark.svg" alt="Orion Intelligence" class="orion-logo-dark h-7 w-auto" />
+        </span>
+        <img src="assets/images/logo-mark.png" alt="" class="hidden h-9 w-9 rounded-lg max-[720px]:block" />
+      </a>
+    </div>
+
+    <div class="flex min-w-0 flex-1 items-center" role="search">
+      @if (showSearch()) {
+        <div #searchWrapper class="relative w-full max-w-180">
+          <div class="mail-soft-white flex h-12 w-full items-center rounded-3xl border border-outline/25 bg-search px-1 transition-[background-color,border-color] focus-within:border-primary/40 focus-within:bg-field focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary/40 max-[720px]:h-10">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-icon">
+              <app-icon [name]="'search'" class="h-5 w-5" />
+            </span>
+            @if (searchScope() !== 'all') {
+              <button type="button" (click)="toggleSearchScopeMenu()" class="mr-1 hidden h-7 max-w-30 shrink-0 cursor-pointer items-center gap-1 rounded-full border-none bg-primary-soft px-2.5 text-xs font-medium text-primary hover:bg-selected focus-visible:outline-2 focus-visible:outline-primary min-[520px]:flex" [title]="'Searching in ' + searchScopeLabel()">
+                <span class="truncate">{{ searchScopeLabel() }}</span>
+                <app-icon [name]="'chevronDown'" class="h-3.5 w-3.5" />
+              </button>
+            }
+            <input #searchInput type="text" maxlength="200" aria-label="Search mail" aria-keyshortcuts="/" aria-autocomplete="list" [attr.aria-controls]="searchSuggestionsOpen() ? 'mail-search-suggestions' : null" [attr.aria-expanded]="searchSuggestionsOpen()" [attr.aria-activedescendant]="activeSearchOption() >= 0 ? searchOptionId(activeSearchOption()) : null" [placeholder]="searchPlaceholder()" [value]="searchTerm()" (focus)="onSearchFocus()" (input)="onSearch($event)" (keydown)="onSearchKeydown($event)" class="h-full w-full min-w-0 border-none bg-transparent px-1 text-base text-ink outline-none placeholder:text-muted max-[720px]:text-sm" />
+            @if (searchTerm()) {
+              <button type="button" (click)="clearSearch()" title="Clear search" aria-label="Clear search" class="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+                <app-icon [name]="'close'" class="h-4.5 w-4.5" />
+              </button>
+            }
+            <button type="button" (click)="toggleSearchScopeMenu()" title="Search filters" aria-label="Choose where to search" aria-haspopup="menu" [attr.aria-expanded]="searchScopeMenuOpen()" class="mr-1 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" [class.bg-primary-soft]="searchScope() !== 'all'">
+              <app-icon [name]="'filterList'" class="h-4.5 w-4.5" />
+            </button>
+          </div>
+
+          @if (searchScopeMenuOpen()) {
+            <div role="menu" aria-label="Search in" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-[calc(100%+6px)] right-0 z-[130] max-h-[min(32rem,calc(100vh-5.5rem))] w-68 overflow-y-auto rounded-xl border py-2">
+              <p class="px-4 pt-1 pb-2 text-xs font-medium text-[#5f6368]">Search in</p>
+              @for (option of searchScopeOptions; track option.value) {
+                <button type="button" role="menuitemradio" [attr.aria-checked]="searchScopeSelected(option.value)" (mousedown)="$event.preventDefault()" (click)="selectSearchScope(option.value)" class="mail-google-dropdown-option flex h-10 w-full cursor-pointer items-center gap-3 border-none px-4 text-left text-sm focus-visible:outline-none">
+                  <app-icon [name]="option.icon" class="h-4.5 w-4.5 shrink-0 text-[#5f6368]" />
+                  <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+                  @if (searchScopeSelected(option.value)) { <app-icon [name]="'check'" class="h-4.5 w-4.5 shrink-0 text-[#1967d2]" /> }
+                </button>
+              }
+              @if (labelService.labels().length > 0) {
+                <div class="my-2 border-t border-[#e8eaed]"></div>
+                <p class="px-4 pt-1 pb-2 text-xs font-medium text-[#5f6368]">Labels</p>
+                @for (label of labelService.labels(); track label.id) {
+                  <button type="button" role="menuitemradio" [attr.aria-checked]="searchScopeSelected('label:' + label.id)" (mousedown)="$event.preventDefault()" (click)="selectSearchScope('label:' + label.id)" class="mail-google-dropdown-option flex h-10 w-full cursor-pointer items-center gap-3 border-none px-4 text-left text-sm focus-visible:outline-none">
+                    <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="labelColorClass(label.color)"></span>
+                    <span class="min-w-0 flex-1 truncate">{{ label.name }}</span>
+                    @if (searchScopeSelected('label:' + label.id)) { <app-icon [name]="'check'" class="h-4.5 w-4.5 shrink-0 text-[#1967d2]" /> }
+                  </button>
+                }
+              }
+            </div>
+          } @else if (searchSuggestionsOpen() && searchTerm().trim()) {
+            <div id="mail-search-suggestions" role="listbox" aria-label="Search suggestions" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-[calc(100%+6px)] right-0 left-0 z-[130] max-h-[min(26rem,calc(100vh-5.5rem))] overflow-y-auto rounded-xl border py-2">
+              <button [id]="searchOptionId(0)" type="button" role="option" [attr.aria-selected]="activeSearchOption() === 0" (mouseenter)="activateSearchOption(0)" (mousedown)="$event.preventDefault()" (click)="submitSearch()" class="mail-google-dropdown-option flex min-h-12 w-full cursor-pointer items-center gap-3 border-none px-4 text-left focus-visible:outline-none">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8f0fe] text-[#1967d2]"><app-icon [name]="'search'" class="h-4.5 w-4.5" /></span>
+                <span class="min-w-0 flex-1 truncate text-sm">Search for <span class="font-medium">“{{ searchTerm().trim() }}”</span></span>
+                <span class="max-w-28 shrink-0 truncate text-xs text-[#5f6368]">{{ searchScopeLabel() }}</span>
+              </button>
+              @if (searchHintsLoading()) {
+                <div class="mx-4 my-1 h-0.5 overflow-hidden rounded-full bg-[#e8eaed]"><div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-[#1967d2]"></div></div>
+              }
+              @for (hint of searchHints(); track hint.id; let i = $index) {
+                <button [id]="searchOptionId(i + 1)" type="button" role="option" [attr.aria-selected]="activeSearchOption() === i + 1" (mouseenter)="activateSearchOption(i + 1)" (mousedown)="$event.preventDefault()" (click)="openSearchHint(hint)" class="mail-google-dropdown-option flex min-h-14 w-full cursor-pointer items-center gap-3 border-none px-4 py-2 text-left focus-visible:outline-none">
+                  <span class="mail-google-dropdown-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium uppercase">{{ searchHintCorrespondent(hint).charAt(0) }}</span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium">{{ hint.subject || '(no subject)' }}</span>
+                    <span class="mt-0.5 block truncate text-xs text-[#5f6368]">{{ searchHintCorrespondent(hint) }} · {{ hint.body }}</span>
+                  </span>
+                  <span class="shrink-0 rounded-full bg-[#f1f3f4] px-2 py-1 text-[11px] text-[#5f6368]">{{ searchHintFolder(hint) }}</span>
+                </button>
+              } @empty {
+                @if (!searchHintsLoading()) { <p class="px-4 py-3 text-sm text-[#5f6368]">No quick matches. Press Enter to search all matching mail.</p> }
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="relative z-[110] shrink-0" #profileWrapper>
+      <button #profileButton type="button" (click)="toggleProfileMenu()" title="Orion Mail account" aria-label="Open account menu" aria-haspopup="dialog" [attr.aria-controls]="profileMenuOpen() ? 'profile-popover' : null" [attr.aria-expanded]="profileMenuOpen()" class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-transparent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary">
+        <span class="orion-brand-avatar flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium">{{ initial() }}</span>
+      </button>
+
+      @if (profileMenuOpen()) {
+        <div id="profile-popover" role="dialog" aria-label="Account settings" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-soft-white absolute top-12 right-0 z-50 w-72 overflow-hidden rounded-2xl border border-line bg-elevated shadow-menu backdrop-blur-xl max-[420px]:fixed max-[420px]:top-16 max-[420px]:right-2 max-[420px]:left-2 max-[420px]:w-auto">
+          <div class="flex items-center gap-3 p-4">
+            <span class="orion-brand-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-semibold">{{ initial() }}</span>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-ink">{{ user()?.full_name || user()?.username || 'Orion account' }}</p>
+              @if (user()?.email) {
+                <p class="mt-0.5 truncate text-xs text-muted" [title]="user()?.email">{{ user()?.email }}</p>
+              }
+              @if (mailbox()) {
+                <p class="mt-1 truncate text-xs text-ink-soft" [title]="mailbox()?.mailbox_address">{{ mailbox()?.mailbox_address }}</p>
+              } @else {
+                <p class="mt-0.5 text-xs text-muted">Mailbox unavailable</p>
+              }
+            </div>
+          </div>
+          <div class="border-t border-line-soft p-2">
+            <button data-testid="profile-theme-toggle" role="switch" type="button" (click)="toggleTheme()" [attr.aria-checked]="themeService.theme() === 'dark'" [title]="themeService.theme() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'" class="mt-0.5 flex w-full cursor-pointer items-center justify-between gap-2.5 rounded-lg border-none bg-transparent px-2 py-2.5 text-left transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+              <span class="flex min-w-0 items-center gap-2.5">
+                <app-icon [name]="'darkMode'" class="h-4.5 w-4.5 shrink-0 text-icon" />
+                <span class="text-sm font-medium text-ink">Theme</span>
+              </span>
+              <span aria-hidden="true" class="relative h-5 w-9 shrink-0 rounded-full transition-colors duration-300" [class.bg-switch-track]="themeService.theme() !== 'dark'" [class.bg-switch-active]="themeService.theme() === 'dark'">
+                <span class="absolute bottom-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-[0_1px_3px_rgb(15_23_42/18%)] transition-transform duration-300" [class.translate-x-4]="themeService.theme() === 'dark'"></span>
+              </span>
+            </button>
+          </div>
+          <div class="border-t border-line-soft p-2">
+            <button data-testid="profile-settings" type="button" (click)="goToSettings()" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+              <app-icon [name]="'settings'" class="h-4.5 w-4.5 text-icon" />
+              Settings
+            </button>
+            <button type="button" (click)="goToOrionAccount()" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+              <app-icon [name]="'account'" class="h-4.5 w-4.5 text-icon" />
+              Manage Orion account
+            </button>
+            <button type="button" (click)="logout()" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-danger">
+              <app-icon [name]="'logout'" class="h-4.5 w-4.5" />
+              Sign out
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </header>
+
+  <div class="flex min-h-0 flex-1">
+    @if (mobileNavOpen()) {
+      <button type="button" (click)="closeMobileNavigation()" aria-label="Close navigation" animate.enter="mail-motion-dialog-backdrop-enter" animate.leave="mail-motion-dialog-backdrop-leave" class="fixed inset-x-0 top-16 bottom-0 z-30 hidden cursor-default border-none bg-scrim-soft backdrop-blur-[1px] max-[720px]:block"></button>
+    }
+
+    <aside class="{{ sidebarCollapsed() ? 'w-18' : 'w-60' }} {{ mobileNavOpen() ? 'max-[720px]:translate-x-0' : 'max-[720px]:-translate-x-full' }} z-40 flex shrink-0 flex-col overflow-hidden bg-transparent pt-2 pr-3 pb-4 transition-[width,transform] duration-200 max-[720px]:fixed max-[720px]:top-16 max-[720px]:bottom-0 max-[720px]:left-0 max-[720px]:w-68 max-[720px]:bg-elevated/95 max-[720px]:px-3 max-[720px]:backdrop-blur-xl max-[720px]:shadow-menu">
+      <button data-mail-action="compose" type="button" (click)="openCompose()" title="Compose" aria-label="Compose" class="mail-soft-white {{ sidebarCollapsed() ? 'w-12 justify-center px-2' : 'w-36 px-2' }} group mb-4 ml-2 flex h-12 shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-elevated text-sm font-medium text-ink transition-[background-color,border-color] hover:border-primary/35 hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-[720px]:w-36 max-[720px]:justify-start max-[720px]:px-2">
+        <span aria-hidden="true" class="flex h-8 w-8 shrink-0 items-center justify-center text-primary transition-colors group-hover:text-primary-dark">
+          <app-icon [name]="'edit'" class="h-4.5 w-4.5" />
+        </span>
+        <span class="{{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Compose</span>
+      </button>
+
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <nav aria-label="Mailbox folders" class="flex shrink-0 flex-col gap-px">
+          <a routerLink="/inbox" (click)="onSidebarNavigation()" routerLinkActive="bg-selected text-selected-ink" title="Inbox" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().unread.inbox > 0 || router.url.startsWith('/inbox')">
+            <app-icon [name]="'inbox'" class="h-5 w-5 shrink-0" />
+            <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Inbox</span>
+            @if (messageService.folderCounts().unread.inbox > 0) { <span class="text-xs font-bold {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ messageService.folderCounts().unread.inbox }}</span> }
+          </a>
+          <a data-mail-action="send" routerLink="/sent" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Sent" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <app-icon [name]="'send'" class="h-5 w-5 shrink-0" />
+            <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Sent</span>
+          </a>
+          <a routerLink="/drafts" (click)="onSidebarNavigation()" routerLinkActive="bg-selected text-selected-ink" title="Drafts" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().drafts > 0 || router.url.startsWith('/drafts')">
+            <app-icon [name]="'drafts'" class="h-5 w-5 shrink-0" />
+            <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Drafts</span>
+            @if (messageService.folderCounts().drafts > 0) { <span class="text-xs font-bold {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ messageService.folderCounts().drafts }}</span> }
+          </a>
+          <a routerLink="/spam" (click)="onSidebarNavigation()" routerLinkActive="bg-selected text-selected-ink" title="Spam" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().unread.spam > 0 || router.url.startsWith('/spam')">
+            <app-icon [name]="'spam'" class="h-5 w-5 shrink-0" />
+            <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Spam</span>
+            @if (messageService.folderCounts().unread.spam > 0) { <span class="text-xs font-bold {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ messageService.folderCounts().unread.spam }}</span> }
+          </a>
+          <button type="button" (click)="toggleMore()" [attr.aria-expanded]="moreOpen()" [title]="moreOpen() ? 'Less' : 'More'" class="flex h-8 w-full cursor-pointer items-center gap-4 rounded-r-full border-none bg-transparent pr-3 pl-6 text-left text-sm text-ink-soft transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <app-icon [name]="moreOpen() ? 'chevronUp' : 'chevronDown'" class="h-5 w-5 shrink-0" />
+            <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ moreOpen() ? 'Less' : 'More' }}</span>
+          </button>
+          @if (moreOpen()) {
+            <div animate.enter="mail-motion-content-enter" class="flex flex-col gap-px">
+              <a routerLink="/starred" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Starred" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+                <app-icon [name]="'starBorder'" class="h-5 w-5 shrink-0" />
+                <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Starred</span>
+              </a>
+              <a routerLink="/important" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Important" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+                <app-icon [name]="'labelImportant'" class="h-5 w-5 shrink-0" />
+                <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Important</span>
+              </a>
+              <a data-mail-action="archive" routerLink="/archive" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Archive" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+                <app-icon [name]="'archive'" class="h-5 w-5 shrink-0" />
+                <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Archive</span>
+              </a>
+              <a routerLink="/all" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="All Mail" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+                <app-icon [name]="'allMail'" class="h-5 w-5 shrink-0" />
+                <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">All Mail</span>
+              </a>
+              <a data-mail-action="delete" routerLink="/trash" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Trash" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+                <app-icon [name]="'delete'" class="h-5 w-5 shrink-0" />
+                <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Trash</span>
+              </a>
+              <button type="button" (click)="goToSettings()" title="Settings" class="flex h-8 w-full cursor-pointer items-center rounded-r-full border-none bg-transparent pr-3 pl-6 text-left text-sm text-ink-soft transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10 {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Settings</button>
+              <button type="button" (click)="goToLabelManager()" title="Manage labels" class="flex h-8 w-full cursor-pointer items-center rounded-r-full border-none bg-transparent pr-3 pl-6 text-left text-sm text-ink-soft transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10 {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Manage labels</button>
+              <button type="button" (click)="openCreateLabel()" title="Create new label" class="flex h-8 w-full cursor-pointer items-center rounded-r-full border-none bg-transparent pr-3 pl-6 text-left text-sm text-ink-soft transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10 {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Create new label</button>
+            </div>
+          }
+        </nav>
+
+        <div class="{{ sidebarCollapsed() ? 'justify-center px-0' : 'justify-between pr-1 pl-6' }} mt-4 flex h-8 shrink-0 items-center">
+          <span class="text-sm font-medium text-ink-soft {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Labels</span>
+          <div class="flex items-center">
+            <button type="button" (click)="openCreateLabel()" title="Create new label" aria-label="Create new label" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-primary">
+              <app-icon [name]="'plus'" class="h-5 w-5" />
+            </button>
+            <button type="button" (click)="goToLabelManager()" title="Manage labels" aria-label="Manage labels" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-primary {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">
+              <app-icon [name]="'settings'" class="h-4.5 w-4.5" />
+            </button>
+          </div>
+        </div>
+
+        <nav aria-label="Labels" class="flex shrink-0 flex-col gap-px pb-2">
+          @for (label of labelService.labels(); track label.id) {
+            <a [routerLink]="['/label', label.id]" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" [title]="label.name" animate.enter="mail-motion-row-enter" animate.leave="mail-motion-row-leave" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+              <span class="flex h-5 w-5 shrink-0 items-center justify-center"><span class="h-3 w-3 rounded-sm" [class]="labelColorClass(label.color)"></span></span>
+              <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ label.name }}</span>
+              @if (label.message_count > 0) { <span class="text-xs text-muted {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ label.message_count }}</span> }
+            </a>
+          } @empty {
+            @if (!sidebarCollapsed()) {
+              <button type="button" (click)="openCreateLabel()" class="mt-1 ml-6 cursor-pointer border-none bg-transparent py-1 text-left text-xs text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">Create your first label</button>
+            }
+          }
+        </nav>
+      </div>
+    </aside>
+
+    <main class="mail-paper-surface relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-transparent pr-4 pb-4 max-[720px]:px-2 max-[720px]:pb-2">
+      <router-outlet />
+    </main>
+  </div>
+
+  @if (composeService.request(); as request) {
+    <app-compose class="mail-paper-surface mail-soft-white" [request]="request" />
+  }
+
+  @if (labelService.createDialogOpen()) {
+    <app-label-dialog class="mail-paper-surface mail-soft-white" />
+  }
+
+  @if (composeService.notice()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="fixed bottom-6 left-6 z-[95] flex h-12 items-center rounded-lg border border-line bg-toast px-5 text-sm text-toast-ink shadow-toast" role="status">{{ composeService.notice() }}</div>
+  }
+</div>

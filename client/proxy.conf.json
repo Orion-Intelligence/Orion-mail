@@ -1,0 +1,42 @@
+{
+  "/auth": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/messages": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/labels": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/mailboxes": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/address-book": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/attachments": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/system-config": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/health": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

@@ -1,0 +1,148 @@
+services:
+  web:
+    container_name: orion-mail-web
+    build:
+      context: .
+      dockerfile: dockerFiles/api_docker
+    env_file:
+      - .env
+    environment:
+      MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:?MONGO_ROOT_USERNAME must be set}:${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set}@mongo:27017/?authSource=admin
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-orion_mail}
+      ATTACHMENT_STORAGE_DIR: /app/static/resource/attachments
+      SMTP_HOST: host.docker.internal
+      SMTP_PORT: "25"
+      SMTP_START_TLS: "false"
+      SEED_LOCAL_TEST_MAILBOXES: "true"
+      CORS_ALLOWED_ORIGINS: http://localhost:4300,http://127.0.0.1:4300
+      COOKIE_SECURE: "false"
+    working_dir: /app
+    depends_on:
+      mongo:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    volumes:
+      - ./backend/main.py:/app/main.py:cached
+      - ./backend/cronjobs.py:/app/cronjobs.py:cached
+      - ./backend/configs:/app/configs:cached
+      - ./backend/routes:/app/routes:cached
+      - ./backend/orion:/app/orion:cached
+      - ./backend/static/resource/attachments:/app/static/resource/attachments:rw
+    ports:
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+      - shared_bridge
+    healthcheck:
+      test: [ "CMD", "python3", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command: >
+      sh -c "python3 /app/cronjobs.py & exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/configs --reload-dir /app/orion --reload-dir /app/routes"
+
+  mongo:
+    container_name: orion-mail-mongodb
+    image: mongo:7.0@sha256:b6421fd6d1c5ded6377b397d8983e2f82e2100dc5123332dcfda2065a472be5b
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo:/data/db
+    command: [ "mongod", "--auth", "--bind_ip_all" ]
+    networks:
+      backend:
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  rspamd:
+    container_name: orion-mail-rspamd
+    image: rspamd/rspamd:3.11.1@sha256:116c2e05bb03073f5ff3b41f407fb5f9ac13ae726e8f8d0cd56231e97d49d7b7
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+    volumes:
+      - ./rspamd/local.d:/etc/rspamd/local.d:ro
+      - rspamd:/var/lib/rspamd
+    ports:
+      - "127.0.0.1:${RSPAMD_MILTER_PORT:-11332}:11332"
+      - "127.0.0.1:${RSPAMD_UI_PORT:-11334}:11334"
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD-SHELL", "rspamadm control stat > /dev/null 2>&1 || exit 1" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  clamav:
+    container_name: orion-mail-clamav
+    image: clamav/clamav:1.4@sha256:c3bfbf2a2c9abc1fc179e63832a9e8bfac901ede83853e3fa10acf6f1fb5c803
+    restart: unless-stopped
+    environment:
+      CLAMAV_NO_MILTERD: "true"
+      FRESHCLAM_CHECKS: "${FRESHCLAM_CHECKS:-2}"
+    volumes:
+      - ./clamav/clamd.conf:/etc/clamav/clamd.conf:ro
+      - clamav:/var/lib/clamav
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD-SHELL", "echo PING | nc -w 3 127.0.0.1 3310 | grep -q PONG" ]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 180s
+
+  redis:
+    container_name: orion-mail-redis
+    image: redis:7.4-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf
+    restart: unless-stopped
+    command: [ "redis-server", "--save", "60", "1", "--appendonly", "no" ]
+    volumes:
+      - redis:/data
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+networks:
+  backend:
+    driver: bridge
+  shared_bridge:
+    external: true
+
+volumes:
+  mongo:
+  rspamd:
+  clamav:
+  redis:

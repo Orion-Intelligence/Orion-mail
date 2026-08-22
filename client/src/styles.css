@@ -1,0 +1,577 @@
+@import "tailwindcss";
+@import "./app/shared/animations/mail-animations.css";
+
+@font-face {
+  font-family: Roboto;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/roboto-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Roboto;
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/roboto-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Roboto;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/roboto-latin-700-normal.woff2") format("woff2");
+}
+
+@theme {
+  --font-sans: "Roboto", "Google Sans", "Helvetica Neue", "Arial", sans-serif;
+  --color-page: #edf4fb;
+  --color-surface: #fff;
+  --color-surface-muted: #f6f9fc;
+  --color-elevated: #fff;
+  --color-field: #fff;
+  --color-chrome: #ffffff52;
+  --color-ink: #172235;
+  --color-ink-soft: #344054;
+  --color-icon: #4c6178;
+  --color-muted: #617086;
+  --color-snippet: #5e748b;
+  --color-faint: #8393a6;
+  --color-placeholder: #64748b;
+  --color-dot: #b8c7d7;
+  --color-switch-track: #c9d8ea;
+  --color-switch-active: #57a5eb;
+  --color-outline: #8497ac;
+  --color-nav-hover: #e7f0f9;
+  --color-line: #d4e0ec;
+  --color-line-soft: #e2eaf2;
+  --color-row-line: #e8eef5;
+  --color-primary: #146ca7;
+  --color-primary-dark: #105b91;
+  --color-primary-solid: #176fae;
+  --color-primary-solid-hover: #105b91;
+  --color-on-primary: #fff;
+  --color-primary-soft: #e4f2fd;
+  --color-link: #146ca7;
+  --color-brand: #3b91dd;
+  --color-accent: #d9edff;
+  --color-accent-hover: #c9e5fb;
+  --color-accent-ink: #173b5b;
+  --color-selected: #dcecff;
+  --color-selected-ink: #174e75;
+  --color-hover: #e7eff7;
+  --color-hover-soft: #eff5fa;
+  --color-chip: #f1f5f9;
+  --color-search: #fbfaf7;
+  --color-read: #f4f7fb;
+  --color-titlebar: #172235;
+  --color-titlebar-ink: #f8fafc;
+  --color-titlebar-muted: #c4cfdd;
+  --color-titlebar-hover: #ffffff1a;
+  --color-toast: #172235;
+  --color-toast-ink: #f8fafc;
+  --color-scrim: #07122573;
+  --color-scrim-soft: #07122542;
+  --color-selection: #b9ddfa;
+  --color-selection-ink: #102f49;
+  --color-danger: #b42318;
+  --color-danger-solid: #b42318;
+  --color-danger-solid-hover: #981b12;
+  --color-on-danger: #fff;
+  --color-danger-soft: #fff0ef;
+  --color-danger-outline: #efb3ad;
+  --color-success: #067647;
+  --color-success-soft: #ecfdf3;
+  --color-warning: #9a4f08;
+  --color-amber-soft: #fff8e6;
+  --color-purple: #6941c6;
+  --color-purple-soft: #f4f3ff;
+  --color-label-blue: #287fce;
+  --color-label-teal: #0f766e;
+  --color-label-violet: #7c3aed;
+  --color-label-orange: #c2410c;
+  --color-label-rose: #be123c;
+  --color-label-lime: #4d7c0f;
+  --color-label-slate: #475569;
+  --color-label-amber: #a16207;
+  --color-label-check: #fff;
+  --shadow-auth: 0 24px 70px rgb(30 72 110 / 16%), 0 2px 6px rgb(30 64 96 / 7%);
+  --shadow-menu: 0 14px 38px rgb(15 38 64 / 18%), 0 3px 8px rgb(15 38 64 / 8%);
+  --shadow-dialog: 0 28px 80px rgb(9 24 43 / 30%), 0 4px 14px rgb(9 24 43 / 12%);
+  --shadow-compose: 0 12px 30px rgb(9 24 43 / 18%), 0 4px 10px rgb(9 24 43 / 10%);
+  --shadow-subtle: 0 1px 3px rgb(30 64 96 / 8%);
+  --shadow-toast: 0 10px 28px rgb(9 24 43 / 24%), 0 3px 8px rgb(9 24 43 / 14%);
+}
+
+:root,
+.light-theme {
+  color-scheme: light;
+
+  --mail-backdrop-tint: rgb(237 244 251 / 18%);
+  --mail-avatar-start: #2584cc;
+  --mail-avatar-middle: #176da9;
+  --mail-avatar-end: #125a8d;
+  --mail-avatar-shadow: rgb(18 90 141 / 24%);
+}
+
+.dark-theme {
+  color-scheme: dark;
+
+  --color-page: #090b0f;
+  --color-surface: #14171c;
+  --color-surface-muted: #101318;
+  --color-elevated: #1b1f25;
+  --color-field: #0f1217;
+  --color-chrome: #0e1116d1;
+  --color-ink: #eef1f5;
+  --color-ink-soft: #cbd1da;
+  --color-icon: #a0a9b5;
+  --color-muted: #8d97a5;
+  --color-snippet: #818c9a;
+  --color-faint: #727e8d;
+  --color-placeholder: #808b99;
+  --color-dot: #3a414b;
+  --color-switch-track: #46505c;
+  --color-switch-active: #57a5eb;
+  --color-outline: #626c79;
+  --color-nav-hover: #1c2128;
+  --color-line: #353c46;
+  --color-line-soft: #2b3139;
+  --color-row-line: #252b33;
+  --color-primary: #8fb8ff;
+  --color-primary-dark: #bdd3ff;
+  --color-primary-solid: #3268bd;
+  --color-primary-solid-hover: #285fac;
+  --color-on-primary: #fff;
+  --color-primary-soft: #222f47;
+  --color-link: #9ec2ff;
+  --color-brand: #77a5f6;
+  --color-accent: #3268bd;
+  --color-accent-hover: #386ec4;
+  --color-accent-ink: #fff;
+  --color-selected: #253147;
+  --color-selected-ink: #e5edff;
+  --color-hover: #20262e;
+  --color-hover-soft: #1b2027;
+  --color-chip: #1d232b;
+  --color-search: #20252c;
+  --color-read: #111419;
+  --color-titlebar: #0c0f13;
+  --color-titlebar-ink: #f8fafc;
+  --color-titlebar-muted: #bdcad9;
+  --color-titlebar-hover: #ffffff1f;
+  --color-toast: #0c0f13;
+  --color-toast-ink: #f8fafc;
+  --color-scrim: #020711b8;
+  --color-scrim-soft: #02071175;
+  --color-selection: #2e5796;
+  --color-selection-ink: #f5faff;
+  --color-danger: #ff8a8a;
+  --color-danger-solid: #b93842;
+  --color-danger-solid-hover: #a62f39;
+  --color-on-danger: #fff;
+  --color-danger-soft: #351821;
+  --color-danger-outline: #693039;
+  --color-success: #5bd6a0;
+  --color-success-soft: #0e3327;
+  --color-warning: #f4bf63;
+  --color-amber-soft: #3c2b10;
+  --color-purple: #b8a5ff;
+  --color-purple-soft: #2d244d;
+  --color-label-blue: #57a5eb;
+  --color-label-teal: #39c6b4;
+  --color-label-violet: #a78bfa;
+  --color-label-orange: #f59e6b;
+  --color-label-rose: #fb7185;
+  --color-label-lime: #8fd164;
+  --color-label-slate: #91a4bb;
+  --color-label-amber: #e6ad3c;
+  --color-label-check: #08111f;
+  --shadow-auth: 0 30px 90px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 28%);
+  --shadow-menu: 0 18px 48px rgb(0 0 0 / 42%), 0 4px 12px rgb(0 0 0 / 28%);
+  --shadow-dialog: 0 32px 90px rgb(0 0 0 / 56%), 0 6px 18px rgb(0 0 0 / 34%);
+  --shadow-compose: 0 18px 50px rgb(0 0 0 / 46%), 0 5px 14px rgb(0 0 0 / 30%);
+  --shadow-subtle: 0 2px 6px rgb(0 0 0 / 22%);
+  --shadow-toast: 0 14px 38px rgb(0 0 0 / 46%), 0 4px 12px rgb(0 0 0 / 28%);
+  --mail-backdrop-tint: rgb(8 10 14 / 95%);
+  --mail-avatar-start: #2b83c1;
+  --mail-avatar-middle: #1d6fa9;
+  --mail-avatar-end: #175887;
+  --mail-avatar-shadow: rgb(0 0 0 / 32%);
+}
+
+.dark-theme .mail-paper-surface {
+  color-scheme: light;
+
+  --color-surface: rgb(222 222 217 / 92%);
+  --color-surface-muted: rgb(210 211 207 / 92%);
+  --color-elevated: rgb(229 227 222 / 95%);
+  --color-field: rgb(235 233 228 / 96%);
+  --color-ink: #202833;
+  --color-ink-soft: #3d4855;
+  --color-icon: #526475;
+  --color-muted: #465667;
+  --color-snippet: #445567;
+  --color-faint: #697582;
+  --color-placeholder: #48586a;
+  --color-dot: #bac2ca;
+  --color-outline: #929eaa;
+  --color-line: #bdc5cc;
+  --color-line-soft: #c9cfd4;
+  --color-row-line: #d0d5d9;
+  --color-primary: #176da5;
+  --color-primary-dark: #115b8c;
+  --color-primary-solid: #176fae;
+  --color-primary-solid-hover: #105b91;
+  --color-on-primary: #fff;
+  --color-primary-soft: rgb(204 223 237 / 94%);
+  --color-link: #146ca7;
+  --color-selected: rgb(190 210 226 / 94%);
+  --color-selected-ink: #164a70;
+  --color-hover: rgb(202 211 217 / 96%);
+  --color-hover-soft: rgb(207 214 218 / 95%);
+  --color-chip: rgb(207 211 214 / 94%);
+  --color-read: rgb(207 209 206 / 92%);
+  --color-titlebar: #202833;
+  --color-titlebar-ink: #f7f8fa;
+  --color-titlebar-muted: #c6ced7;
+  --color-titlebar-hover: #ffffff1a;
+  --color-selection: #b9ddfa;
+  --color-selection-ink: #102f49;
+  --color-danger: #b42318;
+  --color-danger-solid: #b42318;
+  --color-danger-solid-hover: #981b12;
+  --color-danger-soft: #f8e8e6;
+  --color-danger-outline: #e2aaa4;
+  --color-success: #067647;
+  --color-success-soft: #e6f6ec;
+  --color-warning: #8a520d;
+  --color-amber-soft: #f6eedc;
+  --color-purple: #6143ad;
+  --color-purple-soft: #eeeaf8;
+  --color-label-blue: #287fce;
+  --color-label-teal: #0f766e;
+  --color-label-violet: #7c3aed;
+  --color-label-orange: #c2410c;
+  --color-label-rose: #be123c;
+  --color-label-lime: #4d7c0f;
+  --color-label-slate: #475569;
+  --color-label-amber: #a16207;
+  --color-label-check: #fff;
+}
+
+.dark-theme :is(.mail-soft-white, .mail-paper-surface [role="menu"]) {
+  color-scheme: light;
+
+  --color-surface: rgb(246 246 243 / 98%);
+  --color-surface-muted: rgb(238 240 239 / 98%);
+  --color-elevated: rgb(246 246 243 / 98%);
+  --color-field: rgb(250 249 246 / 99%);
+  --color-search: rgb(246 246 243 / 98%);
+  --color-ink: #172235;
+  --color-ink-soft: #344054;
+  --color-icon: #4c6178;
+  --color-muted: #59697d;
+  --color-snippet: #566c82;
+  --color-faint: #79899b;
+  --color-placeholder: #5d6d81;
+  --color-dot: #b3c1ce;
+  --color-switch-track: #c3d1df;
+  --color-switch-active: #57a5eb;
+  --color-outline: #8497ac;
+  --color-line: #cbd6df;
+  --color-line-soft: #dce4ea;
+  --color-row-line: #e0e6eb;
+  --color-primary: #146ca7;
+  --color-primary-dark: #105b91;
+  --color-primary-soft: #e1eef8;
+  --color-link: #146ca7;
+  --color-selected: #d8e8f7;
+  --color-selected-ink: #174e75;
+  --color-hover: #e4eaf0;
+  --color-hover-soft: #e9eef2;
+  --color-read: rgb(237 240 241 / 98%);
+  --color-danger: #b42318;
+  --color-danger-soft: #f8e8e6;
+  --shadow-menu: 0 16px 42px rgb(0 0 0 / 26%), 0 3px 9px rgb(0 0 0 / 14%);
+}
+
+.mail-message-surface,
+.mail-message-surface .mail-soft-white,
+.mail-message-surface [role="menu"] {
+  color-scheme: light;
+
+  --color-surface: #fff;
+  --color-surface-muted: #f2f6fc;
+  --color-elevated: #fff;
+  --color-field: #fff;
+  --color-ink: #202124;
+  --color-ink-soft: #202124;
+  --color-icon: #5f6368;
+  --color-muted: #5f6368;
+  --color-snippet: #5f6368;
+  --color-faint: #80868b;
+  --color-placeholder: #5f6368;
+  --color-dot: transparent;
+  --color-outline: #5f6368;
+  --color-line: rgb(100 121 143 / 24%);
+  --color-line-soft: rgb(100 121 143 / 12%);
+  --color-row-line: rgb(100 121 143 / 12%);
+  --color-primary: #146ca7;
+  --color-primary-dark: #105b91;
+  --color-primary-soft: #d3e3fd;
+  --color-link: #146ca7;
+  --color-selected: #c2dbff;
+  --color-selected-ink: #202124;
+  --color-hover: rgb(32 33 36 / 6%);
+  --color-hover-soft: rgb(32 33 36 / 6%);
+  --color-chip: rgb(32 33 36 / 6%);
+  --color-read: #f2f6fc;
+  --color-danger: #b42318;
+  --color-danger-soft: #f9dedc;
+  --color-warning: #8a520d;
+  --color-amber-soft: #fff3d6;
+}
+
+.dark-theme .mail-message-surface,
+.dark-theme .mail-message-surface .mail-soft-white,
+.dark-theme .mail-message-surface [role="menu"] {
+  --color-surface: #cdcfd2;
+  --mail-unread-row: #d9dbde;
+  --color-surface-muted: #c4c6c9;
+  --color-elevated: #cdcfd2;
+  --color-field: #cdcfd2;
+  --color-primary-soft: #b8cee0;
+  --color-read: #b9bec0;
+  --color-danger-soft: #e7c5c2;
+  --color-amber-soft: #ded1b5;
+}
+
+.mail-message-surface {
+  border-color: transparent;
+  font-family: "Google Sans", Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+  letter-spacing: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mail-message-surface > :first-child {
+  height: 48px;
+  padding-inline: 16px;
+  border-bottom-color: transparent;
+}
+
+.mail-message-surface [role="list"] > [role="listitem"] {
+  border-bottom: 0;
+  box-shadow: inset 0 -1px 0 0 rgb(100 121 143 / 12%);
+  font-family: "Google Sans", Roboto, RobotoDraft, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  letter-spacing: normal;
+}
+
+.mail-message-surface [role="list"] > [role="listitem"] .font-semibold {
+  font-weight: 700;
+}
+
+.mail-message-surface [role="list"] > [role="listitem"].bg-surface:hover {
+  background-color: var(--color-surface);
+}
+
+.mail-message-surface [role="list"] > [role="listitem"].bg-read:hover {
+  background-color: var(--color-read);
+}
+
+.mail-message-surface [role="list"] > [role="listitem"].bg-selected:hover {
+  background-color: var(--color-selected);
+}
+
+.dark-theme .mail-message-surface [role="list"] > [role="listitem"].bg-surface,
+.dark-theme .mail-message-surface [role="list"] > [role="listitem"].bg-surface:hover {
+  background-color: var(--mail-unread-row);
+}
+
+.mail-message-surface .mail-message-card {
+  --color-surface: #fafbfc;
+
+  border-color: #d7dee6;
+  background-color: var(--color-surface);
+  box-shadow: 0 1px 2px rgb(32 33 36 / 8%), 0 2px 6px rgb(60 64 67 / 6%);
+}
+
+.dark-theme .mail-message-surface .mail-message-card {
+  --color-surface: #e5e6e8;
+
+  border-color: #b5bbc1;
+  box-shadow: 0 1px 2px rgb(32 33 36 / 16%), 0 2px 6px rgb(32 33 36 / 10%);
+}
+
+.mail-message-surface [role="list"] > [role="listitem"]:hover {
+  z-index: 2;
+  box-shadow:
+    inset 1px 0 0 rgb(218 220 224),
+    inset -1px 0 0 rgb(218 220 224),
+    0 1px 2px 0 rgb(60 64 67 / 30%),
+    0 1px 3px 1px rgb(60 64 67 / 15%);
+}
+
+.mail-message-surface [role="list"] > [role="listitem"]:focus-visible {
+  z-index: 3;
+  box-shadow:
+    inset 0 0 0 2px var(--color-primary),
+    inset 0 -1px 0 0 rgb(100 121 143 / 12%);
+}
+
+.mail-message-surface .mail-row-dot {
+  display: none;
+}
+
+.mail-google-dropdown {
+  color: #202124;
+  color-scheme: light;
+  background: #fff;
+  border-color: #dadce0;
+  box-shadow:
+    0 8px 16px rgb(60 64 67 / 24%),
+    0 2px 6px rgb(60 64 67 / 16%);
+  scrollbar-color: #bdc1c6 #fff;
+}
+
+.mail-google-dropdown-option {
+  color: #202124;
+  background: #fff;
+}
+
+button.mail-google-dropdown-option:hover,
+button.mail-google-dropdown-option:focus-visible,
+button.mail-google-dropdown-option[aria-selected="true"] {
+  background: #f1f3f4;
+}
+
+.mail-google-dropdown-avatar {
+  color: #1967d2;
+  background: #e8f0fe;
+}
+
+html,
+body {
+  background-color: var(--color-page);
+}
+
+.orion-mail-shell {
+  background-image: linear-gradient(var(--mail-backdrop-tint), var(--mail-backdrop-tint)),
+    url("/assets/images/orion-mail-backdrop.webp");
+}
+
+.mail-configure-page {
+  background:
+    radial-gradient(circle at 18% 10%, rgb(255 255 255 / 42%), transparent 38%),
+    linear-gradient(145deg, rgb(237 244 251 / 88%) 0%, rgb(240 246 251 / 78%) 52%, rgb(235 242 249 / 86%) 100%);
+}
+
+.dark-theme .mail-configure-page {
+  background:
+    radial-gradient(circle at 18% 10%, rgb(42 75 112 / 18%), transparent 38%),
+    linear-gradient(145deg, rgb(8 10 14 / 92%) 0%, rgb(12 16 22 / 88%) 52%, rgb(7 10 14 / 94%) 100%);
+}
+
+.mail-shell-canvas {
+  background:
+    radial-gradient(ellipse 72% 52% at 7% -14%, rgb(62 140 201 / 15%), transparent 64%),
+    radial-gradient(ellipse 58% 58% at 104% 112%, rgb(116 98 199 / 8%), transparent 68%),
+    linear-gradient(145deg, rgb(248 250 252 / 82%) 0%, rgb(241 247 252 / 76%) 48%, rgb(245 249 252 / 84%) 100%),
+    url("/assets/images/orion-mail-backdrop.webp") center / cover no-repeat;
+}
+
+.dark-theme .mail-shell-canvas {
+  background:
+    radial-gradient(ellipse 72% 52% at 7% -14%, rgb(62 111 190 / 24%), transparent 64%),
+    radial-gradient(ellipse 58% 58% at 104% 112%, rgb(105 76 170 / 14%), transparent 68%),
+    linear-gradient(145deg, rgb(9 11 15 / 94%) 0%, rgb(16 20 26 / 91%) 48%, rgb(9 14 20 / 94%) 100%),
+    url("/assets/images/orion-mail-backdrop.webp") center / cover no-repeat;
+}
+
+.orion-logo-dark {
+  display: none;
+}
+
+.dark-theme .orion-logo-light {
+  display: none;
+}
+
+.dark-theme .orion-logo-dark {
+  display: block;
+}
+
+.orion-brand-avatar {
+  color: #fff;
+  background: linear-gradient(135deg, var(--mail-avatar-start) 0%, var(--mail-avatar-middle) 58%, var(--mail-avatar-end) 100%);
+  box-shadow: 0 3px 10px var(--mail-avatar-shadow);
+}
+
+* {
+  scrollbar-color: var(--color-outline) transparent;
+}
+
+::selection {
+  color: var(--color-selection-ink);
+  background: var(--color-selection);
+}
+
+app-root :is(input, textarea, select) {
+  color: var(--color-ink);
+  caret-color: var(--color-primary);
+}
+
+app-root option {
+  color: var(--color-ink);
+  background: var(--color-elevated);
+}
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  [data-print-hidden],
+  app-navbar > div > header,
+  app-navbar aside {
+    display: none !important;
+  }
+
+  html,
+  body,
+  app-root,
+  app-navbar,
+  app-navbar > div,
+  app-navbar > div > div,
+  app-navbar main,
+  app-message-detail,
+  app-message-detail article,
+  [data-print-scroll] {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  app-navbar > div,
+  app-navbar > div > div,
+  app-navbar main,
+  app-message-detail,
+  app-message-detail article {
+    display: block !important;
+  }
+
+  app-navbar main {
+    padding: 0 !important;
+  }
+
+  app-message-detail article {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+}

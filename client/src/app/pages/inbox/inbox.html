@@ -1,0 +1,167 @@
+<section aria-label="Inbox" class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface" [attr.aria-busy]="loading() || actionLoading()">
+  <div #toolbarArea class="flex h-12 shrink-0 items-center gap-1 border-b border-row-line px-3">
+    <div class="relative flex shrink-0 items-center rounded-lg hover:bg-hover-soft">
+      <label class="flex h-10 w-9 cursor-pointer items-center justify-center" title="Select messages">
+        <input type="checkbox" aria-label="Select messages on this page" [checked]="allPageSelected()" [indeterminate]="somePageSelected() && !allPageSelected()" [attr.aria-checked]="somePageSelected() && !allPageSelected() ? 'mixed' : allPageSelected()" (change)="toggleCurrentPageSelection()" class="h-4 w-4 cursor-pointer accent-primary" />
+      </label>
+      <button type="button" (click)="toggleMenu('select')" [attr.aria-expanded]="activeMenu() === 'select'" aria-haspopup="menu" title="Select options" aria-label="Select options" class="flex h-10 w-6 cursor-pointer items-center justify-center rounded-r-lg border-none bg-transparent text-icon focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'chevronDown'" class="h-4 w-4" /></button>
+      @if (activeMenu() === 'select') {
+        <div role="menu" aria-label="Select messages" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 w-44 overflow-hidden rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left]">
+          <button role="menuitem" type="button" (click)="selectMode('all')" class="flex h-9 w-full cursor-pointer items-center border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">All</button>
+          <button role="menuitem" type="button" (click)="selectMode('none')" class="flex h-9 w-full cursor-pointer items-center border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">None</button>
+          <button role="menuitem" type="button" (click)="selectMode('read')" class="flex h-9 w-full cursor-pointer items-center border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Read</button>
+          <button role="menuitem" type="button" (click)="selectMode('unread')" class="flex h-9 w-full cursor-pointer items-center border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Unread</button>
+          <button role="menuitem" type="button" (click)="selectMode('starred')" class="flex h-9 w-full cursor-pointer items-center border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Starred</button>
+          <button role="menuitem" type="button" (click)="selectMode('unstarred')" class="flex h-9 w-full cursor-pointer items-center border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Unstarred</button>
+        </div>
+      }
+    </div>
+
+    @if (selectedCount() > 0) {
+      <span class="ml-1 text-xs font-medium whitespace-nowrap text-muted max-[620px]:hidden">{{ selectedCount() }} selected</span>
+      <span class="mx-1 h-6 w-px bg-line-soft max-[620px]:hidden"></span>
+      <button data-mail-action="archive" type="button" (click)="runSelectedAction('archive')" [disabled]="actionLoading()" title="Archive" aria-label="Archive selected messages" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-hover-soft hover:enabled:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-50"><app-icon [name]="'archive'" class="h-5 w-5" /></button>
+      <button data-mail-action="report" type="button" (click)="reportSelected('spam')" [disabled]="actionLoading()" title="Report spam" aria-label="Report selected messages as spam" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-danger-soft hover:enabled:text-danger focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-50 max-[820px]:hidden"><app-icon [name]="'spam'" class="h-5 w-5" /></button>
+      <button data-mail-action="delete" type="button" (click)="runSelectedAction('trash')" [disabled]="actionLoading()" title="Move to Trash" aria-label="Move selected messages to Trash" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-danger-soft hover:enabled:text-danger focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-50"><app-icon [name]="'delete'" class="h-5 w-5" /></button>
+      <button [attr.data-mail-action]="selectedContainUnread() ? 'mark-read' : 'mark-unread'" type="button" (click)="runSelectedAction(selectedContainUnread() ? 'mark_read' : 'mark_unread')" [disabled]="actionLoading()" [title]="selectedContainUnread() ? 'Mark as read' : 'Mark as unread'" [attr.aria-label]="selectedContainUnread() ? 'Mark selected messages as read' : 'Mark selected messages as unread'" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-hover-soft hover:enabled:text-primary focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-50 max-[760px]:hidden"><app-icon [name]="selectedContainUnread() ? 'markRead' : 'markUnread'" class="h-5 w-5" /></button>
+
+      <div class="relative max-[980px]:hidden">
+        <button data-mail-action="move" type="button" (click)="toggleMenu('move')" [attr.aria-expanded]="activeMenu() === 'move'" aria-haspopup="menu" title="Move to" aria-label="Move selected messages" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'moveTo'" class="h-5 w-5" /></button>
+        @if (activeMenu() === 'move') {
+          <div role="menu" aria-label="Move selected messages" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 w-52 overflow-hidden rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)]">
+            <button role="menuitem" type="button" (click)="runSelectedAction('move', { destination: 'archive' })" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'archive'" class="h-4.5 w-4.5 text-icon" />Archive</button>
+            <button role="menuitem" type="button" (click)="runSelectedAction('move', { destination: 'spam' })" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'spam'" class="h-4.5 w-4.5 text-icon" />Spam</button>
+            <button role="menuitem" type="button" (click)="runSelectedAction('move', { destination: 'trash' })" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-danger hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'delete'" class="h-4.5 w-4.5" />Trash</button>
+          </div>
+        }
+      </div>
+
+      <div class="relative">
+        <button data-mail-action="label" type="button" (click)="toggleMenu('labels')" [attr.aria-expanded]="activeMenu() === 'labels'" aria-haspopup="menu" title="Labels" aria-label="Add labels to selected messages" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'label'" class="h-5 w-5" /></button>
+        @if (activeMenu() === 'labels') {
+          <div animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 w-72 overflow-hidden rounded-xl border border-line bg-surface shadow-[0_12px_34px_rgba(15,23,42,0.22)] max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
+            <div class="border-b border-line-soft px-4 py-3"><p class="text-sm font-medium text-ink">Add labels</p><p class="mt-0.5 text-xs text-muted">Existing labels are kept.</p></div>
+            <div class="max-h-56 overflow-y-auto p-2">
+              @for (label of labelService.labels(); track label.id) {
+                <label class="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-ink-soft hover:bg-hover-soft">
+                  <input type="checkbox" [checked]="draftLabelIds().includes(label.id)" (change)="toggleDraftLabel(label.id)" class="h-4 w-4 accent-primary" />
+                  <span class="h-3 w-3 shrink-0 rounded-sm" [class]="labelColorClass(label.color)"></span>
+                  <span class="min-w-0 flex-1 truncate">{{ label.name }}</span>
+                </label>
+              } @empty { <div class="px-3 py-6 text-center text-sm text-muted">No labels yet.</div> }
+            </div>
+            <div class="flex justify-end border-t border-line-soft p-2"><button type="button" (click)="applyBulkLabels()" [disabled]="draftLabelIds().length === 0" class="h-9 cursor-pointer rounded-full border-none bg-primary px-4 text-xs font-semibold text-white hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-45">Apply</button></div>
+          </div>
+        }
+      </div>
+
+      <div class="relative">
+        <button data-mail-action="more" type="button" (click)="toggleMenu('more')" [attr.aria-expanded]="activeMenu() === 'more'" aria-haspopup="menu" title="More" aria-label="More bulk actions" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'more'" class="h-5 w-5" /></button>
+        @if (activeMenu() === 'more') {
+          <div role="menu" aria-label="More bulk actions" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 max-h-[72vh] w-64 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
+            <button role="menuitem" type="button" (click)="runSelectedAction('archive')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'archive'" class="h-4.5 w-4.5 text-icon" />Archive</button>
+            <button role="menuitem" type="button" (click)="runSelectedAction(selectedContainUnread() ? 'mark_read' : 'mark_unread')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="selectedContainUnread() ? 'markRead' : 'markUnread'" class="h-4.5 w-4.5 text-icon" />{{ selectedContainUnread() ? 'Mark as read' : 'Mark as unread' }}</button>
+            <button role="menuitem" type="button" (click)="runSelectedAction(selectedContainUnstarred() ? 'star' : 'unstar')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="selectedContainUnstarred() ? 'starBorder' : 'star'" class="h-4.5 w-4.5 text-icon" />{{ selectedContainUnstarred() ? 'Add star' : 'Remove star' }}</button>
+            <button role="menuitem" type="button" (click)="runSelectedAction(selectedContainNotImportant() ? 'mark_important' : 'mark_not_important')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="selectedContainNotImportant() ? 'labelImportant' : 'labelImportantFilled'" class="h-4.5 w-4.5 text-icon" />{{ selectedContainNotImportant() ? 'Mark as important' : 'Mark as not important' }}</button>
+            <div class="my-1 border-t border-line-soft"></div>
+            <button role="menuitem" type="button" (click)="reportSelected('spam')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-danger hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'spam'" class="h-4.5 w-4.5" />Report spam</button>
+            <button role="menuitem" type="button" (click)="reportSelected('phishing')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-danger hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'phishing'" class="h-4.5 w-4.5" />Report phishing</button>
+            <button role="menuitem" type="button" (click)="runSelectedAction('trash')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-danger hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'delete'" class="h-4.5 w-4.5" />Move to Trash</button>
+          </div>
+        }
+      </div>
+    } @else {
+      <button data-mail-action="refresh" type="button" (click)="loadInboxMessages()" [disabled]="loading()" title="Refresh inbox" aria-label="Refresh inbox" class="ml-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-60"><app-icon [name]="'refresh'" class="h-5 w-5" [class.animate-spin]="loading()" /></button>
+      <div class="relative">
+        <button data-mail-action="more" type="button" (click)="toggleMenu('more')" [attr.aria-expanded]="activeMenu() === 'more'" aria-haspopup="menu" title="More" aria-label="More inbox options" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'more'" class="h-5 w-5" /></button>
+        @if (activeMenu() === 'more') {
+          <div role="menu" aria-label="More inbox options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 w-56 overflow-hidden rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left]">
+            <button role="menuitem" type="button" (click)="selectMode('all')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Select all visible</button>
+            <button role="menuitem" type="button" (click)="runVisibleAction('mark_read')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'markRead'" class="h-4.5 w-4.5 text-icon" />Mark visible as read</button>
+            <button role="menuitem" type="button" (click)="runVisibleAction('mark_unread')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'markUnread'" class="h-4.5 w-4.5 text-icon" />Mark visible as unread</button>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="ml-auto flex shrink-0 items-center">
+      <div class="relative">
+        <button type="button" (click)="toggleMenu('sort')" [attr.aria-expanded]="activeMenu() === 'sort'" aria-haspopup="menu" title="Change message order" class="flex h-9 cursor-pointer items-center gap-1 rounded-lg border-none bg-transparent px-2 text-xs text-muted hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary max-[520px]:px-1.5"><span>{{ pageStart() }}–{{ pageEnd() }} of {{ filteredMessages().length }}</span><app-icon [name]="'chevronDown'" class="h-3.5 w-3.5" /></button>
+        @if (activeMenu() === 'sort') {
+          <div role="menu" aria-label="Message order" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-10 right-0 z-50 w-36 overflow-hidden rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)]">
+            <button role="menuitem" type="button" (click)="setSortOrder('newest')" class="flex h-9 w-full cursor-pointer items-center justify-between border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Newest @if (sortOrder() === 'newest') { <app-icon [name]="'check'" class="h-4 w-4 text-primary" /> }</button>
+            <button role="menuitem" type="button" (click)="setSortOrder('oldest')" class="flex h-9 w-full cursor-pointer items-center justify-between border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Oldest @if (sortOrder() === 'oldest') { <app-icon [name]="'check'" class="h-4 w-4 text-primary" /> }</button>
+          </div>
+        }
+      </div>
+      <button data-mail-action="previous" type="button" (click)="goToPreviousPage()" [disabled]="currentPage() === 0" title="Newer page" aria-label="Newer page" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default disabled:opacity-35"><app-icon [name]="'prev'" class="h-5 w-5" /></button>
+      <button data-mail-action="next" type="button" (click)="goToNextPage()" [disabled]="currentPage() >= pageCount() - 1" title="Older page" aria-label="Older page" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default disabled:opacity-35"><app-icon [name]="'next'" class="h-5 w-5" /></button>
+    </div>
+  </div>
+
+  @if (mailPollService.pendingNewMail() > 0) {
+    <button type="button" (click)="loadNewMail()" animate.enter="mail-motion-notice-enter" class="mx-4 my-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border-none bg-primary-soft px-4 py-2.5 text-[13px] font-medium text-primary transition-colors hover:bg-primary-soft/70 focus-visible:outline-2 focus-visible:outline-primary">
+      <app-icon [name]="'refresh'" class="h-4 w-4" />
+      {{ mailPollService.pendingNewMail() === 1 ? '1 new message' : mailPollService.pendingNewMail() + ' new messages' }} — click to refresh
+    </button>
+  }
+
+  @if (loading() || actionLoading()) {
+    <div class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft"><div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div></div>
+  }
+
+  @if (errorMessage()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 my-2 flex items-center justify-between gap-4 rounded-lg bg-danger-soft px-4 py-3 text-[13px] text-danger" role="alert">
+      <span>{{ errorMessage() }}</span>
+      <button type="button" (click)="loadInboxMessages()" class="shrink-0 cursor-pointer rounded-md border-none bg-transparent px-2 py-1 text-xs font-semibold text-danger hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-danger">Try again</button>
+    </div>
+  }
+
+  @if (actionNotice()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 my-2 flex items-center justify-between gap-4 rounded-lg bg-primary-soft px-4 py-2.5 text-[13px] text-primary" role="status"><span>{{ actionNotice() }}</span><button type="button" (click)="actionNotice.set('')" title="Dismiss" aria-label="Dismiss notification" class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-primary hover:bg-surface/60 focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'close'" class="h-4 w-4" /></button></div>
+  }
+
+  @if (!loading() && !errorMessage() && filteredMessages().length === 0) {
+    <div class="flex flex-1 flex-col items-center justify-center px-5 py-16 text-center">
+      <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-hover-soft text-faint"><app-icon [name]="searchTerm() ? 'search' : 'inbox'" class="h-6 w-6" /></span>
+      <h2 class="text-sm font-medium text-ink-soft">{{ searchTerm() ? 'No messages match your search' : 'No messages in Inbox' }}</h2>
+      @if (searchTerm()) { <button type="button" (click)="searchTerm.set('')" class="mt-3 cursor-pointer rounded-full border-none bg-transparent px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Clear search</button> }
+    </div>
+  } @else if (pageMessages().length > 0) {
+    <div role="list" aria-label="Inbox messages" class="min-h-0 flex-1 overflow-y-auto">
+      @for (message of pageMessages(); track message.id) {
+        <div role="listitem" tabindex="0" [attr.aria-selected]="selectedIds().has(message.id)" (click)="openMessage(message.id)" (keydown.enter)="openMessage(message.id)" (keydown.space)="$event.preventDefault(); openMessage(message.id)" class="mail-soft-white group grid h-10 cursor-pointer grid-cols-[5.9375rem_minmax(8rem,12.5rem)_minmax(0,1fr)_2rem_5rem] items-center border-b border-row-line px-3 outline-none transition-colors last:border-b-0 hover:bg-hover-soft focus-visible:relative focus-visible:z-1 focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] max-[900px]:grid-cols-[5.9375rem_minmax(7rem,10rem)_minmax(0,1fr)_5rem] max-[720px]:h-auto max-[720px]:min-h-16 max-[720px]:grid-cols-[2.5rem_minmax(0,1fr)_5rem] max-[720px]:grid-rows-[auto_auto] max-[720px]:gap-y-0.5 max-[720px]:px-2 max-[720px]:py-2" [class.bg-selected]="selectedIds().has(message.id)" [class.bg-read]="message.is_read && !selectedIds().has(message.id)" [class.bg-surface]="!message.is_read && !selectedIds().has(message.id)">
+          <span class="flex h-10 items-center gap-1 pl-2.5 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:pl-3.5">
+            <input type="checkbox" [checked]="selectedIds().has(message.id)" [attr.aria-label]="'Select message from ' + message.sender_address" (click)="$event.stopPropagation()" (change)="toggleMessageSelection(message.id)" class="h-4 w-4 cursor-pointer accent-primary" />
+            <button data-mail-action="star" type="button" (click)="$event.stopPropagation(); toggleStar(message)" [title]="message.is_starred ? 'Remove star' : 'Add star'" [attr.aria-label]="message.is_starred ? 'Remove star from message' : 'Star message'" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary max-[720px]:hidden" [class.text-warning]="message.is_starred" [class.text-faint]="!message.is_starred"><app-icon [name]="message.is_starred ? 'star' : 'starBorder'" class="h-4.5 w-4.5" /></button>
+            <button data-mail-action="important" type="button" (click)="$event.stopPropagation(); toggleImportant(message)" [title]="message.is_important ? 'Mark as not important' : 'Mark as important'" [attr.aria-label]="message.is_important ? 'Mark message as not important' : 'Mark message as important'" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary max-[720px]:hidden" [class.text-warning]="message.is_important" [class.text-faint]="!message.is_important"><app-icon [name]="message.is_important ? 'labelImportantFilled' : 'labelImportant'" class="h-4.5 w-4.5" /></button>
+          </span>
+
+          <span class="flex min-w-0 items-center pr-8 text-sm text-ink-soft max-[720px]:col-start-2 max-[720px]:row-start-1 max-[720px]:pr-2" [title]="message.sender_address" [class.font-semibold]="!message.is_read">
+            <span class="mail-row-dot mr-3 h-2 w-2 shrink-0 rounded-full max-[720px]:mr-2" [class.bg-primary]="!message.is_read" [class.bg-transparent]="message.is_read"></span>
+            <span class="truncate">{{ message.sender_address.split('@')[0] }}</span>
+            <span class="ml-auto hidden shrink-0 pl-2 text-[11px] text-muted max-[720px]:inline">{{ formatMailDate(message.created_at) }}</span>
+          </span>
+
+          <span class="flex min-w-0 items-baseline gap-1 truncate text-sm max-[720px]:col-start-2 max-[720px]:row-start-2 max-[720px]:pl-4 max-[720px]:text-[13px]">
+            <span class="max-w-[55%] shrink-0 truncate text-ink-soft" [class.font-semibold]="!message.is_read">{{ message.subject || '(no subject)' }}</span>
+            @for (label of messageLabels(message.label_ids).slice(0, 2); track label.id) {
+              <span class="inline-flex max-w-28 shrink-0 items-center gap-1 truncate rounded-full bg-hover-soft px-1.5 py-0.5 text-[10px] leading-none text-ink-soft max-[900px]:hidden" [title]="label.name"><span class="h-1.5 w-1.5 shrink-0 rounded-full" [class]="labelColorClass(label.color)"></span><span class="truncate">{{ label.name }}</span></span>
+            }
+            <span class="shrink-0 text-faint">–</span><span class="truncate text-snippet">{{ message.body }}</span>
+          </span>
+
+          @if (message.attachments && message.attachments.length > 0) { <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden" [title]="message.attachments.length === 1 ? message.attachments[0].original_filename : message.attachments.length + ' attachments'"><app-icon [name]="'attach'" class="h-4 w-4" /></span> }
+
+          <span class="relative col-start-5 flex h-10 w-20 items-center justify-end max-[900px]:col-start-4 max-[720px]:col-start-3 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:w-20">
+            <span class="text-xs whitespace-nowrap text-muted transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 max-[720px]:hidden" [class.font-semibold]="!message.is_read">{{ formatMailDate(message.created_at) }}</span>
+            <span class="absolute right-0 hidden items-center gap-1 group-hover:flex group-focus-within:flex max-[720px]:flex">
+              <button data-mail-action="archive" type="button" title="Archive message" aria-label="Archive message" (click)="$event.stopPropagation(); archiveMessage(message.id)" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'archive'" class="h-4.5 w-4.5" /></button>
+              <button data-mail-action="delete" type="button" title="Move to Trash" aria-label="Move to Trash" (click)="$event.stopPropagation(); moveToTrash(message.id)" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-danger"><app-icon [name]="'delete'" class="h-4.5 w-4.5" /></button>
+            </span>
+          </span>
+        </div>
+      }
+    </div>
+  }
+</section>

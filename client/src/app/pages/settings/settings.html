@@ -1,0 +1,66 @@
+<section aria-labelledby="settings-title" class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface">
+  <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-3">
+    <button data-mail-action="back" type="button" (click)="backToInbox()" title="Back to Inbox" aria-label="Back to Inbox" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+      <app-icon [name]="'back'" class="h-5 w-5" />
+    </button>
+    <h1 id="settings-title" class="text-base font-medium text-ink">Settings</h1>
+    @if (mailboxAddress()) { <span class="ml-auto pr-2 truncate text-xs text-muted">{{ mailboxAddress() }}</span> }
+  </header>
+
+  <div class="min-h-0 flex-1 overflow-y-auto px-6 py-7 max-[720px]:px-4 max-[720px]:py-5">
+    <div class="mx-auto w-full max-w-220">
+      @if (errorMessage()) {
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
+      }
+      @if (statusMessage()) {
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ statusMessage() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="saveSettings()" class="rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
+        <h2 class="text-lg font-medium text-ink">Signature</h2>
+        <p class="mt-1 text-sm text-muted">Appended to new messages you compose.</p>
+        <textarea formControlName="signature" rows="6" maxlength="10000" aria-label="Email signature" placeholder="Your name&#10;Orion Intelligence" class="mt-4 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
+        @if (form.controls.signature.touched && form.controls.signature.invalid) {
+          <p animate.enter="mail-motion-notice-enter" class="mt-2 text-xs text-danger">A signature cannot exceed 10000 characters.</p>
+        }
+        <div class="mt-4 flex items-center justify-end gap-2">
+          <button type="button" (click)="loadSettings()" [disabled]="loading() || saving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">Reset</button>
+          <button type="submit" [disabled]="saving()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ saving() ? 'Saving…' : 'Save' }}</button>
+        </div>
+      </form>
+
+      <form [formGroup]="configForm" (ngSubmit)="saveSystemConfig()" class="mt-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
+        <h2 class="text-lg font-medium text-ink">Attachment limits</h2>
+        <p class="mt-1 text-sm text-muted">These limits apply to every mailbox on this server.</p>
+
+        @if (configErrorMessage()) {
+          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ configErrorMessage() }}</div>
+        }
+        @if (configStatusMessage()) {
+          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ configStatusMessage() }}</div>
+        }
+
+        @for (field of configFields; track field.key) {
+          <div class="mt-4 flex items-start justify-between gap-5 max-[560px]:flex-col max-[560px]:gap-2">
+            <label [attr.for]="'config-' + field.key" class="min-w-0 flex-1">
+              <span class="block text-sm font-medium text-ink">{{ field.label }}</span>
+              <span class="mt-0.5 block text-xs text-muted">{{ field.description }}</span>
+            </label>
+            <span class="flex shrink-0 items-center gap-2">
+              <input [id]="'config-' + field.key" type="number" [formControlName]="field.key" [attr.aria-label]="field.label" [min]="field.minimum" [max]="field.maximum" step="1" class="h-10 w-28 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+              <span class="w-12 text-xs text-muted">{{ field.unit }}</span>
+            </span>
+          </div>
+          @if (configForm.controls[field.key].touched && configForm.controls[field.key].invalid) {
+            <p animate.enter="mail-motion-notice-enter" class="mt-1 text-xs text-danger">Enter a whole number between {{ field.minimum }} and {{ field.maximum }}.</p>
+          }
+        }
+
+        <div class="mt-5 flex items-center justify-end gap-2">
+          <button type="button" (click)="loadSystemConfig()" [disabled]="configLoading() || configSaving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">Reset</button>
+          <button type="submit" [disabled]="configSaving() || configLoading()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ configSaving() ? 'Saving…' : 'Save' }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

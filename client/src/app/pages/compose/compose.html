@@ -1,0 +1,146 @@
+<form [formGroup]="form" (ngSubmit)="submit()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave()" (drop)="onFilesDropped($event)" [attr.aria-label]="composeTitle()" animate.enter="mail-motion-dialog-panel-enter" class="{{ inline() ? 'relative mt-6 flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface' : 'fixed right-4 bottom-0 z-[90] flex h-[min(42.5rem,calc(100dvh-5rem))] w-144 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-xl border border-line bg-surface shadow-compose backdrop-blur-xl max-[720px]:inset-0 max-[720px]:z-[120] max-[720px]:h-auto max-[720px]:w-auto max-[720px]:max-w-none max-[720px]:rounded-none max-[720px]:border-0 max-[720px]:pb-[env(safe-area-inset-bottom)]' }}">
+  @if (inline()) {
+    <div class="flex h-10 shrink-0 items-center gap-2 border-b border-row-line px-4 text-xs font-medium text-muted">
+      <app-icon [name]="modeIcon()" class="h-4 w-4" />
+      <span>{{ composeTitle() }}</span>
+    </div>
+  } @else {
+    <div class="flex h-10 shrink-0 items-center justify-between bg-titlebar px-4 text-titlebar-ink select-none max-[720px]:h-12">
+      <span class="truncate text-sm font-medium">{{ composeTitle() }}</span>
+      <button type="button" (click)="close()" title="Save & close" aria-label="Save draft and close composer" class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-titlebar-muted transition-colors hover:bg-titlebar-hover hover:text-titlebar-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-titlebar-ink">
+        <app-icon [name]="'close'" class="h-4 w-4" />
+      </button>
+    </div>
+  }
+
+  @if (errorMessage()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 mt-3 rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <div class="relative z-20 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+    <label [attr.for]="'receiver-' + uid()" class="w-12 shrink-0 text-sm text-muted">To</label>
+    <input #receiverInput [id]="'receiver-' + uid()" type="email" aria-label="To" autocomplete="off" role="combobox" aria-autocomplete="list" [attr.aria-controls]="uid() + '-to-recipient-hints'" [attr.aria-activedescendant]="activeHintOptionId('to')" [attr.aria-expanded]="activeHintField() === 'to' && receiverHints().length > 0" formControlName="receiver_address" placeholder="Recipient" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" (focus)="openHints('to')" (blur)="closeHintsSoon()" (keydown)="handleHintKeydown($event, 'to')" />
+    @if (activeHintField() === 'to' && receiverHints().length > 0) {
+      <div [id]="uid() + '-to-recipient-hints'" role="listbox" aria-label="Recipient suggestions" class="mail-google-dropdown absolute top-[calc(100%-1px)] right-3 left-3 z-50 max-h-56 overflow-y-auto rounded-lg border py-1">
+        @for (hint of receiverHints(); track hint.email_address; let i = $index) {
+          <button [id]="hintOptionId('to', i)" type="button" role="option" tabindex="-1" [attr.aria-selected]="i === activeHintIndex()" (mouseenter)="activateHint('to', i)" (mousedown)="$event.preventDefault()" (click)="selectHint('to', hint.email_address)" class="mail-google-dropdown-option flex h-11 w-full cursor-pointer items-center gap-3 border-none px-3 text-left text-sm focus-visible:outline-none">
+            <span class="mail-google-dropdown-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium uppercase">{{ hint.email_address.charAt(0) }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ hint.email_address }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+  @if (form.controls.receiver_address.touched && form.controls.receiver_address.invalid) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger">Enter a valid recipient email address.</div>
+  }
+
+  <div class="relative z-10 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+    <label [attr.for]="'cc-addresses-' + uid()" class="w-12 shrink-0 text-sm text-muted">Cc</label>
+    <input [id]="'cc-addresses-' + uid()" type="text" aria-label="Cc" autocomplete="off" role="combobox" aria-autocomplete="list" [attr.aria-controls]="uid() + '-cc-recipient-hints'" [attr.aria-activedescendant]="activeHintOptionId('cc')" [attr.aria-expanded]="activeHintField() === 'cc' && ccHints().length > 0" formControlName="cc_addresses" placeholder="Optional, comma separated" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" (focus)="openHints('cc')" (blur)="closeHintsSoon()" (keydown)="handleHintKeydown($event, 'cc')" />
+    @if (activeHintField() === 'cc' && ccHints().length > 0) {
+      <div [id]="uid() + '-cc-recipient-hints'" role="listbox" aria-label="Cc recipient suggestions" class="mail-google-dropdown absolute top-[calc(100%-1px)] right-3 left-3 z-50 max-h-56 overflow-y-auto rounded-lg border py-1">
+        @for (hint of ccHints(); track hint.email_address; let i = $index) {
+          <button [id]="hintOptionId('cc', i)" type="button" role="option" tabindex="-1" [attr.aria-selected]="i === activeHintIndex()" (mouseenter)="activateHint('cc', i)" (mousedown)="$event.preventDefault()" (click)="selectHint('cc', hint.email_address)" class="mail-google-dropdown-option flex h-11 w-full cursor-pointer items-center gap-3 border-none px-3 text-left text-sm focus-visible:outline-none">
+            <span class="mail-google-dropdown-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium uppercase">{{ hint.email_address.charAt(0) }}</span>
+            <span class="min-w-0 flex-1 truncate">{{ hint.email_address }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+    <label [attr.for]="'bcc-addresses-' + uid()" class="w-12 shrink-0 text-sm text-muted">Bcc</label>
+    <input [id]="'bcc-addresses-' + uid()" type="text" aria-label="Bcc" autocomplete="off" formControlName="bcc_addresses" placeholder="Optional, comma separated" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" />
+  </div>
+  @if (ccError()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger">{{ ccError() }}</div>
+  }
+
+  @if (!inline()) {
+    <div class="flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+      <input [id]="'subject-' + uid()" type="text" formControlName="subject" placeholder="Subject" aria-label="Subject" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
+    </div>
+    @if (form.controls.subject.touched && form.controls.subject.invalid) {
+      <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger">Add a subject.</div>
+    }
+  }
+
+  @if (dragActive()) {
+    <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary-soft/70 text-sm font-medium text-primary">Drop files to attach</div>
+  }
+
+  <div class="flex shrink-0 items-center gap-0.5 border-b border-row-line px-3 py-1">
+    <button type="button" (click)="applyFormat('bold')" title="Bold" aria-label="Bold" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-sm font-bold text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">B</button>
+    <button type="button" (click)="applyFormat('italic')" title="Italic" aria-label="Italic" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-sm italic text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">I</button>
+    <button type="button" (click)="applyFormat('underline')" title="Underline" aria-label="Underline" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-sm text-icon underline transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">U</button>
+    <span class="mx-1 h-5 w-px bg-line-soft"></span>
+    <button type="button" (click)="applyFormat('insertUnorderedList')" title="Bulleted list" aria-label="Bulleted list" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-xs text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">••</button>
+    <button type="button" (click)="applyFormat('insertOrderedList')" title="Numbered list" aria-label="Numbered list" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-xs text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">1.</button>
+    <button type="button" (click)="insertLink()" title="Insert link" aria-label="Insert link" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-xs text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">🔗</button>
+    <button type="button" (click)="applyFormat('removeFormat')" title="Clear formatting" aria-label="Clear formatting" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-xs text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">Tx</button>
+    <button type="button" (click)="toggleRichText()" [title]="richText() ? 'Switch to plain text' : 'Switch to rich text'" class="ml-auto h-8 cursor-pointer rounded border-none bg-transparent px-2 text-xs font-medium text-primary transition-colors hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">{{ richText() ? 'Plain text' : 'Rich text' }}</button>
+  </div>
+
+  @if (richText()) {
+    <div #richEditor contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" (input)="onRichInput()" class="orion-html-body min-h-40 w-full flex-1 overflow-y-auto border-none px-4 py-3 text-sm leading-5 text-ink outline-none"></div>
+  } @else {
+  <textarea #bodyArea [id]="'body-' + uid()" formControlName="body" aria-label="Message" placeholder="Write a message" class="{{ inline() ? 'min-h-44' : 'min-h-40 flex-1' }} w-full resize-none border-none bg-transparent px-4 py-3 text-sm leading-5 text-ink outline-none placeholder:text-placeholder focus:bg-primary-soft/15"></textarea>
+  }
+  @if (form.controls.body.touched && form.controls.body.invalid) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger">Write a message before sending.</div>
+  }
+
+  @if (selectedFiles().length > 0 || forwardedAttachments().length > 0) {
+    <div class="flex max-h-28 flex-wrap gap-2 overflow-y-auto px-4 pb-2">
+      @for (attachment of forwardedAttachments(); track attachment.id) {
+        <div animate.enter="mail-motion-chip-enter" animate.leave="mail-motion-chip-leave" class="flex max-w-72 items-center gap-1.5 rounded border border-primary/25 bg-primary-soft py-1 pr-1 pl-2 text-xs">
+          <app-icon [name]="'attach'" class="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span class="truncate text-link" [title]="attachment.original_filename">{{ attachment.original_filename }}</span>
+          <span class="shrink-0 text-muted">({{ attachment.size < 1024 ? '1K' : attachment.size < 1048576 ? (attachment.size / 1024).toFixed(0) + 'K' : (attachment.size / 1048576).toFixed(1) + 'M' }})</span>
+          <span class="shrink-0 rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] text-primary">forwarded</span>
+          <button type="button" (click)="removeForwardedAttachment(attachment.id)" title="Do not forward attachment" [attr.aria-label]="'Do not forward ' + attachment.original_filename" class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-muted transition-colors hover:bg-hover hover:text-danger focus-visible:outline-2 focus-visible:outline-danger">
+            <app-icon [name]="'close'" class="h-3.5 w-3.5" />
+          </button>
+        </div>
+      }
+      @for (file of selectedFiles(); track $index; let i = $index) {
+        <div animate.enter="mail-motion-chip-enter" animate.leave="mail-motion-chip-leave" class="flex max-w-72 items-center gap-1.5 rounded border border-line bg-chip py-1 pr-1 pl-2 text-xs">
+          <app-icon [name]="'attach'" class="h-3.5 w-3.5 shrink-0 text-muted" />
+          <span class="truncate text-link" [title]="file.name">{{ file.name }}</span>
+          <span class="shrink-0 text-muted">({{ file.size < 1024 ? '1K' : file.size < 1048576 ? (file.size / 1024).toFixed(0) + 'K' : (file.size / 1048576).toFixed(1) + 'M' }})</span>
+          <button type="button" (click)="removeFile(i)" title="Remove attachment" [attr.aria-label]="'Remove ' + file.name" class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-muted transition-colors hover:bg-hover hover:text-danger focus-visible:outline-2 focus-visible:outline-danger">
+            <app-icon [name]="'close'" class="h-3.5 w-3.5" />
+          </button>
+        </div>
+      }
+    </div>
+  }
+
+  @if (fileError()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 mb-2 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{{ fileError() }}</div>
+  }
+
+  <div class="flex h-14 shrink-0 items-center gap-1 px-4">
+    <button data-mail-action="send" type="submit" [disabled]="loading() || pendingSend()" class="flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:cursor-pointer hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
+      <span>{{ pendingSend() ? 'Sending in ' + undoSeconds() + 's' : loading() ? 'Sending…' : 'Send' }}</span>
+    </button>
+    <label [attr.for]="'file-input-' + uid()" title="Attach files" aria-label="Attach files" class="ml-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-icon transition-colors hover:bg-hover-soft hover:text-ink focus-within:outline-2 focus-within:outline-primary">
+      <app-icon [name]="'attach'" class="h-5 w-5" />
+      <input [id]="'file-input-' + uid()" type="file" multiple class="sr-only" (change)="onFilesSelected($event)" />
+    </label>
+    @if (pendingSend()) {
+      <button data-mail-action="undo-send" type="button" (click)="cancelSend()" class="ml-1 h-9 shrink-0 cursor-pointer rounded-full border-none bg-transparent px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Undo</button>
+    }
+    @if (selectedFiles().length > 0 || forwardedAttachments().length > 0) {
+      <span class="ml-auto text-xs whitespace-nowrap text-muted">{{ getTotalFileSize() }} MB / 5 MB</span>
+    } @else {
+      <span class="ml-auto"></span>
+    }
+    @if (draftStatus()) { <span class="ml-3 text-xs whitespace-nowrap text-muted" role="status">{{ draftStatus() }}</span> }
+    <button data-mail-action="delete" type="button" (click)="discardDraft()" [disabled]="loading()" title="Discard draft" aria-label="Discard draft" class="ml-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:enabled:bg-danger-soft hover:enabled:text-danger focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-50">
+      <app-icon [name]="'delete'" class="h-5 w-5" />
+    </button>
+  </div>
+</form>

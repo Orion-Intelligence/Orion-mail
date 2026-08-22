@@ -1,0 +1,29 @@
+<div animate.enter="mail-motion-dialog-backdrop-enter" animate.leave="mail-motion-dialog-backdrop-leave" class="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/45 p-5 backdrop-blur-[2px] max-[640px]:p-2" role="dialog" aria-modal="true" aria-labelledby="new-label-title" (click)="close()">
+  <form [formGroup]="form" (ngSubmit)="submit()" animate.enter="mail-motion-dialog-panel-enter" animate.leave="mail-motion-dialog-panel-leave" class="flex w-full max-w-md flex-col overflow-hidden rounded-2xl bg-surface shadow-dialog" (click)="$event.stopPropagation()">
+    <div class="px-6 pt-6 pb-2">
+      <h2 id="new-label-title" class="text-[22px] leading-7 font-normal text-ink">New label</h2>
+      <p class="mt-5 text-sm text-ink-soft">Please enter a new label name:</p>
+      <input #nameInput type="text" formControlName="name" maxlength="40" autocomplete="off" aria-label="Label name" class="mt-3 h-11 w-full rounded-lg border border-outline bg-field px-3.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <p animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-2 text-xs text-danger">Enter a label name up to 40 characters.</p>
+      }
+      <fieldset class="mt-5">
+        <legend class="mb-2 text-sm text-ink-soft">Label color</legend>
+        <div class="flex flex-wrap gap-2">
+          @for (color of palette; track color.value) {
+            <button type="button" (click)="selectColor(color.value)" [attr.aria-label]="'Use color ' + color.value" [attr.aria-pressed]="form.controls.color.value === color.value" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none ring-offset-2 ring-offset-surface hover:ring-2 hover:ring-faint focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary {{ color.className }}" [class.ring-2]="form.controls.color.value === color.value" [class.ring-ink]="form.controls.color.value === color.value">
+              @if (form.controls.color.value === color.value) { <app-icon [name]="'check'" class="h-4 w-4 text-label-check" /> }
+            </button>
+          }
+        </div>
+      </fieldset>
+      @if (errorMessage()) {
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
+      }
+    </div>
+    <div class="flex items-center justify-end gap-2 px-6 py-4">
+      <button type="button" (click)="close()" class="h-9 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Cancel</button>
+      <button type="submit" [disabled]="saving() || !form.controls.name.value.trim()" class="h-9 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50">{{ saving() ? 'Creating…' : 'Create' }}</button>
+    </div>
+  </form>
+</div>

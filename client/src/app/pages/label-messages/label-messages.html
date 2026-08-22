@@ -1,0 +1,55 @@
+<section [attr.aria-label]="label()?.name || 'Label messages'" class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface" [attr.aria-busy]="loading()">
+  <div class="flex h-12 shrink-0 items-center gap-2 px-3">
+    <button data-mail-action="refresh" type="button" (click)="loadMessages()" [disabled]="loading()" title="Refresh label" aria-label="Refresh label" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
+      <app-icon [name]="'refresh'" class="h-5 w-5" [class.animate-spin]="loading()" />
+    </button>
+    @if (label()) {
+      <span class="h-3 w-3 shrink-0 rounded-sm" [class]="labelColorClass(label()?.color)"></span>
+      <h1 class="truncate text-sm font-medium text-ink-soft">{{ label()?.name }}</h1>
+    }
+    <button type="button" (click)="manageLabels()" title="Manage labels" aria-label="Manage labels" class="ml-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+      <app-icon [name]="'settings'" class="h-4.5 w-4.5" />
+    </button>
+    <span class="ml-auto pr-2 text-xs text-muted">{{ filteredMessages().length ? '1–' + filteredMessages().length + ' of ' + filteredMessages().length : '0 of 0' }}</span>
+  </div>
+
+  @if (loading()) {
+    <div class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft"><div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div></div>
+  }
+  @if (errorMessage()) {
+    <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 my-2 flex items-center justify-between gap-4 rounded-lg bg-danger-soft px-4 py-3 text-[13px] text-danger" role="alert">
+      <span>{{ errorMessage() }}</span>
+      @if (label()) { <button type="button" (click)="loadMessages()" class="cursor-pointer rounded-full border-none bg-transparent px-3 py-1.5 text-xs font-semibold text-danger hover:bg-red-100 focus-visible:outline-2 focus-visible:outline-danger">Try again</button> }
+    </div>
+  }
+
+  @if (!loading() && !errorMessage() && filteredMessages().length === 0) {
+    <div class="flex flex-1 flex-col items-center justify-center px-5 py-16 text-center">
+      <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-primary"><app-icon [name]="searchTerm() ? 'search' : 'label'" class="h-6 w-6" /></span>
+      <h2 class="text-sm font-medium text-ink-soft">{{ searchTerm() ? 'No messages match your search' : 'No messages use this label' }}</h2>
+      @if (searchTerm()) { <button type="button" (click)="searchTerm.set('')" class="mt-3 cursor-pointer rounded-full border-none bg-transparent px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Clear search</button> }
+    </div>
+  } @else if (filteredMessages().length > 0) {
+    <div role="list" class="min-h-0 flex-1 overflow-y-auto">
+      @for (message of filteredMessages(); track message.id) {
+        <div role="listitem" tabindex="0" (click)="openMessage(message)" (keydown.enter)="openMessage(message)" (keydown.space)="$event.preventDefault(); openMessage(message)" class="mail-soft-white group grid h-10 cursor-pointer grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)_2rem_5rem] items-center border-b border-row-line px-4 outline-none transition-colors last:border-b-0 hover:bg-hover-soft focus-visible:relative focus-visible:z-1 focus-visible:shadow-[inset_0_0_0_2px_var(--color-primary)] max-[900px]:grid-cols-[minmax(7rem,10rem)_minmax(0,1fr)_5rem] max-[720px]:h-auto max-[720px]:min-h-16 max-[720px]:grid-cols-[minmax(0,1fr)_2.5rem] max-[720px]:grid-rows-[auto_auto] max-[720px]:gap-y-0.5 max-[720px]:px-3 max-[720px]:py-2" [class.bg-read]="message.direction !== 'incoming' || message.is_read" [class.bg-surface]="message.direction === 'incoming' && !message.is_read">
+          <span class="flex min-w-0 items-center pr-4 text-sm text-ink-soft max-[720px]:col-start-1 max-[720px]:row-start-1 max-[720px]:pr-2" [class.font-semibold]="message.direction === 'incoming' && !message.is_read">
+            <span class="mail-row-dot mr-3 h-2 w-2 shrink-0 rounded-full max-[720px]:mr-2" [class]="labelColorClass(label()?.color)"></span>
+            <span class="truncate">{{ correspondent(message) }}</span>
+            <span class="ml-auto hidden shrink-0 pl-2 text-[11px] text-muted max-[720px]:inline">{{ formatMailDate(message.created_at) }}</span>
+          </span>
+          <span class="flex min-w-0 items-baseline gap-1 truncate text-sm max-[720px]:col-start-1 max-[720px]:row-start-2 max-[720px]:pl-4 max-[720px]:text-[13px]">
+            <span class="max-w-[55%] shrink-0 truncate text-ink-soft" [class.font-semibold]="message.direction === 'incoming' && !message.is_read">{{ message.subject || '(no subject)' }}</span>
+            <span class="shrink-0 text-faint">–</span>
+            <span class="truncate text-snippet">{{ message.body }}</span>
+          </span>
+          @if (message.attachments?.length) { <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden"><app-icon [name]="'attach'" class="h-4 w-4" /></span> }
+          <span class="relative col-start-4 flex h-10 w-20 items-center justify-end max-[900px]:col-start-3 max-[720px]:col-start-2 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:w-10">
+            <span class="text-xs whitespace-nowrap text-muted transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 max-[720px]:hidden" [class.font-semibold]="message.direction === 'incoming' && !message.is_read">{{ formatMailDate(message.created_at) }}</span>
+            <button data-mail-action="delete" type="button" (click)="$event.stopPropagation(); moveToTrash(message)" title="Move to Trash" aria-label="Move to Trash" class="absolute right-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-danger-soft hover:text-danger focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-danger max-[720px]:static max-[720px]:opacity-100"><app-icon [name]="'delete'" class="h-4.5 w-4.5" /></button>
+          </span>
+        </div>
+      }
+    </div>
+  }
+</section>

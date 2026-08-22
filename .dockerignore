@@ -1,0 +1,16 @@
+.git
+.idea
+.venv
+backend/.venv
+backend/__pycache__
+backend/static
+backend/*.log
+client/node_modules
+client/.angular
+client/build
+client/dist
+.env
+.env.*
+*.log
+nginx
+dockerFiles/*.md
