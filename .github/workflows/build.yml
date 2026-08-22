@@ -1,0 +1,154 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    env:
+      HEALTH_TIMEOUT: 900
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends bash curl git ca-certificates gnupg jq openssl python3
+          if ! command -v google-chrome >/dev/null 2>&1; then
+            curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google.gpg
+            echo "deb [signed-by=/usr/share/keyrings/google.gpg arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+            sudo apt-get update -q
+            sudo apt-get install -y --no-install-recommends google-chrome-stable
+          fi
+          google-chrome --version
+
+      - name: Write the CI environment file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/write-ci-env.py
+          test -s .env
+
+      - name: Reset Docker state
+        run: |
+          set -euo pipefail
+          docker ps -aq | xargs -r docker rm -f || true
+          docker network prune -f || true
+          docker system prune -f --volumes || true
+
+      - name: Build the production client bundle
+        run: |
+          set -euo pipefail
+          export npm_config_loglevel=error
+          export NODE_OPTIONS=--no-deprecation
+          cd client
+          npm ci
+          rm -rf build
+          npx ng build --configuration production
+
+      - name: Verify the client build output
+        run: |
+          set -euo pipefail
+          if [ -f client/build/index.html ]; then
+            echo "SUCCESS: client/build/index.html exists"
+          else
+            echo "FAIL: client/build/index.html does not exist"
+            ls -la client/build || true
+            exit 1
+          fi
+          find client/build -maxdepth 2 -type f -print | head -n 200 || true
+
+      - name: Build the images and start the stack
+        run: |
+          set -euo pipefail
+          chmod +x ./run.sh
+          ./run.sh build -d
+
+      - name: Serve the production client
+        run: |
+          set -euo pipefail
+          cd client
+          nohup node scripts/serve-build.mjs >../serve-build.log 2>&1 &
+          echo $! >../serve-build.pid
+
+      - name: Wait for the application
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 120); do
+            api_code="$(curl -s --connect-timeout 2 --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/health" || true)"
+            client_code="$(curl -s --connect-timeout 2 --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:4300/" || true)"
+            echo "readiness attempt $i/120: API HTTP ${api_code:-000}, client HTTP ${client_code:-000}"
+            if [ "$api_code" = "200" ] && [ "$client_code" = "200" ]; then
+              echo "READY"
+              exit 0
+            fi
+            if [ $((i % 12)) -eq 0 ]; then
+              docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+              docker compose -p orion-mail -f docker-compose.yml logs --since 70s --tail=200 web mongo || true
+              cat serve-build.log || true
+            fi
+            sleep 5
+          done
+          echo "FAIL: application not ready"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          docker compose -p orion-mail -f docker-compose.yml logs --tail=1000 || true
+          cat serve-build.log || true
+          exit 1
+
+      - name: Run Lighthouse
+        run: |
+          set -euo pipefail
+          mkdir -p lighthouse-results
+          npx --yes lighthouse@12 "http://127.0.0.1:4300/" \
+            --chrome-flags="--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --window-size=1365,768" \
+            --output=json \
+            --output=html \
+            --output-path=./lighthouse-results/lighthouse-report \
+            --only-categories=performance,accessibility,best-practices,seo || true
+
+      - name: Summarize Lighthouse scores
+        if: always()
+        run: python3 .github/scripts/summarize-lighthouse.py
+
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse-results
+          path: lighthouse-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          free -h || true
+          df -h || true
+          docker stats --no-stream || true
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          docker compose -p orion-mail -f docker-compose.yml logs --tail=1000 || true
+          cat serve-build.log || true
+
+      - if: always()
+        run: |
+          set -euo pipefail
+          if [ -f serve-build.pid ]; then kill "$(cat serve-build.pid)" || true; fi
+          ./run.sh stop || true
+          docker ps -aq | xargs -r docker rm -f || true
+          docker network prune -f || true
+          docker system prune -f --volumes || true
