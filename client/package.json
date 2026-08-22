@@ -10,7 +10,13 @@
     "lint:styles": "npx stylelint \"src/**/*.{css,scss}\"",
     "lint:fix": "npx eslint src/app --ext .ts,.html --fix",
     "lint:watch": "npx eslint src/app --ext .ts,.html --watch",
-    "test": "cypress"
+    "test": "cypress",
+    "build:instrumented": "ng build --configuration instrumented && node scripts/instrument-build.mjs",
+    "serve:build": "node scripts/serve-build.mjs",
+    "cypress": "cypress",
+    "cypress:open": "cypress open --e2e",
+    "cypress:run": "cypress run --e2e",
+    "cypress:run:coverage": "ORION_COVERAGE=true cypress run --e2e"
   },
   "private": true,
   "packageManager": "npm@10.9.8",
@@ -50,5 +56,25 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.67.0"
+  },
+  "nyc": {
+    "all": false,
+    "include": [
+      "src/app/**/*.ts"
+    ],
+    "exclude": [
+      "src/**/*.spec.ts",
+      "src/**/*.d.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "excludeAfterRemap": true,
+    "report-dir": "coverage",
+    "reporter": [
+      "lcov",
+      "json-summary",
+      "text-summary"
+    ]
   }
 }

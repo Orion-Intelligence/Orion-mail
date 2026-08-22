@@ -27,6 +27,9 @@ export default defineConfig({
         },
         takeScreenshots: false,
     },
+    expose: {
+        coverage: coverageEnabled,
+    },
     e2e: {
         specPattern: "cypress/e2e/**/*.{cy,spec}.{ts,js}",
         supportFile: "cypress/support/e2e.ts",
@@ -76,7 +79,7 @@ export default defineConfig({
             });
             return config;
         },
-        baseUrl: "http://127.0.0.1:4300",
+        baseUrl: process.env["ORION_E2E_BASE_URL"] || "http://127.0.0.1:4300",
         viewportWidth: 1920,
         viewportHeight: 1080,
         defaultCommandTimeout: 60000,

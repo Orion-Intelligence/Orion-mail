@@ -18,11 +18,13 @@ usage() {
     cat <<'USAGE'
 Usage: ./run.sh <command>
   build -d            Development: API + Mongo in Docker, mail via the host Postfix (run `npm start` in client/ separately)
+  build -t            Testing:     Istanbul-instrumented client + dev stack, for Cypress coverage runs
   build -p [-full]    Production:  build client + image, (re)start stack behind nginx on :80/:443
   production          Production:  restart the stack without rebuilding
   cert                Production:  one-time Let's Encrypt issuance for mail.orionintelligence.org
   renew               Production:  renew the certificate and reload nginx (cron-friendly)
   lint [fix]          Lint client (eslint + stylelint) and backend (pyflakes + bandit); fix applies automatic fixes first
+  test [-c]           Run the backend test suite (pytest); -c also writes backend/coverage.xml
   logs [service]      Tail logs of the running stack
   backup [dir]        Dump MongoDB + attachments to a timestamped archive (default: ./backups)
   restore <archive>   Restore MongoDB + attachments from a backup archive (destructive)
@@ -191,8 +193,18 @@ lint_backend() {
 client_build() {
     cd client || exit 1
     rm -rf build
-    npx ng build --configuration production
+    if [ "${1:-}" = "instrumented" ]; then
+        npm run build:instrumented
+    else
+        npx ng build --configuration production
+    fi
     test -f build/index.html
+    cd ..
+}
+
+run_backend_tests() {
+    cd backend || exit 1
+    python3 -m pytest "$@"
     cd ..
 }
 
@@ -272,6 +284,14 @@ case "$COMMAND" in
         lint_client "$FLAG"
         lint_backend
         echo "Lint passed"
+        exit 0
+        ;;
+    test)
+        if [ "$FLAG" = "-c" ]; then
+            run_backend_tests --cov=. --cov-report=term-missing --cov-report=xml:coverage.xml
+        else
+            run_backend_tests
+        fi
         exit 0
         ;;
     logs)
@@ -355,9 +375,13 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
     trap - EXIT
     echo "Orion Mail is live at https://$DOMAIN"
 
-elif [ "$COMMAND" = "build" ] && [ "$FLAG" = "-d" ]; then
+elif [ "$COMMAND" = "build" ] && { [ "$FLAG" = "-d" ] || [ "$FLAG" = "-t" ]; }; then
     COMPOSE_FILE="docker-compose.yml"
     stop_docker
+    if [ "$FLAG" = "-t" ]; then
+        install_client_dependencies
+        client_build instrumented
+    fi
     compose build --pull web
     compose up -d --pull missing
     wait_for_application_services
