@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import secrets
 from urllib.parse import urlencode, urlsplit
 
@@ -20,6 +21,7 @@ from configs.auth_cookie import (
 from orion.api.interactive.preference_manager.models.preference_param_model import UserPreferencesRequest
 from orion.api.interactive.preference_manager.preference_manager import preference_manager
 from orion.constants.constant import CONSTANTS
+from orion.services.log_manager.log_controller import log
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
@@ -33,17 +35,16 @@ from orion.services.orion_identity_manager.orion_identity_manager import (
 auth_routes = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+SAFE_RETURN_TO = re.compile(r"^/(?![/\\])[A-Za-z0-9._~\-/]*(?:\?[A-Za-z0-9._~\-/&=%+]*)?$")
+
+
 def safe_return_to(value: str | None) -> str:
     candidate = (value or "/inbox").strip()
     parsed = urlsplit(candidate)
-    if (
-        not candidate.startswith("/")
-        or candidate.startswith("//")
-        or parsed.scheme
-        or parsed.netloc
-    ):
+    if parsed.scheme or parsed.netloc:
         return "/inbox"
-    return parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    destination = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    return destination if SAFE_RETURN_TO.match(destination) else "/inbox"
 
 
 def allowed_mail_origin(value: str | None) -> str:
@@ -163,8 +164,8 @@ async def logout(request: Request, response: Response):
     if session_token:
         try:
             await orion_identity_client.get_instance().revoke(session_token)
-        except HTTPException:
-            pass
+        except HTTPException as error:
+            log.g().e(f"Orion session revoke failed during logout: {error.detail}")
     clear_session_cookie(response)
     clear_sso_cookies(response)
     return {

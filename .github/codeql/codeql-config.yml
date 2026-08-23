@@ -1,0 +1,11 @@
+name: Orion Mail CodeQL config
+
+paths-ignore:
+  - client/node_modules
+  - client/build
+  - client/coverage
+  - client/.angular
+  - client/cypress
+  - backend/tests
+  - .venv
+  - backend/.venv

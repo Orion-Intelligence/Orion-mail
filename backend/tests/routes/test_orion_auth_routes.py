@@ -18,6 +18,13 @@ from routes.auth_routes import allowed_mail_origin, safe_return_to
         ("/message/123?view=full#ignored", "/message/123?view=full"),
         ("https://attacker.example/path", "/inbox"),
         ("//attacker.example/path", "/inbox"),
+        ("/\\attacker.example", "/inbox"),
+        ("/\\/attacker.example", "/inbox"),
+        ("\\\\attacker.example", "/inbox"),
+        ("/inbox\r\nSet-Cookie: injected=1", "/inbox"),
+        ("javascript:alert(1)", "/inbox"),
+        ("", "/inbox"),
+        ("/inbox", "/inbox"),
     ],
 )
 def test_safe_return_to_stays_on_mail(value, expected):

@@ -21,11 +21,12 @@ def load_incoming_mail_token() -> str:
     if token:
         return token
     try:
-        for line in ENV_FILE.read_text().splitlines():
-            if line.startswith("INCOMING_MAIL_TOKEN="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
+        content = ENV_FILE.read_text()
     except OSError:
-        pass
+        return ""
+    for line in content.splitlines():
+        if line.startswith("INCOMING_MAIL_TOKEN="):
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
     return ""
 
 
