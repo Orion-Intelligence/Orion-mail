@@ -73,8 +73,8 @@ class mail_manager:
             errors, _ = await aiosmtplib.send(raw_source, sender=sender_address, recipients=recipient_addresses, hostname=CONSTANTS.S_SMTP_HOST, port=CONSTANTS.S_SMTP_PORT, username=CONSTANTS.S_SMTP_USERNAME, password=CONSTANTS.S_SMTP_PASSWORD, start_tls=CONSTANTS.S_SMTP_START_TLS, timeout=30)
             return {address: str(reason) for address, reason in (errors or {}).items()}
         except aiosmtplib.SMTPException as error:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Email delivery failed: {str(error)}")
-        except TimeoutError:
-            raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="SMTP server connection timed out")
-        except OSError:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="SMTP server is unavailable")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Email delivery failed: {str(error)}") from error
+        except TimeoutError as error:
+            raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="SMTP server connection timed out") from error
+        except OSError as error:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="SMTP server is unavailable") from error

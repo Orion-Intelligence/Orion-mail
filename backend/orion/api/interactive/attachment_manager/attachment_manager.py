@@ -43,8 +43,8 @@ class attachment_manager:
     def get_storage_directory(storage_type: STORAGE_TYPE | str) -> Path:
         try:
             storage = STORAGE_TYPE(storage_type)
-        except ValueError:
-            raise ValueError("Invalid attachment storage type")
+        except ValueError as error:
+            raise ValueError("Invalid attachment storage type") from error
         directory = CONSTANTS.S_ATTACHMENT_DIR / storage.value
         directory.mkdir(parents=True, exist_ok=True)
         return directory
@@ -107,10 +107,10 @@ class attachment_manager:
             try:
                 file_path.write_bytes(cipher.encrypt_bytes(prepared_file["content"]) if cipher else prepared_file["content"])
                 attachment = await self._engine.save(db_attachment_model(message_id=message_id, original_filename=original_filename, stored_filename=stored_filename, size=prepared_file["size"], content_type=file.content_type or "application/octet-stream", storage_type=storage_type, expires_at=expires_at, is_encrypted=cipher is not None))
-            except Exception:
+            except Exception as error:
                 if file_path.exists():
                     file_path.unlink()
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=save_error)
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=save_error) from error
 
             saved_attachments.append({"id": str(attachment.id), "original_filename": attachment.original_filename, "stored_filename": attachment.stored_filename, "size": attachment.size, "content_type": attachment.content_type, "storage_type": storage_type.value, "expires_at": expires_at, "status": ATTACHMENT_STATUS.AVAILABLE.value})
 
@@ -127,8 +127,8 @@ class attachment_manager:
         for attachment_id in attachment_ids:
             try:
                 object_id = ObjectId(attachment_id)
-            except InvalidId:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more forwarded attachment IDs are invalid")
+            except InvalidId as error:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more forwarded attachment IDs are invalid") from error
             if object_id not in unique_ids:
                 unique_ids.append(object_id)
 
@@ -224,7 +224,7 @@ class attachment_manager:
             file_path.write_bytes(cipher.encrypt_bytes(content) if cipher else content)
         except OSError as error:
             log.g().e(f"Raw message source could not be stored: {error}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Raw message source could not be stored")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Raw message source could not be stored") from error
         return stored_filename, cipher is not None, len(content)
 
     async def read_raw_source(self, message: db_message_model, source_path: Path) -> bytes:
@@ -277,8 +277,8 @@ class attachment_manager:
     async def download_attachment(self, attachment_id: str, current_user: db_user_model) -> Response:
         try:
             object_id = ObjectId(attachment_id)
-        except InvalidId:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid attachment ID")
+        except InvalidId as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid attachment ID") from error
 
         attachment = await self._engine.find_one(db_attachment_model, db_attachment_model.id == object_id)
 

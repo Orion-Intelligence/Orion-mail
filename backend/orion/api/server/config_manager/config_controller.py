@@ -63,8 +63,8 @@ class config_controller:
         value = await self.get_config_value(key)
         try:
             return int(value)
-        except (TypeError, ValueError):
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Invalid integer configuration: {key}")
+        except (TypeError, ValueError) as error:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Invalid integer configuration: {key}") from error
 
     async def set_config_int(self, key: str, value: int) -> int:
         if key not in CONFIG_LIMITS.RANGES:

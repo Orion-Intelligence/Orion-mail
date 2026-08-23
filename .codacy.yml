@@ -7,6 +7,7 @@ exclude_paths:
   - "client/.nyc_output/**"
   - "client/src/assets/**"
   - "client/*.config.*"
+  - "client/src/styles.css"
   - "client/cypress/**"
   - "README.md"
   - "run.sh"

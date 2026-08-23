@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-import xml.etree.ElementTree as ET
+from defusedxml.ElementTree import parse as safe_parse
 
 ROOT = pathlib.Path(".")
 LCOV = ROOT / "client" / "coverage" / "lcov.info"
@@ -34,7 +34,7 @@ def lcov_totals(path: pathlib.Path) -> tuple[int, int]:
 def cobertura_totals(path: pathlib.Path) -> tuple[int, int]:
     if not path.exists() or path.stat().st_size == 0:
         return 0, 0
-    cov = ET.parse(path).getroot()
+    cov = safe_parse(path).getroot()
     return int(cov.attrib.get("lines-covered", "0")), int(cov.attrib.get("lines-valid", "0"))
 
 

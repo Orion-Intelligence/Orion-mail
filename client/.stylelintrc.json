@@ -7,8 +7,8 @@
   "overrides": [
     {
       "files": [
-        "src/styles.scss",
-        "src/styles.css"
+        "**/styles.scss",
+        "**/styles.css"
       ],
       "rules": {
         "import-notation": null,

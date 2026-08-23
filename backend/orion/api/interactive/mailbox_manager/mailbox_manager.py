@@ -44,8 +44,8 @@ class mailbox_manager:
         mailbox_address = f"{username}@{CONSTANTS.S_MAIL_DOMAIN}"
         try:
             mailbox = await self._engine.save(db_mailbox_model(user_id=current_user.id, mailbox_address=mailbox_address))
-        except DuplicateKeyError:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Mailbox address already exists")
+        except DuplicateKeyError as error:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Mailbox address already exists") from error
 
         return {"id": str(mailbox.id), "mailbox_address": mailbox.mailbox_address, "is_active": mailbox.is_active, "signature": mailbox.signature}
 

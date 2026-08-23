@@ -41,7 +41,7 @@ class antivirus_manager:
             response = await asyncio.wait_for(self._scan(content), timeout=CONSTANTS.S_CLAMAV_TIMEOUT_SECONDS)
         except Exception as error:
             log.g().e(f"Antivirus scan failed for {filename}: {error}")
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Attachment could not be virus scanned")
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Attachment could not be virus scanned") from error
 
         if response.endswith("FOUND"):
             log.g().e(f"Antivirus rejected {filename}: {response}")

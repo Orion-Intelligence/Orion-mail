@@ -67,7 +67,7 @@ def excluded_paths() -> list[re.Pattern[str]]:
     if not config.exists():
         return patterns
     inside = False
-    for line in config.read_text().splitlines():
+    for line in config.read_text(encoding="utf-8").splitlines():
         if not line.startswith(" ") and line.strip():
             inside = line.strip() == "exclude_paths:"
             continue
@@ -77,7 +77,7 @@ def excluded_paths() -> list[re.Pattern[str]]:
 
 
 def main() -> int:
-    sarif = json.loads(SOURCE.read_text())
+    sarif = json.loads(SOURCE.read_text(encoding="utf-8"))
     runs = sarif.get("runs") or []
     excludes = excluded_paths()
 

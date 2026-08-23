@@ -69,8 +69,8 @@ class message_manager:
     async def get_owned_message(self, mailbox: db_mailbox_model, message_id: str) -> db_message_model:
         try:
             object_id = ObjectId(message_id)
-        except InvalidId:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid message ID")
+        except InvalidId as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid message ID") from error
 
         message = await self._engine.find_one(db_message_model, and_(eq(db_message_model.id, object_id), eq(db_message_model.owner_mailbox_id, mailbox.id)))
         if message is not None:
@@ -229,8 +229,8 @@ class message_manager:
         for label_id in label_ids:
             try:
                 object_id = ObjectId(label_id)
-            except InvalidId:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid label ID")
+            except InvalidId as error:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid label ID") from error
             if object_id not in object_ids:
                 object_ids.append(object_id)
 
@@ -250,8 +250,8 @@ class message_manager:
         for address in addresses:
             try:
                 value = validate_email(address.strip(), check_deliverability=False).normalized.lower()
-            except EmailNotValidError:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field_name} contains an invalid email address")
+            except EmailNotValidError as error:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field_name} contains an invalid email address") from error
             if value not in normalized:
                 normalized.append(value)
         return normalized
@@ -305,8 +305,8 @@ class message_manager:
 
         try:
             normalized_receiver_address = validate_email(normalized_receiver_address, check_deliverability=False).normalized.lower()
-        except EmailNotValidError:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receiver address is not a valid email address")
+        except EmailNotValidError as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Receiver address is not a valid email address") from error
 
         normalized_cc_addresses = [address for address in self.normalize_recipient_addresses(cc_addresses or [], "Cc") if address != normalized_receiver_address]
         normalized_bcc_addresses = [address for address in self.normalize_recipient_addresses(bcc_addresses or [], "Bcc") if address != normalized_receiver_address and address not in normalized_cc_addresses]
@@ -416,7 +416,7 @@ class message_manager:
         except Exception as error:
             await self.mark_delivery_failed(message)
             log.g().e(f"Email delivery failed for message {message.id}: {error}")
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
 
         try:
             await address_book_manager.get_instance().record_recipients(mailbox=sender_mailbox, recipient_addresses=recipient_addresses)
@@ -616,7 +616,7 @@ class message_manager:
         mailbox = await self.get_active_user_mailbox(current_user)
         conditions: list[QueryExpression] = [eq(db_message_model.owner_mailbox_id, mailbox.id)]
 
-        if scope.value in MESSAGE_FOLDER._value2member_map_:
+        if scope.value in {folder.value for folder in MESSAGE_FOLDER}:
             conditions.append(eq(db_message_model.folder, MESSAGE_FOLDER(scope.value)))
         elif scope == MESSAGE_SEARCH_SCOPE.STARRED:
             conditions.append(eq(db_message_model.is_starred, True))
@@ -627,8 +627,8 @@ class message_manager:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A label is required for label search")
             try:
                 label_object_id = ObjectId(label_id)
-            except InvalidId:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid label ID")
+            except InvalidId as error:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid label ID") from error
             label = await self._engine.find_one(db_label_model, and_(eq(db_label_model.id, label_object_id), eq(db_label_model.user_id, current_user.id)))
             if label is None:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Label not found")
@@ -699,7 +699,7 @@ class message_manager:
         try:
             report = await sender_safety_manager.get_instance().report_domain(current_user, message, report_type)
         except ValueError as error:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
         if message.folder != MESSAGE_FOLDER.SPAM:
             self.relocate_message(message, MESSAGE_FOLDER.SPAM)
@@ -716,7 +716,7 @@ class message_manager:
         try:
             block = await sender_safety_manager.get_instance().block_domain(current_user, message)
         except ValueError as error:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
         if message.folder != MESSAGE_FOLDER.SPAM:
             self.relocate_message(message, MESSAGE_FOLDER.SPAM)
@@ -733,7 +733,7 @@ class message_manager:
         try:
             block = await sender_safety_manager.get_instance().unblock_domain(current_user, message.sender_address)
         except ValueError as error:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
         return {**await self.message_response(current_user, message), "block": block}
 
     async def archive_message(self, current_user: db_user_model, message_id: str) -> dict:
@@ -780,8 +780,8 @@ class message_manager:
         for message_id in message_ids:
             try:
                 object_id = ObjectId(message_id)
-            except InvalidId:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more message IDs are invalid")
+            except InvalidId as error:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more message IDs are invalid") from error
             if object_id not in object_ids:
                 object_ids.append(object_id)
 
@@ -795,8 +795,8 @@ class message_manager:
             for label_id in label_ids or []:
                 try:
                     label_object_id = ObjectId(label_id)
-                except InvalidId:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more label IDs are invalid")
+                except InvalidId as error:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more label IDs are invalid") from error
                 if label_object_id not in label_object_ids:
                     label_object_ids.append(label_object_id)
             if not label_object_ids:
@@ -885,8 +885,8 @@ class message_manager:
             )
         try:
             source_path = attachment_manager.get_instance().get_raw_source_path(message.raw_source_filename)
-        except ValueError:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Stored message source is invalid")
+        except ValueError as error:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Stored message source is invalid") from error
         if not source_path.is_file():
             raise HTTPException(status_code=status.HTTP_410_GONE, detail="Original message source is no longer available")
         return source_path

@@ -290,6 +290,7 @@ jobs:
           set -euo pipefail
           test -s client/coverage/lcov.info
           test -s backend/coverage.xml
+          python3 -m pip install --quiet --disable-pip-version-check defusedxml
           python3 .github/scripts/normalize-coverage.py
           grep -m1 '^SF:' client/coverage/lcov.info
           grep -m1 -o 'filename="[^"]*"' backend/coverage.xml
@@ -317,6 +318,7 @@ jobs:
       - name: Build merged coverage summary (client + backend)
         run: |
           set -euo pipefail
+          python3 -m pip install --quiet --disable-pip-version-check defusedxml
           python3 .github/scripts/merge-coverage.py
 
       - name: Detect merged coverage artifacts
