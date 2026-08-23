@@ -1,9 +1,8 @@
 import asyncio
 import json
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit, urlunsplit
-from urllib.request import Request, urlopen
 
+import httpx
 from fastapi import HTTPException, status
 
 from orion.constants.constant import CONSTANTS
@@ -37,6 +36,7 @@ class translation_manager:
     __instance = None
     _chunk_size = 3500
     _max_parallel_requests = 4
+    _max_response_bytes = 2 * 1024 * 1024
 
     @staticmethod
     def get_instance():
@@ -90,16 +90,19 @@ class translation_manager:
 
     @staticmethod
     def _translate_chunk_sync(text: str, target_language: str) -> tuple[str, str | None]:
-        request = Request(
-            translation_manager._translation_url(target_language),
-            data=urlencode({"q": text}).encode("utf-8"),
-            headers={"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "User-Agent": "Orion-Mail/1.0"},
-            method="POST",
-        )
+        url = translation_manager._translation_url(target_language)
+        headers = {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "User-Agent": "Orion-Mail/1.0"}
         try:
-            with urlopen(request, timeout=CONSTANTS.S_TRANSLATION_TIMEOUT_SECONDS) as response:  # nosec B310
-                payload = json.loads(response.read(2 * 1024 * 1024).decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            with httpx.Client(timeout=CONSTANTS.S_TRANSLATION_TIMEOUT_SECONDS, trust_env=False) as client:
+                with client.stream("POST", url, content=urlencode({"q": text}).encode("utf-8"), headers=headers) as response:
+                    response.raise_for_status()
+                    body = bytearray()
+                    for chunk in response.iter_bytes():
+                        body.extend(chunk)
+                        if len(body) >= translation_manager._max_response_bytes:
+                            break
+            payload = json.loads(bytes(body[: translation_manager._max_response_bytes]).decode("utf-8"))
+        except (httpx.HTTPError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Translation service is unavailable") from error
 
         try:
