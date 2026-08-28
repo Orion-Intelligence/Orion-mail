@@ -9,6 +9,7 @@ ENV_FILE=".env"
 DOMAIN="mail.orionintelligence.org"
 WEB_CONTAINER="orion-mail-web"
 NGINX_CONTAINER="orion-mail-nginx"
+EDGE_CONTAINER="trusted-web-nginx"
 MAINTENANCE_FLAG="backend/static/.maintenance"
 CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
 COMPOSE_FILE="docker-compose.yml"
@@ -164,6 +165,10 @@ stop_docker() {
 stop_production_services_preserving_nginx() {
     compose stop web
     compose rm -f web
+}
+
+reload_edge_proxy() {
+    docker exec "$EDGE_CONTAINER" nginx -s reload >/dev/null 2>&1 || true
 }
 
 reload_nginx() {
@@ -383,6 +388,7 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
 
     if [ "$COMMAND" = "build" ] && is_nginx_running; then
         compose up -d --force-recreate --no-deps nginx
+        reload_edge_proxy
     fi
 
     wait_for_application_services
