@@ -28,6 +28,7 @@ Usage: ./run.sh <command>
   logs [service]      Tail logs of the running stack
   backup [dir]        Dump MongoDB + attachments to a timestamped archive (default: ./backups)
   restore <archive>   Restore MongoDB + attachments from a backup archive (destructive)
+  perms               Recreate the runtime directories and reset their ownership to APP_UID:APP_GID
   stop                Stop everything
 USAGE
     exit 1
@@ -112,6 +113,7 @@ restore_data() {
         echo "Restoring attachments..."
         mkdir -p backend/static/resource
         tar -xzf "$payload/attachments.tar.gz" -C backend/static/resource
+        ensure_runtime_dirs
     fi
 
     rm -rf "$staging"
@@ -148,6 +150,10 @@ disable_maintenance_mode() {
 
 ensure_runtime_dirs() {
     mkdir -p backend/static/resource/attachments/incoming backend/static/resource/attachments/outgoing backend/static/resource/attachments/raw client/build
+    local app_uid app_gid
+    app_uid="$(sed -n 's/^APP_UID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
+    app_gid="$(sed -n 's/^APP_GID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
+    chown -R "${app_uid:-1000}:${app_gid:-1000}" backend/static/resource/attachments 2>/dev/null || true
 }
 
 stop_docker() {
@@ -307,6 +313,12 @@ case "$COMMAND" in
     restore)
         require_env_file
         restore_data "${FLAG:-}"
+        exit 0
+        ;;
+    perms)
+        require_env_file
+        ensure_runtime_dirs
+        ls -ldn backend/static/resource/attachments backend/static/resource/attachments/incoming backend/static/resource/attachments/outgoing backend/static/resource/attachments/raw
         exit 0
         ;;
     cert)
