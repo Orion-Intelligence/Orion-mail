@@ -179,11 +179,6 @@ async def get_user_message_thread(message_id: str, current_user: db_user_model =
     return await message_manager.get_instance().get_thread_messages(current_user=current_user, message_id=message_id)
 
 
-@message_routes.get("/{message_id}/source")
-async def get_user_message_source(message_id: str, current_user: db_user_model = Depends(get_current_user)):
-    return await message_manager.get_instance().get_message_source(current_user=current_user, message_id=message_id)
-
-
 @message_routes.get("/{message_id}/download")
 async def download_user_message(message_id: str, current_user: db_user_model = Depends(get_current_user)):
     return await message_manager.get_instance().download_message(current_user=current_user, message_id=message_id)

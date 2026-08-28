@@ -21,7 +21,6 @@ from routes.message_routes import message_routes
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await service_manager.get_instance().init_services()
-    log.g().i("MongoDB connected successfully")
     yield
     await service_manager.get_instance().close_services()
 
@@ -39,8 +38,7 @@ async def root():
 async def health():
     try:
         await mongo_controller.get_instance().link_connection()
-    except PyMongoError as error:
-        log.g().e(f"Health check failed: {error}")
+    except PyMongoError:
         return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "disconnected"})
     return {"status": "healthy", "database": "connected"}
 

@@ -60,4 +60,4 @@ def require_incoming_mail_token(request: Request) -> None:
     expected = CONSTANTS.S_INCOMING_MAIL_TOKEN
     provided = request.headers.get(INGEST_AUTH_HEADER, "")
     if not expected or not secrets.compare_digest(provided.encode(), expected.encode()):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid incoming mail token")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")

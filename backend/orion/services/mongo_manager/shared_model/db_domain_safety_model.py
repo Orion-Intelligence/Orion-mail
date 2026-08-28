@@ -15,20 +15,21 @@ class REPORT_TYPE(str, Enum):
 
 
 class db_domain_report_model(Model):
-    model_config = {"collection": MONGO_COLLECTIONS.DOMAIN_REPORTS, "parse_doc_with_default_factories": True}
+    model_config = {
+        "collection": MONGO_COLLECTIONS.DOMAIN_REPORTS,
+        "parse_doc_with_default_factories": True,
+    }
 
     reporter_user_id: ObjectId = Field(index=True)
     sender_domain: str
     report_type: REPORT_TYPE
-    sample_sender_address: str
-    last_message_id: ObjectId
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    @field_validator("sender_domain", "sample_sender_address")
+    @field_validator("sender_domain")
     @classmethod
-    def normalize_address_value(cls, value: str) -> str:
-        return value.strip().lower()
+    def normalize_domain(cls, value: str) -> str:
+        return value.strip().lower().rstrip(".")
 
 
 class db_domain_reputation_model(Model):
@@ -50,15 +51,17 @@ class db_domain_reputation_model(Model):
 
 
 class db_sender_block_model(Model):
-    model_config = {"collection": MONGO_COLLECTIONS.SENDER_BLOCKS, "parse_doc_with_default_factories": True}
+    model_config = {
+        "collection": MONGO_COLLECTIONS.SENDER_BLOCKS,
+        "parse_doc_with_default_factories": True,
+    }
 
     user_id: ObjectId = Field(index=True)
     sender_domain: str
-    sample_sender_address: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    @field_validator("sender_domain", "sample_sender_address")
+    @field_validator("sender_domain")
     @classmethod
-    def normalize_block_value(cls, value: str) -> str:
+    def normalize_domain(cls, value: str) -> str:
         return value.strip().lower().rstrip(".")

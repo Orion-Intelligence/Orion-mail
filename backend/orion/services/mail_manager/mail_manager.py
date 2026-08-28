@@ -54,12 +54,12 @@ class mail_manager:
             content_type = attachment.get("content_type", "application/octet-stream")
             file_path = mail_manager.get_attachment_file_path(storage_type, stored_filename)
             if not file_path.exists():
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Attachment file not found: {original_filename}")
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Attachment file not found")
             if "/" in content_type:
                 maintype, subtype = content_type.split("/", 1)
             else:
                 maintype, subtype = "application", "octet-stream"
-            email_message.add_attachment(file_path.read_bytes(), maintype=maintype, subtype=subtype, filename=original_filename)
+            email_message.add_attachment(file_path.read_bytes(), maintype=maintype, subtype=subtype, filename="attachment")
 
         return email_message
 
@@ -71,9 +71,9 @@ class mail_manager:
     async def send_email_source(raw_source: bytes, sender_address: str, recipient_addresses: list[str]) -> dict[str, str]:
         try:
             errors, _ = await aiosmtplib.send(raw_source, sender=sender_address, recipients=recipient_addresses, hostname=CONSTANTS.S_SMTP_HOST, port=CONSTANTS.S_SMTP_PORT, username=CONSTANTS.S_SMTP_USERNAME, password=CONSTANTS.S_SMTP_PASSWORD, start_tls=CONSTANTS.S_SMTP_START_TLS, timeout=30)
-            return {address: str(reason) for address, reason in (errors or {}).items()}
+            return {address: "failed" for address in (errors or {}).keys()}
         except aiosmtplib.SMTPException as error:
-            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Email delivery failed: {str(error)}") from error
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
         except TimeoutError as error:
             raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="SMTP server connection timed out") from error
         except OSError as error:

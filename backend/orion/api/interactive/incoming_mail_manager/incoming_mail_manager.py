@@ -1,5 +1,6 @@
 import re
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException, UploadFile, status
@@ -66,7 +67,7 @@ class incoming_mail_manager:
         if normalized_message_id:
             duplicate = await self._engine.find_one(db_message_model, and_(eq(db_message_model.owner_mailbox_id, mailbox.id), eq(db_message_model.message_id_header, normalized_message_id), eq(db_message_model.direction, MESSAGE_DIRECTION.INCOMING)))
             if duplicate is not None:
-                return {"id": str(duplicate.id), "attachments": [], "message": "Incoming email already stored"}
+                return {"message": "Incoming email already stored"}
         normalized_in_reply_to = self.normalize_message_id(in_reply_to)
         normalized_references = []
         for reference in references or []:
@@ -108,15 +109,14 @@ class incoming_mail_manager:
             references=normalized_references,
             thread_id=(thread_parent.thread_id or thread_parent.id) if thread_parent else None,
         )
-        message.message_id_header = message.message_id_header or f"<{message.id}@{CONSTANTS.S_MAIL_DOMAIN}>"
+        message.message_id_header = message.message_id_header or f"<{uuid4().hex}@{CONSTANTS.S_MAIL_DOMAIN}>"
         message.thread_id = message.thread_id or message.id
         message = await message_crypto_manager.get_instance().save_message(message)
 
         try:
             saved_attachments = await attachment_manager.get_instance().save_incoming_attachments(message_id=message.id, files=files)
-            content_ids = file_content_ids or []
-            for index, saved_attachment in enumerate(saved_attachments):
-                saved_attachment["content_id"] = (content_ids[index].strip() if index < len(content_ids) else "") or None
+            for saved_attachment in saved_attachments:
+                saved_attachment["content_id"] = None
             message.attachments = [db_message_attachment(**attachment) for attachment in saved_attachments]
             if raw_message is not None:
                 raw_source_filename, raw_source_encrypted, raw_source_size = await attachment_manager.get_instance().save_raw_source(await raw_message.read(), message.owner_mailbox_id)
@@ -131,8 +131,7 @@ class incoming_mail_manager:
             await self._engine.delete(message)
             raise
 
-        bounced_message_id = await self.apply_delivery_report(mailbox, delivery_report or {})
-        return {"id": str(message.id), "attachments": saved_attachments, "bounced_message_id": bounced_message_id, "message": "Incoming email saved successfully"}
+        return {"message": "Incoming email saved successfully"}
 
     async def apply_delivery_report(self, mailbox: db_mailbox_model, delivery_report: dict) -> str | None:
         original_message_id = self.normalize_message_id(delivery_report.get("original_message_id"))

@@ -47,7 +47,7 @@ class mailbox_manager:
         except DuplicateKeyError as error:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Mailbox address already exists") from error
 
-        return {"id": str(mailbox.id), "mailbox_address": mailbox.mailbox_address, "is_active": mailbox.is_active, "signature": mailbox.signature}
+        return {"mailbox_address": mailbox.mailbox_address, "is_active": mailbox.is_active, "signature": mailbox.signature}
 
     async def seed_local_test_mailboxes(self) -> int:
         user_collection = self._engine.get_collection(db_user_model)
@@ -94,7 +94,7 @@ class mailbox_manager:
         if mailbox is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mailbox not found")
 
-        return {"id": str(mailbox.id), "mailbox_address": mailbox.mailbox_address, "is_active": mailbox.is_active, "signature": mailbox.signature}
+        return {"mailbox_address": mailbox.mailbox_address, "is_active": mailbox.is_active, "signature": mailbox.signature}
 
     async def update_mailbox_settings(self, current_user: db_user_model, signature: str) -> dict:
         mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == current_user.id)
@@ -123,5 +123,5 @@ class mailbox_manager:
         await self._engine.get_collection(db_label_model).delete_many({"user_id": current_user.id})
         await self._engine.get_collection(db_sender_block_model).delete_many({"user_id": current_user.id})
         await self._engine.delete(mailbox)
-        return {"mailbox_address": mailbox.mailbox_address, "deleted_messages": len(messages), "message": "Mailbox and all stored mail deleted"}
+        return {"message": "Mailbox and all stored mail deleted"}
 

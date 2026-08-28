@@ -1,5 +1,4 @@
 import http.client
-import json
 import os
 import re
 import sys
@@ -47,16 +46,13 @@ def decode_part_text(part: MIMEPart) -> str:
 def serialize_nested_message(part: MIMEPart) -> tuple[bytes, str]:
     payload = part.get_payload()
     inner = payload[0] if isinstance(payload, list) and payload else None
+
     if isinstance(inner, MIMEPart):
         data = inner.as_bytes()
-        subject = sanitize_header_value(str(inner.get("Subject", "")).strip())
     else:
         data = bytes(part.get_payload(decode=True) or b"")
-        subject = ""
-    filename = part.get_filename() or f"{subject[:60] or 'forwarded-message'}.eml"
-    if not filename.lower().endswith(".eml"):
-        filename = f"{filename}.eml"
-    return data, filename
+
+    return data, "forwarded-message.eml"
 
 
 def collect_message_parts(part: MIMEPart, bodies: dict, attachments: list[dict], reports: list[MIMEPart]) -> None:
@@ -82,7 +78,7 @@ def collect_message_parts(part: MIMEPart, bodies: dict, attachments: list[dict],
 
     if disposition == "attachment" or filename is not None or content_id:
         file_data = bytes(part.get_payload(decode=True) or b"")
-        attachments.append({"filename": filename or (content_id or "attachment"), "content_type": part.get_content_type() or "application/octet-stream", "data": file_data, "content_id": content_id})
+        attachments.append({"filename": filename or "attachment", "content_type": part.get_content_type() or "application/octet-stream", "data": file_data, "content_id": content_id})
         return
 
     if content_type == "text/plain" and not bodies["text"]:
@@ -208,14 +204,6 @@ def build_multipart_request(sender_address: str, receiver_address: str, subject:
     return request_body, content_type
 
 
-def get_api_error_detail(response_body: bytes) -> str | None:
-    try:
-        detail = json.loads(response_body.decode("utf-8")).get("detail")
-    except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
-        return None
-    return detail if isinstance(detail, str) else None
-
-
 def post_incoming_mail(request_body: bytes, content_type: str) -> tuple[int, bytes]:
     parsed = urlsplit(INCOMING_MAIL_URL)
     host = parsed.hostname
@@ -243,7 +231,7 @@ def main() -> int:
     try:
         email_message: EmailMessage = message_from_bytes(raw_email, policy=policy.default)
     except Exception as error:
-        print(f"5.6.0 Invalid email format: {error}", file=sys.stderr)
+        print("5.6.0 Invalid email format", file=sys.stderr)
         return os.EX_DATAERR
 
     _, sender_address = parseaddr(str(email_message.get("From", "")))
@@ -285,24 +273,22 @@ def main() -> int:
     try:
         status_code, response_body = post_incoming_mail(request_body, content_type)
     except (http.client.HTTPException, TimeoutError, OSError, ValueError) as error:
-        print(f"4.3.0 Orion Mail incoming service unavailable: {error}", file=sys.stderr)
+        print("4.3.0 Orion Mail incoming service unavailable", file=sys.stderr)
         return os.EX_TEMPFAIL
 
     if status_code in (200, 201, 409):
         return os.EX_OK
 
-    detail = get_api_error_detail(response_body)
-
     if status_code == 413:
-        print("5.3.4 " + (detail or "Orion Mail rejected the message because the attachment size exceeds the configured limit."), file=sys.stderr)
+        print("5.3.4 Orion Mail rejected the message because the attachment size exceeds the configured limit.", file=sys.stderr)
         return os.EX_DATAERR
 
     if status_code == 404:
-        print("5.1.1 " + (detail or "Orion Mail recipient mailbox does not exist."), file=sys.stderr)
+        print("5.1.1 Orion Mail recipient mailbox does not exist.", file=sys.stderr)
         return os.EX_NOUSER
 
     if status_code in (400, 422):
-        print("5.6.0 " + (detail or "Orion Mail rejected the message as malformed."), file=sys.stderr)
+        print("5.6.0 Orion Mail rejected the message as malformed.", file=sys.stderr)
         return os.EX_DATAERR
 
     print(f"4.3.0 Orion Mail could not process the message. HTTP status: {status_code}", file=sys.stderr)
