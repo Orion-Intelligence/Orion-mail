@@ -381,6 +381,10 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
         compose up -d --pull missing "${compose_up_services[@]}"
     fi
 
+    if [ "$COMMAND" = "build" ] && is_nginx_running; then
+        compose up -d --force-recreate --no-deps nginx
+    fi
+
     wait_for_application_services
     reload_nginx
     disable_maintenance_mode
