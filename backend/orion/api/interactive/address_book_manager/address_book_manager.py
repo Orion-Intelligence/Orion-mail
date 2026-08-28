@@ -100,12 +100,25 @@ class address_book_manager:
 
     async def get_hints(self, current_user: db_user_model, query: str, limit: int = ADDRESS_BOOK_LIMITS.DEFAULT_HINTS) -> list[dict]:
         mailbox = await self.get_active_user_mailbox(current_user)
-        await self.backfill_from_sent_messages(mailbox)
+
         normalized_query = query.strip().lower()
         if not normalized_query:
             return []
 
         collection = self._engine.get_collection(db_address_book_entry_model)
-        cursor = collection.find({"owner_mailbox_id": mailbox.id, "email_address": {"$regex": f"^{re.escape(normalized_query)}"}}).sort([("last_used_at", -1), ("use_count", -1), ("email_address", 1)]).limit(limit)
+        cursor = (
+            collection.find({"owner_mailbox_id": mailbox.id, "email_address": {"$regex": f"^{re.escape(normalized_query)}"}})
+            .sort([("last_used_at", -1), ("email_address", 1)])
+            .limit(limit)
+        )
+
         entries = await cursor.to_list(length=limit)
-        return [{"email_address": entry["email_address"], "use_count": entry.get("use_count", 1), "last_used_at": entry["last_used_at"]} for entry in entries]
+
+        return [
+            {
+                "email_address": entry["email_address"],
+                "use_count": 1,
+                "last_used_at": entry["last_used_at"],
+            }
+            for entry in entries
+        ]

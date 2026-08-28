@@ -51,9 +51,20 @@ def allowed_sso_redirect_uri(redirect_uri: str) -> str:
 
 
 def allowed_sso_return_to(return_to: str) -> str:
-    if return_to.startswith("//") or not SSO_RETURN_TO_PATTERN.fullmatch(return_to):
+    if not return_to:
         return SSO_RETURN_TO_FALLBACK
-    return return_to
+
+    clean_value = unquote(return_to).strip()
+
+    if clean_value.startswith("//"):
+        return SSO_RETURN_TO_FALLBACK
+
+    path = clean_value.split("?", 1)[0].split("#", 1)[0]
+
+    if not path.startswith("/") or not re.fullmatch(r"/[A-Za-z0-9._~\-/]*", path):
+        return SSO_RETURN_TO_FALLBACK
+
+    return path
 
 
 def set_sso_cookies(response: Response, *, state: str, redirect_uri: str, return_to: str) -> None:

@@ -159,10 +159,10 @@ class attachment_manager:
         try:
             for source_attachment in selected_attachments:
                 if source_attachment.status != ATTACHMENT_STATUS.AVAILABLE:
-                    raise HTTPException(status_code=status.HTTP_410_GONE, detail=f"{source_attachment.original_filename} is no longer available")
+                    raise HTTPException(status_code=status.HTTP_410_GONE, detail="One or more attachments are no longer available")
                 source_path = self.get_storage_directory(source_attachment.storage_type) / source_attachment.stored_filename
                 if not source_path.is_file():
-                    raise HTTPException(status_code=status.HTTP_410_GONE, detail=f"{source_attachment.original_filename} is no longer available")
+                    raise HTTPException(status_code=status.HTTP_410_GONE, detail="One or more attachments are no longer available")
 
                 stored_filename = self.generate_stored_filename(source_attachment.original_filename)
                 target_path = target_directory / stored_filename
@@ -223,7 +223,6 @@ class attachment_manager:
         try:
             file_path.write_bytes(cipher.encrypt_bytes(content) if cipher else content)
         except OSError as error:
-            log.g().e(f"Raw message source could not be stored: {error}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Raw message source could not be stored") from error
         return stored_filename, cipher is not None, len(content)
 
@@ -268,8 +267,7 @@ class attachment_manager:
                 await self._engine.save(attachment)
                 await self._engine.get_collection(db_message_model).update_one({"_id": attachment.message_id, "attachments.id": str(attachment.id)}, {"$set": {"attachments.$.status": ATTACHMENT_STATUS.EXPIRED.value, "attachments.$.deleted_at": current_time}})
                 deleted_count += 1
-            except Exception as error:
-                log.g().e(f"Attachment cleanup failed for {attachment.id}: {error}")
+            except Exception:
                 failed_count += 1
 
         return {"deleted_count": deleted_count, "failed_count": failed_count}
@@ -315,4 +313,4 @@ class attachment_manager:
             cipher = await self.owner_cipher(message.owner_mailbox_id)
             content = cipher.decrypt_bytes(content) if cipher else content
 
-        return Response(content=content, media_type="application/octet-stream", headers={"X-Content-Type-Options": "nosniff", "Content-Disposition": f'attachment; filename="{attachment.original_filename}"'})
+        return Response(content=content, media_type="application/octet-stream", headers={"X-Content-Type-Options": "nosniff", "Content-Disposition": 'attachment; filename="attachment"'})

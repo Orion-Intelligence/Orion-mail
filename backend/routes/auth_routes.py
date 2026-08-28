@@ -164,8 +164,9 @@ async def logout(request: Request, response: Response):
     if session_token:
         try:
             await orion_identity_client.get_instance().revoke(session_token)
-        except HTTPException as error:
-            log.g().e(f"Orion session revoke failed during logout: {error.detail}")
+        except HTTPException:
+            pass
+        
     clear_session_cookie(response)
     clear_sso_cookies(response)
     return {

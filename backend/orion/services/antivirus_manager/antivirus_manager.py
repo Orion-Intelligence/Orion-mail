@@ -36,17 +36,14 @@ class antivirus_manager:
             writer.close()
             await writer.wait_closed()
 
-    async def assert_clean(self, content: bytes, filename: str) -> None:
+    async def assert_clean(self, content: bytes, _filename: str) -> None:
         try:
             response = await asyncio.wait_for(self._scan(content), timeout=CONSTANTS.S_CLAMAV_TIMEOUT_SECONDS)
         except Exception as error:
-            log.g().e(f"Antivirus scan failed for {filename}: {error}")
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Attachment could not be virus scanned") from error
 
         if response.endswith("FOUND"):
-            log.g().e(f"Antivirus rejected {filename}: {response}")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Attachment {filename} was rejected because it contains malware")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Attachment was rejected because it contains malware")
 
         if not response.endswith("OK"):
-            log.g().e(f"Antivirus returned an unexpected response for {filename}: {response}")
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Attachment could not be virus scanned")

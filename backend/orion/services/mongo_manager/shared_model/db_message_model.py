@@ -42,7 +42,6 @@ class db_message_attachment(EmbeddedModel):
     storage_type: STORAGE_TYPE
     expires_at: datetime
     status: ATTACHMENT_STATUS = Field(default=ATTACHMENT_STATUS.AVAILABLE)
-    content_id: Optional[str] = Field(default=None)
     deleted_at: Optional[datetime] = Field(default=None)
 
 

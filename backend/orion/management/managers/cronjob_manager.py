@@ -24,22 +24,20 @@ class cronjob_manager:
     async def attachment_cleanup_loop() -> None:
         while True:
             try:
-                result = await attachment_manager.get_instance().cleanup_expired_attachments()
-                log.g().i(f"[cronjobs] attachment cleanup: {result}")
-            except Exception as error:
-                log.g().e(f"[cronjobs] attachment cleanup failed: {error}")
+                await attachment_manager.get_instance().cleanup_expired_attachments()
+            except Exception:
+                pass
             await asyncio.sleep(CONSTANTS.S_ATTACHMENT_CLEANUP_INTERVAL_SECONDS)
 
     @staticmethod
     async def scheduled_delivery_loop() -> None:
         while True:
             try:
-                dispatched = await message_manager.get_instance().dispatch_scheduled_messages()
-                woken = await message_manager.get_instance().wake_snoozed_messages()
-                if dispatched["sent"] or dispatched["failed"] or woken["woken"]:
-                    log.g().i(f"[cronjobs] scheduled delivery: {dispatched}, snooze wake: {woken}")
-            except Exception as error:
-                log.g().e(f"[cronjobs] scheduled delivery failed: {error}")
+                await message_manager.get_instance().dispatch_scheduled_messages()
+                await message_manager.get_instance().wake_snoozed_messages()
+            except Exception:
+                pass
+
             await asyncio.sleep(CONSTANTS.S_SCHEDULED_DELIVERY_INTERVAL_SECONDS)
 
     @staticmethod

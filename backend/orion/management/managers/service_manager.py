@@ -30,7 +30,7 @@ class service_manager:
                 "ENCRYPTION_KEY must be set to a Fernet key"
             )
         if not CONSTANTS.S_INCOMING_MAIL_TOKEN:
-            log.g().e("INCOMING_MAIL_TOKEN is not set; the Postfix ingest endpoint will reject all mail")
+            raise RuntimeError("INCOMING_MAIL_TOKEN must be configured")
 
     async def init_services(self) -> None:
         self.validate_configuration()
@@ -38,9 +38,7 @@ class service_manager:
         await mongo_controller.get_instance().ensure_indexes()
         await config_controller.get_instance().initialize()
         if CONSTANTS.S_SEED_LOCAL_TEST_MAILBOXES:
-            created_count = await mailbox_manager.get_instance().seed_local_test_mailboxes()
-            if created_count:
-                log.g().i(f"Created {created_count} local test mailboxes")
+            await mailbox_manager.get_instance().seed_local_test_mailboxes()
 
     @staticmethod
     async def close_services() -> None:

@@ -1,6 +1,7 @@
 import re
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
+from uuid import uuid4
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -93,7 +94,7 @@ class message_manager:
         missing_local_addresses = [address for address in recipient_addresses if address.rpartition("@")[2] == CONSTANTS.S_MAIL_DOMAIN.lower() and address not in internal_addresses]
 
         if missing_local_addresses:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Mailbox not found: {', '.join(missing_local_addresses)}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or more local recipient mailboxes were not found")
 
         return (
             [address for address in recipient_addresses if address in internal_addresses],
@@ -122,7 +123,7 @@ class message_manager:
         for attachment in attachments:
             file_path = mail_manager.get_instance().get_attachment_file_path(attachment["storage_type"], attachment["stored_filename"])
             if not file_path.is_file():
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Attachment file not found: {attachment['original_filename']}")
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Attachment file not found")
             uploads.append(UploadFile(file=BytesIO(file_path.read_bytes()), size=attachment["size"], filename=attachment["original_filename"], headers=Headers({"content-type": attachment["content_type"]})))
         return uploads
 
@@ -272,7 +273,7 @@ class message_manager:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is not a draft")
         else:
             message = db_message_model(owner_mailbox_id=mailbox.id, sender_address=mailbox.mailbox_address, receiver_address="", subject="", body="", direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.DRAFTS, delivery_status=DELIVERY_STATUS.QUEUED)
-            message.message_id_header = f"<{message.id}@{CONSTANTS.S_MAIL_DOMAIN}>"
+            message.message_id_header = f"<{uuid4().hex}@{CONSTANTS.S_MAIL_DOMAIN}>"
             message.thread_id = message.id
 
         message.receiver_address = normalized_receiver_address
@@ -354,7 +355,7 @@ class message_manager:
             thread_id=(reply_parent.thread_id or reply_parent.id) if reply_parent else None,
             forwarded_from_message_id=forward_source.id if forward_source else None,
         )
-        message.message_id_header = f"<{message.id}@{CONSTANTS.S_MAIL_DOMAIN}>"
+        message.message_id_header = f"<{uuid4().hex}@{CONSTANTS.S_MAIL_DOMAIN}>"
         message.thread_id = message.thread_id or message.id
         message = await message_crypto_manager.get_instance().save_message(message)
 
@@ -415,13 +416,12 @@ class message_manager:
             raise
         except Exception as error:
             await self.mark_delivery_failed(message)
-            log.g().e(f"Email delivery failed for message {message.id}: {error}")
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
 
         try:
             await address_book_manager.get_instance().record_recipients(mailbox=sender_mailbox, recipient_addresses=recipient_addresses)
-        except Exception as error:
-            log.g().e(f"Address book update failed for mailbox {sender_mailbox.id}: {error}")
+        except Exception:
+            pass
 
         if draft is not None:
             await self._engine.delete(draft)
@@ -542,7 +542,6 @@ class message_manager:
                 sent += 1
             except Exception as error:
                 failed += 1
-                log.g().e(f"Scheduled send failed for draft {draft.id}: {error}")
                 draft.scheduled_at = None
                 draft.updated_at = datetime.now(UTC)
                 await message_crypto_manager.get_instance().save_message(draft)
@@ -893,8 +892,7 @@ class message_manager:
 
     @staticmethod
     def message_download_filename(message: db_message_model) -> str:
-        base_name = re.sub(r"[^A-Za-z0-9._-]+", "-", message.subject).strip("-.")[:80] or "message"
-        return f'{base_name}.eml'
+        return "message.eml"
 
     async def get_message_source(self, current_user: db_user_model, message_id: str) -> Response:
         mailbox = await self.get_active_user_mailbox(current_user)

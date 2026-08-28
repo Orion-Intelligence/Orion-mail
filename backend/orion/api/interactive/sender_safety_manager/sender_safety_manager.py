@@ -93,8 +93,6 @@ class sender_safety_manager:
         update = {
             "$set": {
                 "report_type": report_type.value,
-                "sample_sender_address": message.sender_address,
-                "last_message_id": message.id,
                 "updated_at": now,
             },
             "$setOnInsert": {"reporter_user_id": current_user.id, "sender_domain": domain, "created_at": now},
@@ -122,7 +120,7 @@ class sender_safety_manager:
         block_collection = self._engine.get_collection(db_sender_block_model)
         query = {"user_id": current_user.id, "sender_domain": domain}
         update = {
-            "$set": {"sample_sender_address": message.sender_address, "updated_at": now},
+            "$set": {"updated_at": now},
             "$setOnInsert": {"user_id": current_user.id, "sender_domain": domain, "created_at": now},
         }
         try:
