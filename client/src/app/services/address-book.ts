@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -14,7 +14,6 @@ export class AddressBookService {
   constructor(private readonly http: HttpClient) {}
 
   getHints(query: string, limit = 8): Observable<AddressHint[]> {
-    const params = new HttpParams().set('query', query).set('limit', limit);
-    return this.http.get<AddressHint[]>(`${this.baseUrl}/hints`, { params });
+    return this.http.post<AddressHint[]>(`${this.baseUrl}/hints`, { query, limit });
   }
 }
