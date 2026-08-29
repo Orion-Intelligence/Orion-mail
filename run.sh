@@ -375,7 +375,7 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
 
     compose_up_services=()
     if is_nginx_running; then
-        compose_up_services=(web)
+        compose_up_services=(web postfix)
     else
         publish_certificate
     fi
