@@ -370,7 +370,7 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
     if [ "$COMMAND" = "build" ]; then
         install_client_dependencies
         client_build
-        compose build --pull web
+        compose build --pull web postfix
     fi
 
     compose_up_services=()
@@ -404,7 +404,7 @@ elif [ "$COMMAND" = "build" ] && { [ "$FLAG" = "-d" ] || [ "$FLAG" = "-t" ]; }; 
         install_client_dependencies
         client_build instrumented
     fi
-    compose build --pull web
+    compose build --pull web postfix
     compose up -d --pull missing
     wait_for_application_services
     cat <<MSG

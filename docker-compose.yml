@@ -10,7 +10,7 @@ services:
       MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:?MONGO_ROOT_USERNAME must be set}:${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD must be set}@mongo:27017/?authSource=admin
       MONGODB_DATABASE: ${MONGODB_DATABASE:-orion_mail}
       ATTACHMENT_STORAGE_DIR: /app/static/resource/attachments
-      SMTP_HOST: host.docker.internal
+      SMTP_HOST: postfix
       SMTP_PORT: "25"
       SMTP_START_TLS: "false"
       SEED_LOCAL_TEST_MAILBOXES: "true"
@@ -31,8 +31,6 @@ services:
       - ./backend/static/resource/attachments:/app/static/resource/attachments:rw
     ports:
       - "127.0.0.1:8000:8000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     security_opt:
       - no-new-privileges:true
     networks:
@@ -46,6 +44,57 @@ services:
       start_period: 10s
     command: >
       sh -c "python3 /app/cronjobs.py & exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/configs --reload-dir /app/orion --reload-dir /app/routes"
+
+  postfix:
+    container_name: orion-mail-postfix
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: dockerFiles/postfix_docker
+      args:
+        APP_UID: "${APP_UID:-1000}"
+        APP_GID: "${APP_GID:-1000}"
+    environment:
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-mail.orionintelligence.org}
+      ORION_MAIL_INCOMING_URL: http://web:8000/incoming-mail/
+      ORION_MAIL_INCOMING_TOKEN: ${INCOMING_MAIL_TOKEN:?INCOMING_MAIL_TOKEN must be set}
+      POSTFIX_MYNETWORKS: 127.0.0.0/8 172.16.0.0/12
+      POSTFIX_MILTER: inet:rspamd:11332
+      POSTFIX_MESSAGE_SIZE_LIMIT: "67108864"
+    depends_on:
+      web:
+        condition: service_started
+      rspamd:
+        condition: service_started
+    ports:
+      - "127.0.0.1:2525:25"
+    volumes:
+      - postfix:/var/spool/postfix
+    read_only: true
+    tmpfs:
+      - /etc/postfix:rw,nosuid,nodev,size=8m,mode=755
+      - /var/lib/postfix:rw,nosuid,nodev,size=16m,mode=755
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    networks:
+      - backend
+    healthcheck:
+      test: [ "CMD", "postfix", "status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   mongo:
     container_name: orion-mail-mongodb
@@ -143,6 +192,7 @@ networks:
 
 volumes:
   mongo:
+  postfix:
   rspamd:
   clamav:
   redis:
