@@ -41,7 +41,7 @@
     "@eslint/js": "10.0.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.2.0",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.67.0",
     "babel-plugin-istanbul": "^8.0.0",
     "cypress": "^15.20.1",
