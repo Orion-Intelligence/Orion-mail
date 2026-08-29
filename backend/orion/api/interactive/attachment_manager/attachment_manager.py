@@ -97,7 +97,7 @@ class attachment_manager:
             file_size = len(file_content)
             total_size += file_size
             if total_size > max_total_size:
-                raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=limit_error.format(limit_mb=limit_mb))
+                raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=limit_error.format(limit_mb=limit_mb))
             prepared_files.append({"file": file, "content": file_content, "size": file_size})
 
         storage_directory = self.get_storage_directory(storage_type)
@@ -163,10 +163,10 @@ class attachment_manager:
                 original_filename = self.sanitize_original_filename(file.filename)
                 file_size = len(file_content)
                 if file_size > max_total_size:
-                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=f"{original_filename} is larger than the {limit_mb} MB attachment limit")
+                    raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"{original_filename} is larger than the {limit_mb} MB attachment limit")
                 total_size += file_size
                 if total_size > max_total_size:
-                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=f"Total attachment size cannot exceed {limit_mb} MB")
+                    raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"Total attachment size cannot exceed {limit_mb} MB")
                 await antivirus_manager.get_instance().assert_clean(file_content, original_filename)
                 stored_filename = self.generate_stored_filename(original_filename)
                 staged.append({"original_filename": original_filename, "stored_filename": stored_filename, "size": file_size, "content_type": file.content_type or "application/octet-stream", "storage_type": STORAGE_TYPE.STAGING.value})
@@ -212,7 +212,7 @@ class attachment_manager:
 
                 total_size += len(source_bytes)
                 if total_size > max_total_size:
-                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=f"Total attachment size cannot exceed {limit_mb} MB")
+                    raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"Total attachment size cannot exceed {limit_mb} MB")
 
                 stored_filename = self.generate_stored_filename(source_attachment.original_filename)
                 forwarded.append({"original_filename": source_attachment.original_filename, "stored_filename": stored_filename, "size": len(source_bytes), "content_type": source_attachment.content_type, "storage_type": STORAGE_TYPE.STAGING.value})
@@ -236,7 +236,7 @@ class attachment_manager:
         if not content:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Raw message source is empty")
         if len(content) > MESSAGE_LIMITS.RAW_SOURCE_MAX_SIZE:
-            raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Raw message source is too large")
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Raw message source is too large")
 
         stored_filename = f"{uuid4().hex}.eml"
         file_path = self.get_raw_source_path(stored_filename)

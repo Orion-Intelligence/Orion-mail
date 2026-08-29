@@ -245,8 +245,12 @@ client_build() {
 }
 
 run_backend_tests() {
+    local interpreter="python3"
+    if [ -x backend/.venv/bin/python ]; then
+        interpreter="$PWD/backend/.venv/bin/python"
+    fi
     cd backend || exit 1
-    python3 -m pytest "$@"
+    "$interpreter" -m pytest "$@"
     cd ..
 }
 
