@@ -18,18 +18,23 @@ if (!fs.existsSync(path.join(buildDir, "index.html"))) {
 const proxyConfig = JSON.parse(fs.readFileSync(path.resolve(clientDir, "proxy.conf.json"), "utf8"));
 const proxyRoutes = Object.entries(proxyConfig).map(([prefix, options]) => ({ prefix, target: new URL(options.target) }));
 
-const contentTypes = {
-    ".css": "text/css; charset=utf-8",
-    ".html": "text/html; charset=utf-8",
-    ".ico": "image/x-icon",
-    ".js": "text/javascript; charset=utf-8",
-    ".json": "application/json; charset=utf-8",
-    ".map": "application/json; charset=utf-8",
-    ".mjs": "text/javascript; charset=utf-8",
-    ".png": "image/png",
-    ".svg": "image/svg+xml",
-    ".webp": "image/webp",
-    ".woff2": "font/woff2",
+const contentTypes = new Map([
+    [".css", "text/css; charset=utf-8"],
+    [".html", "text/html; charset=utf-8"],
+    [".ico", "image/x-icon"],
+    [".js", "text/javascript; charset=utf-8"],
+    [".json", "application/json; charset=utf-8"],
+    [".map", "application/json; charset=utf-8"],
+    [".mjs", "text/javascript; charset=utf-8"],
+    [".png", "image/png"],
+    [".svg", "image/svg+xml"],
+    [".webp", "image/webp"],
+    [".woff2", "font/woff2"],
+]);
+
+const withinBuildDir = (candidate) => {
+    const relative = path.relative(buildDir, candidate);
+    return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 };
 
 const matchProxy = (pathname) => proxyRoutes.find((route) => pathname === route.prefix || pathname.startsWith(`${route.prefix}/`));
@@ -57,7 +62,7 @@ const forward = (request, response, route) => {
 
 const sendFile = (response, filePath) => {
     response.writeHead(200, {
-        "content-type": contentTypes[path.extname(filePath)] || "application/octet-stream",
+        "content-type": contentTypes.get(path.extname(filePath)) || "application/octet-stream",
         "cache-control": "no-store",
     });
     fs.createReadStream(filePath).pipe(response);
@@ -72,7 +77,8 @@ http.createServer((request, response) => {
     }
 
     const candidate = path.resolve(buildDir, `.${pathname}`);
-    if (candidate.startsWith(buildDir) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+    const stats = withinBuildDir(candidate) ? fs.statSync(candidate, { throwIfNoEntry: false }) : undefined;
+    if (stats?.isFile()) {
         sendFile(response, candidate);
         return;
     }

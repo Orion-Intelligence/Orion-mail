@@ -32,24 +32,36 @@ export class LabelService {
 
   loadLabels(): Observable<MailLabel[]> {
     this.loading.set(true);
-    return this.http.get<MailLabel[]>(this.baseUrl).pipe(tap((labels) => this.labels.set(this.sortLabels(labels))),
-      finalize(() => this.loading.set(false)),);
+    return this.http.get<MailLabel[]>(this.baseUrl).pipe(tap((labels) => {
+      this.labels.set(this.sortLabels(labels));
+    }),
+    finalize(() => {
+      this.loading.set(false);
+    }),);
   }
 
   createLabel(label: LabelCreateRequest): Observable<MailLabel> {
-    return this.http.post<MailLabel>(this.baseUrl, label).pipe(tap((createdLabel) => this.labels.update((labels) => this.sortLabels([...labels, createdLabel]))),);
+    return this.http.post<MailLabel>(this.baseUrl, label).pipe(tap((createdLabel) => {
+      this.labels.update((labels) => this.sortLabels([...labels, createdLabel]));
+    }),);
   }
 
   updateLabel(labelId: string, changes: LabelUpdateRequest): Observable<MailLabel> {
-    return this.http.patch<MailLabel>(`${this.baseUrl}/${labelId}`, changes).pipe(tap((updatedLabel) => this.labels.update((labels) => this.sortLabels(labels.map((label) => (label.id === labelId ? { ...updatedLabel, message_count: label.message_count } : label))))),);
+    return this.http.patch<MailLabel>(`${this.baseUrl}/${labelId}`, changes).pipe(tap((updatedLabel) => {
+      this.labels.update((labels) => this.sortLabels(labels.map((label) => (label.id === labelId ? { ...updatedLabel, message_count: label.message_count } : label))));
+    }),);
   }
 
   deleteLabel(labelId: string): Observable<{ message: string }> {
-    return this.http.delete<{ message: string }>(`${this.baseUrl}/${labelId}`).pipe(tap(() => this.labels.update((labels) => labels.filter((label) => label.id !== labelId))),);
+    return this.http.delete<{ message: string }>(`${this.baseUrl}/${labelId}`).pipe(tap(() => {
+      this.labels.update((labels) => labels.filter((label) => label.id !== labelId));
+    }),);
   }
 
   getLabelMessages(labelId: string): Observable<LabelMessagesResponse> {
-    return this.http.get<LabelMessagesResponse>(`${this.baseUrl}/${labelId}/messages`).pipe(tap((response) => this.labels.update((labels) => labels.map((label) => (label.id === labelId ? response.label : label)))),);
+    return this.http.get<LabelMessagesResponse>(`${this.baseUrl}/${labelId}/messages`).pipe(tap((response) => {
+      this.labels.update((labels) => labels.map((label) => (label.id === labelId ? response.label : label)));
+    }),);
   }
 
   adjustMessageCount(labelIds: string[], delta: number): void {

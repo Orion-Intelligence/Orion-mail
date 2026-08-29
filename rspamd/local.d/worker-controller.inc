@@ -1,3 +1,2 @@
 bind_socket = "0.0.0.0:11334";
-password = "REPLACE_WITH_RSPAMADM_PW_OUTPUT";
-enable_password = "REPLACE_WITH_RSPAMADM_PW_OUTPUT";
+.include(try=true,priority=10) "$LOCAL_CONFDIR/local.d/worker-controller-secret.inc"

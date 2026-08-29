@@ -234,6 +234,11 @@
     </aside>
 
     <main class="mail-paper-surface relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-transparent pr-4 pb-4 max-[720px]:px-2 max-[720px]:pb-2">
+      @if (messageService.storageExceeded()) {
+        <div role="alert" class="mx-1 mt-2 mb-1 rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-danger">
+          Server storage limit reached &mdash; please contact the administrator.
+        </div>
+      }
       <router-outlet />
     </main>
   </div>

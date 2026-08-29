@@ -59,7 +59,7 @@ class mail_manager:
                 maintype, subtype = content_type.split("/", 1)
             else:
                 maintype, subtype = "application", "octet-stream"
-            email_message.add_attachment(file_path.read_bytes(), maintype=maintype, subtype=subtype, filename="attachment")
+            email_message.add_attachment(file_path.read_bytes(), maintype=maintype, subtype=subtype, filename=original_filename)
 
         return email_message
 

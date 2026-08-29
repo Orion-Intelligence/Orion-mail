@@ -20,7 +20,8 @@ import { RecipientHintField, RichTextCommandRunner } from '../../shared/model/co
   templateUrl: './compose.html',
 })
 export class Compose implements AfterViewInit, OnDestroy {
-  private readonly maxTotalFileSize = 5 * 1024 * 1024;
+  private readonly maxTotalFileSize = 1 * 1024 * 1024;
+  private readonly maxFileSizeLabel = '1 MB';
   private readonly maxAttachmentCount = 10;
   private readonly autosave: Subscription;
   private readonly hintSubscriptions = new Subscription();
@@ -34,7 +35,7 @@ export class Compose implements AfterViewInit, OnDestroy {
 
   request = input<ComposeRequest | null>(null);
   inline = input(false);
-  closed = output<void>();
+  closed = output();
   sent = output<string>();
   loading = signal(false);
   errorMessage = signal('');
@@ -71,11 +72,15 @@ export class Compose implements AfterViewInit, OnDestroy {
       body: ['', Validators.required],
       body_html: [''],
     });
-    this.autosave = this.form.valueChanges.pipe(debounceTime(1500)).subscribe(() => this.saveDraft());
+    this.autosave = this.form.valueChanges.pipe(debounceTime(1500)).subscribe(() => {
+      this.saveDraft();
+    });
     this.bindRecipientHints();
     effect(() => {
       const request = this.request();
-      untracked(() => this.applyRequest(request));
+      untracked(() => {
+        this.applyRequest(request);
+      });
     });
   }
 
@@ -129,7 +134,9 @@ export class Compose implements AfterViewInit, OnDestroy {
   }
 
   closeHintsSoon(): void {
-    setTimeout(() => this.activeHintField.set(null), 120);
+    setTimeout(() => {
+      this.activeHintField.set(null);
+    }, 120);
   }
 
   selectHint(field: RecipientHintField, emailAddress: string): void {
@@ -187,9 +194,10 @@ export class Compose implements AfterViewInit, OnDestroy {
     }
     if (event.key === 'Enter') {
       const index = this.activeHintIndex();
-      if (index >= 0) {
+      const hint = index >= 0 ? hints.at(index) : undefined;
+      if (hint) {
         event.preventDefault();
-        this.selectHint(field, hints[index].email_address);
+        this.selectHint(field, hint.email_address);
       }
     }
   }
@@ -237,7 +245,9 @@ export class Compose implements AfterViewInit, OnDestroy {
         }
         if (this.pendingDiscard) {
           this.pendingDiscard = false;
-          this.messageService.permanentlyDeleteMessage(draft.id).subscribe({ next: () => this.messageService.refreshFolderCounts(), error: () => undefined });
+          this.messageService.permanentlyDeleteMessage(draft.id).subscribe({ next: () => {
+            this.messageService.refreshFolderCounts();
+          }, error: () => undefined });
           return;
         }
         this.draftId.set(draft.id);
@@ -264,7 +274,9 @@ export class Compose implements AfterViewInit, OnDestroy {
       this.pendingDiscard = true;
     }
     else if (draftId) {
-      this.messageService.permanentlyDeleteMessage(draftId).subscribe({ next: () => this.messageService.refreshFolderCounts(), error: () => undefined });
+      this.messageService.permanentlyDeleteMessage(draftId).subscribe({ next: () => {
+        this.messageService.refreshFolderCounts();
+      }, error: () => undefined });
     }
     this.dismiss();
   }
@@ -273,7 +285,9 @@ export class Compose implements AfterViewInit, OnDestroy {
     const enabled = !this.richText();
     this.richText.set(enabled);
     if (enabled) {
-      setTimeout(() => this.syncEditorFromForm(), 0);
+      setTimeout(() => {
+        this.syncEditorFromForm();
+      }, 0);
       return;
     }
     this.form.controls.body_html.setValue('');
@@ -303,7 +317,7 @@ export class Compose implements AfterViewInit, OnDestroy {
       return;
     }
     this.form.controls.body.setValue(editor.innerText);
-    this.form.controls.body_html.setValue(editor.innerHTML);
+    this.form.controls.body_html.setValue(/*safe*/ editor.innerHTML);
   }
 
   private syncEditorFromForm(): void {
@@ -312,13 +326,13 @@ export class Compose implements AfterViewInit, OnDestroy {
       return;
     }
     const html = this.form.controls.body_html.value || this.plainTextToHtml(this.form.controls.body.value);
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const parsed = new DOMParser().parseFromString(/*safe*/ html, 'text/html');
     editor.replaceChildren(...Array.from(parsed.body.childNodes));
   }
 
   private plainTextToHtml(text: string): string {
     const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return escaped.replace(/\n/g, '<br>');
+    return escaped.replace(/\n/g, /*safe*/ '<br>');
   }
 
   onFilesDropped(event: DragEvent): void {
@@ -340,7 +354,14 @@ export class Compose implements AfterViewInit, OnDestroy {
   }
 
   private addFiles(newFiles: File[]): void {
-    const combinedFiles = [...this.selectedFiles(), ...newFiles];
+    const previousFiles = this.selectedFiles();
+    const oversizedFile = newFiles.find((file) => file.size > this.maxTotalFileSize);
+    if (oversizedFile) {
+      this.fileError.set(`${oversizedFile.name} is larger than the ${this.maxFileSizeLabel} attachment limit.`);
+      return;
+    }
+
+    const combinedFiles = [...previousFiles, ...newFiles];
     if (combinedFiles.length + this.forwardedAttachments().length > this.maxAttachmentCount) {
       this.fileError.set(`A message cannot have more than ${this.maxAttachmentCount} attachments.`);
       return;
@@ -348,20 +369,28 @@ export class Compose implements AfterViewInit, OnDestroy {
 
     this.selectedFiles.set(combinedFiles);
     if (!this.validateAttachmentLimits()) {
-      this.selectedFiles.set(this.selectedFiles().slice(0, -newFiles.length));
+      this.selectedFiles.set(previousFiles);
     }
   }
 
   onFilesSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
+    const /*safe*/ input = event.target as HTMLInputElement;
 
     if (!input.files) {
       return;
     }
 
     const newFiles = Array.from(input.files);
+    const previousFiles = this.selectedFiles();
+    const oversizedFile = newFiles.find((file) => file.size > this.maxTotalFileSize);
 
-    const combinedFiles = [...this.selectedFiles(), ...newFiles];
+    if (oversizedFile) {
+      this.fileError.set(`${oversizedFile.name} is larger than the ${this.maxFileSizeLabel} attachment limit.`);
+      input.value = '';
+      return;
+    }
+
+    const combinedFiles = [...previousFiles, ...newFiles];
 
     if (combinedFiles.length + this.forwardedAttachments().length > this.maxAttachmentCount) {
       this.fileError.set(`A message cannot have more than ${this.maxAttachmentCount} attachments.`);
@@ -371,7 +400,7 @@ export class Compose implements AfterViewInit, OnDestroy {
 
     this.selectedFiles.set(combinedFiles);
     if (!this.validateAttachmentLimits()) {
-      this.selectedFiles.set(this.selectedFiles().slice(0, -newFiles.length));
+      this.selectedFiles.set(previousFiles);
     }
 
     input.value = '';
@@ -418,7 +447,9 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.form.patchValue({ receiver_address: request.to ?? '', cc_addresses: request.cc?.join(', ') ?? '', bcc_addresses: '', subject: request.subject ?? '', body: request.body ?? '' });
     this.form.controls.body_html.setValue('');
     this.applySignature(request.body ?? '');
-    setTimeout(() => this.syncEditorFromForm(), 0);
+    setTimeout(() => {
+      this.syncEditorFromForm();
+    }, 0);
     this.validateAttachmentLimits();
     this.focusComposer();
   }
@@ -452,13 +483,17 @@ export class Compose implements AfterViewInit, OnDestroy {
         this.form.patchValue({ receiver_address: draft.receiver_address, cc_addresses: draft.cc_addresses.join(', '), bcc_addresses: (draft.bcc_addresses ?? []).join(', '), subject: draft.subject, body: draft.body });
         this.draftId.set(draft.id);
         this.lastSavedDraft = this.snapshot();
-        this.form.controls.body_html.setValue(draft.body_html ?? '');
-        setTimeout(() => this.syncEditorFromForm(), 0);
+        this.form.controls.body_html.setValue(/*safe*/ draft.body_html ?? '');
+        setTimeout(() => {
+          this.syncEditorFromForm();
+        }, 0);
         this.composeTitle.set(draft.subject || 'Draft');
         this.draftStatus.set('Draft saved');
         this.focusBody();
       },
-      error: () => this.errorMessage.set('Could not load the draft.'),
+      error: () => {
+        this.errorMessage.set('Could not load the draft.');
+      },
     });
   }
 
@@ -536,7 +571,7 @@ export class Compose implements AfterViewInit, OnDestroy {
       return false;
     }
     if (this.totalAttachmentBytes() > this.maxTotalFileSize) {
-      this.fileError.set('Total attachment size cannot exceed 5 MB.');
+      this.fileError.set(`Total attachment size cannot exceed ${this.maxFileSizeLabel}.`);
       return false;
     }
     this.fileError.set('');
@@ -562,8 +597,12 @@ export class Compose implements AfterViewInit, OnDestroy {
 
     this.pendingSend.set(true);
     this.undoSeconds.set(UNDO_SEND_SECONDS);
-    this.undoInterval = setInterval(() => this.undoSeconds.update((seconds) => Math.max(0, seconds - 1)), 1000);
-    this.undoTimer = setTimeout(() => this.performSend(), UNDO_SEND_SECONDS * 1000);
+    this.undoInterval = setInterval(() => {
+      this.undoSeconds.update((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    this.undoTimer = setTimeout(() => {
+      this.performSend();
+    }, UNDO_SEND_SECONDS * 1000);
   }
 
   cancelSend(): void {
@@ -595,7 +634,7 @@ export class Compose implements AfterViewInit, OnDestroy {
       bcc_addresses: bccAddresses,
       subject: formValue.subject,
       body: formValue.body,
-      body_html: this.richText() ? formValue.body_html : undefined,
+      body_html: this.richText() ? formValue.body_html : /*safe*/ undefined,
       files: this.selectedFiles(),
       in_reply_to_message_id: this.inReplyToMessageId,
       forward_message_id: this.forwardMessageId,

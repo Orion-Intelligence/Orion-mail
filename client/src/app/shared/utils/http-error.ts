@@ -1,8 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-import { ValidationDetail } from '../model/http-error.model';
+import { ValidationDetailEntry } from '../model/http-error.model';
 
-function firstValidationMessage(detail: ValidationDetail[]): string {
+function firstValidationMessage(detail: ValidationDetailEntry[]): string {
   const message = detail.find((entry) => typeof entry?.msg === 'string')?.msg;
   return message ? message.replace(/^(Value error|Assertion failed),?\s*/i, '') : '';
 }

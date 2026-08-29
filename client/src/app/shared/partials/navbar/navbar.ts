@@ -96,6 +96,7 @@ export class Navbar implements OnInit {
     });
     this.labelService.loadLabels().subscribe({ error: () => undefined });
     this.messageService.refreshFolderCounts();
+    this.messageService.refreshStorageStatus();
     this.mailPollService.start();
     this.mailPollService.requestNotificationPermission();
     if (MORE_ROUTES.some((route) => this.router.url.startsWith(route))) {
@@ -108,7 +109,7 @@ export class Navbar implements OnInit {
   }
 
   onSearch(event: Event): void {
-    const input = event.target as HTMLInputElement;
+    const /*safe*/ input = event.target as HTMLInputElement;
     this.searchTerm.set(input.value);
     this.activeSearchOption.set(-1);
     this.searchScopeMenuOpen.set(false);
@@ -247,7 +248,7 @@ export class Navbar implements OnInit {
   }
 
   searchHintFolder(message: MessageDetailResponse): string {
-    return MESSAGE_FOLDER_NAMES[message.folder] ?? message.folder;
+    return MESSAGE_FOLDER_NAMES.get(message.folder) ?? message.folder;
   }
 
   navigationExpanded(): boolean {
@@ -321,8 +322,12 @@ export class Navbar implements OnInit {
     this.authService
       .logout()
       .subscribe({
-        next: (response) => window.location.assign(response.redirect_url),
-        error: () => window.location.assign('/'),
+        next: (response) => {
+          window.location.assign(response.redirect_url);
+        },
+        error: () => {
+          window.location.assign('/');
+        },
       });
   }
 
@@ -337,15 +342,19 @@ export class Navbar implements OnInit {
         const parameters = searchScopeParameters(request.scope);
         this.searchHintsLoading.set(true);
         return this.messageService.searchMessages(query, parameters.scope, parameters.labelId, 6).pipe(catchError(() => of([] as MessageDetailResponse[])),
-          finalize(() => this.searchHintsLoading.set(false)),);
+          finalize(() => {
+            this.searchHintsLoading.set(false);
+          }),);
       }),
       takeUntilDestroyed(this.destroyRef),).subscribe((hints) => {
-      this.searchHints.set(hints.map((message) => ({ ...message, label_ids: message.label_ids ?? [] })));
+      this.searchHints.set(hints.map((message) => ({ ...message, label_ids: message.label_ids })));
       this.activeSearchOption.update((index) => index < 0 ? -1 : Math.min(index, hints.length));
     });
 
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      takeUntilDestroyed(this.destroyRef),).subscribe((event) => this.syncSearchStateFromUrl(event.urlAfterRedirects));
+      takeUntilDestroyed(this.destroyRef),).subscribe((event) => {
+      this.syncSearchStateFromUrl(event.urlAfterRedirects);
+    });
   }
 
   private syncSearchStateFromUrl(url: string): void {
@@ -409,14 +418,14 @@ export class Navbar implements OnInit {
     this.pendingGoTo = false;
   }
 
-  @HostListener('document:keydown', ['$event'])
+    @HostListener('document:keydown', ['$event'])
   onGlobalKeydown(event: KeyboardEvent): void {
     if (event.metaKey || event.ctrlKey || event.altKey) {
       return;
     }
 
-    const target = event.target as HTMLElement | null;
-    const tagName = target?.tagName?.toLowerCase() ?? '';
+    const /*safe*/ target = event.target as HTMLElement | null;
+    const tagName = target?.tagName.toLowerCase() ?? '';
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable) {
       return;
     }
@@ -434,7 +443,9 @@ export class Navbar implements OnInit {
 
     if (event.key === 'g') {
       this.pendingGoTo = true;
-      this.goToTimer = setTimeout(() => this.clearPendingGoTo(), 1500);
+      this.goToTimer = setTimeout(() => {
+        this.clearPendingGoTo();
+      }, 1500);
       return;
     }
 
@@ -451,15 +462,15 @@ export class Navbar implements OnInit {
   }
 
   @HostListener('document:keydown.escape')
-  closeMenusOnEscape(): void {
-    if (this.searchSuggestionsOpen() || this.searchScopeMenuOpen()) {
-      this.closeSearchMenus();
+    closeMenusOnEscape(): void {
+      if (this.searchSuggestionsOpen() || this.searchScopeMenuOpen()) {
+        this.closeSearchMenus();
+      }
+      if (this.profileMenuOpen()) {
+        this.profileMenuOpen.set(false);
+        setTimeout(() => this.profileButton?.nativeElement.focus(), 0);
+      }
     }
-    if (this.profileMenuOpen()) {
-      this.profileMenuOpen.set(false);
-      setTimeout(() => this.profileButton?.nativeElement.focus(), 0);
-    }
-  }
 
   @HostListener('document:keydown', ['$event'])
   focusSearchOnShortcut(event: KeyboardEvent): void {
@@ -467,7 +478,7 @@ export class Navbar implements OnInit {
       return;
     }
 
-    const target = event.target as HTMLElement | null;
+    const /*safe*/ target = event.target as HTMLElement | null;
     if (target?.isContentEditable || target?.closest('input, textarea, select, [role="textbox"]')) {
       return;
     }

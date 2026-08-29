@@ -247,7 +247,7 @@ export class Inbox implements OnInit {
   }
 
   messageLabels(labelIds: string[]): MailLabel[] {
-    const ids = new Set(labelIds ?? []);
+    const ids = new Set(labelIds);
     return this.labelService.labels().filter((label) => ids.has(label.id));
   }
 
@@ -290,14 +290,14 @@ export class Inbox implements OnInit {
 
     if (response.action === 'trash' || response.action === 'report_spam' || response.action === 'report_phishing') {
       for (const message of before.values()) {
-        this.labelService.adjustMessageCount(message.label_ids ?? [], -1);
+        this.labelService.adjustMessageCount(message.label_ids, -1);
       }
     }
     else if (response.action === 'add_labels') {
       for (const [messageId, previous] of before) {
         const updated = updates.get(messageId);
         if (updated) {
-          const previousIds = new Set(previous.label_ids ?? []);
+          const previousIds = new Set(previous.label_ids);
           this.labelService.adjustMessageCount(updated.label_ids.filter((labelId) => !previousIds.has(labelId)), 1);
         }
       }
@@ -313,7 +313,7 @@ export class Inbox implements OnInit {
   private normalizeInboxMessage(message: InboxMessage | BulkMessageResponse['messages'][number]): InboxMessage {
     return {
       ...message,
-      label_ids: message.label_ids ?? [],
+      label_ids: message.label_ids,
       is_read: Boolean(message.is_read),
       is_starred: Boolean(message.is_starred),
       is_important: Boolean(message.is_important),
@@ -322,22 +322,22 @@ export class Inbox implements OnInit {
 
   private bulkActionNotice(action: BulkMessageAction, count: number): string {
     const subject = `${count} ${count === 1 ? 'message' : 'messages'}`;
-    const descriptions: Record<BulkMessageAction, string> = {
-      archive: `${subject} archived.`,
-      trash: `${subject} moved to Trash.`,
-      restore: `${subject} restored.`,
-      permanent_delete: `${subject} permanently deleted.`,
-      mark_read: `${subject} marked as read.`,
-      mark_unread: `${subject} marked as unread.`,
-      star: `${subject} starred.`,
-      unstar: `${subject} unstarred.`,
-      mark_important: `${subject} marked as important.`,
-      mark_not_important: `${subject} marked as not important.`,
-      move: `${subject} moved.`,
-      add_labels: `Labels added to ${subject}.`,
-      report_spam: `${subject} reported as spam and moved to Spam.`,
-      report_phishing: `${subject} reported as phishing and moved to Spam.`,
-    };
-    return descriptions[action];
+    const descriptions = new Map<BulkMessageAction, string>([
+      ['archive', `${subject} archived.`],
+      ['trash', `${subject} moved to Trash.`],
+      ['restore', `${subject} restored.`],
+      ['permanent_delete', `${subject} permanently deleted.`],
+      ['mark_read', `${subject} marked as read.`],
+      ['mark_unread', `${subject} marked as unread.`],
+      ['star', `${subject} starred.`],
+      ['unstar', `${subject} unstarred.`],
+      ['mark_important', `${subject} marked as important.`],
+      ['mark_not_important', `${subject} marked as not important.`],
+      ['move', `${subject} moved.`],
+      ['add_labels', `Labels added to ${subject}.`],
+      ['report_spam', `${subject} reported as spam and moved to Spam.`],
+      ['report_phishing', `${subject} reported as phishing and moved to Spam.`],
+    ]);
+    return descriptions.get(action) ?? `${subject} updated.`;
   }
 }

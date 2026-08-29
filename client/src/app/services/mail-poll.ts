@@ -20,8 +20,12 @@ export class MailPollService {
     }
 
     this.knownUnread = this.messageService.folderCounts().unread.inbox;
-    this.timer = setInterval(() => this.poll(), POLL_INTERVAL_MS);
-    document.addEventListener('visibilitychange', () => this.onVisibilityChange());
+    this.timer = setInterval(() => {
+      this.poll();
+    }, POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', () => {
+      this.onVisibilityChange();
+    });
   }
 
   acknowledge(): void {
@@ -49,7 +53,9 @@ export class MailPollService {
     }
 
     this.messageService.loadFolderCounts().subscribe({
-      next: (counts) => this.handleCounts(counts.unread.inbox),
+      next: (counts) => {
+        this.handleCounts(counts.unread.inbox);
+      },
       error: () => undefined,
     });
   }
@@ -77,7 +83,9 @@ export class MailPollService {
 
     try {
       const notification = new Notification('Orion Mail', { body: arrived === 1 ? 'You have 1 new message' : `You have ${arrived} new messages`, tag: 'orion-mail-new' });
-      notification.onclick = () => window.focus();
+      notification.onclick = () => {
+        window.focus();
+      };
     }
     catch {
       return;

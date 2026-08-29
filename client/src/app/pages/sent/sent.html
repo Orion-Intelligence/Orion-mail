@@ -54,7 +54,7 @@
           </span>
 
           @if (message.attachments && message.attachments.length > 0) {
-            <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden" [title]="message.attachments.length === 1 ? message.attachments[0].original_filename : message.attachments.length + ' attachments'">
+            <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden" [title]="message.attachments.length === 1 ? message.attachments[0]?.original_filename : message.attachments.length + ' attachments'">
               <app-icon [name]="'attach'" class="h-4 w-4" />
             </span>
           }

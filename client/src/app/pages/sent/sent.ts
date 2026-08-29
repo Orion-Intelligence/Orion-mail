@@ -52,7 +52,7 @@ export class Sent implements OnInit {
 
     this.messageService.getSentMessages().subscribe({
       next: (messages) => {
-        this.messages.set(messages.map((message) => ({ ...message, label_ids: message.label_ids ?? [] })));
+        this.messages.set(messages.map((message) => ({ ...message, label_ids: message.label_ids })));
         this.loading.set(false);
         this.messageService.refreshFolderCounts();
       },
@@ -90,7 +90,7 @@ export class Sent implements OnInit {
   }
 
   messageLabels(labelIds: string[]): MailLabel[] {
-    const ids = new Set(labelIds ?? []);
+    const ids = new Set(labelIds);
     return this.labelService.labels().filter((label) => ids.has(label.id));
   }
 }

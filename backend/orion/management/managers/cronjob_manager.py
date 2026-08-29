@@ -1,9 +1,9 @@
 import asyncio
+import contextlib
 
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.message_manager.message_manager import message_manager
 from orion.constants.constant import CONSTANTS
-from orion.services.log_manager.log_controller import log
 
 
 class cronjob_manager:
@@ -23,20 +23,18 @@ class cronjob_manager:
     @staticmethod
     async def attachment_cleanup_loop() -> None:
         while True:
-            try:
+            with contextlib.suppress(Exception):
                 await attachment_manager.get_instance().cleanup_expired_attachments()
-            except Exception:
-                pass
+                await attachment_manager.get_instance().purge_expired_raw_sources()
+                await attachment_manager.get_instance().purge_stale_staged_attachments()
             await asyncio.sleep(CONSTANTS.S_ATTACHMENT_CLEANUP_INTERVAL_SECONDS)
 
     @staticmethod
     async def scheduled_delivery_loop() -> None:
         while True:
-            try:
+            with contextlib.suppress(Exception):
                 await message_manager.get_instance().dispatch_scheduled_messages()
                 await message_manager.get_instance().wake_snoozed_messages()
-            except Exception:
-                pass
 
             await asyncio.sleep(CONSTANTS.S_SCHEDULED_DELIVERY_INTERVAL_SECONDS)
 

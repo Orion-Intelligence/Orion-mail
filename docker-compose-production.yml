@@ -17,6 +17,8 @@ services:
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-mail.orionintelligence.org,localhost,127.0.0.1},web
       SMTP_HOST: postfix
       SMTP_PORT: ${SMTP_PORT:-25}
+      RSPAMD_CONTROLLER_URL: http://rspamd:11334
+      RSPAMD_CONTROLLER_PASSWORD: ${RSPAMD_CONTROLLER_PASSWORD:?RSPAMD_CONTROLLER_PASSWORD must be set}
       SEED_LOCAL_TEST_MAILBOXES: "false"
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://mail.orionintelligence.org}
       COOKIE_SECURE: "true"
@@ -27,6 +29,8 @@ services:
         condition: service_healthy
       clamav:
         condition: service_healthy
+      rspamd:
+        condition: service_started
     volumes:
       - ./backend/static/resource/attachments:/app/static/resource/attachments:rw
     read_only: true

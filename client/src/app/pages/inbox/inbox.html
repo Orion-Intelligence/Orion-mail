@@ -151,7 +151,7 @@
             <span class="shrink-0 text-faint">–</span><span class="truncate text-snippet">{{ message.body }}</span>
           </span>
 
-          @if (message.attachments && message.attachments.length > 0) { <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden" [title]="message.attachments.length === 1 ? message.attachments[0].original_filename : message.attachments.length + ' attachments'"><app-icon [name]="'attach'" class="h-4 w-4" /></span> }
+          @if (message.attachments && message.attachments.length > 0) { <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden" [title]="message.attachments.length === 1 ? message.attachments[0]?.original_filename : message.attachments.length + ' attachments'"><app-icon [name]="'attach'" class="h-4 w-4" /></span> }
 
           <span class="relative col-start-5 flex h-10 w-20 items-center justify-end max-[900px]:col-start-4 max-[720px]:col-start-3 max-[720px]:row-span-2 max-[720px]:row-start-1 max-[720px]:w-20">
             <span class="text-xs whitespace-nowrap text-muted transition-opacity group-hover:opacity-0 group-focus-within:opacity-0 max-[720px]:hidden" [class.font-semibold]="!message.is_read">{{ formatMailDate(message.created_at) }}</span>

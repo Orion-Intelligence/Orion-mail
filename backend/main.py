@@ -6,7 +6,6 @@ from pymongo.errors import PyMongoError
 
 from orion.management.managers.service_manager import service_manager
 from orion.middleware.middleware_setup import setup_middlewares
-from orion.services.log_manager.log_controller import log
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from routes.address_book_routes import address_book_routes
 from routes.attachment_routes import attachment_routes

@@ -77,6 +77,7 @@ class db_message_model(Model):
     spf_result: Optional[str] = Field(default=None)
     dkim_result: Optional[str] = Field(default=None)
     dmarc_result: Optional[str] = Field(default=None)
+    spam_score: Optional[float] = Field(default=None)
     message_id_header: Optional[str] = Field(default=None)
     in_reply_to: Optional[str] = Field(default=None)
     references: List[str] = Field(default_factory=list)

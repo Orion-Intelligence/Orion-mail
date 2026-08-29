@@ -12,6 +12,7 @@ from orion.services.mongo_manager.mongo_enums import MONGO_COLLECTIONS
 class STORAGE_TYPE(str, Enum):
     INCOMING = "incoming"
     OUTGOING = "outgoing"
+    STAGING = "staging"
 
 
 class ATTACHMENT_STATUS(str, Enum):

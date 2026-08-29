@@ -8,7 +8,7 @@ relative to the backend package, which Codacy cannot map back onto the repositor
 from __future__ import annotations
 
 import pathlib
-import xml.etree.ElementTree as ET  # nosec B405 - construction only; parsing uses defusedxml
+import xml.etree.ElementTree as ET  # nosec B405 - construction only; parsing uses defusedxml  # nosemgrep
 from defusedxml.ElementTree import parse as safe_parse
 
 ROOT = pathlib.Path(".").resolve()

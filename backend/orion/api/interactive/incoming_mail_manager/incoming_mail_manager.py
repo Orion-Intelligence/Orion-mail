@@ -1,10 +1,11 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException, UploadFile, status
-from odmantic.query import and_, eq, in_
+from odmantic.query import and_, eq, in_, lte, ne
+from pymongo.errors import PyMongoError
 
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
@@ -44,13 +45,60 @@ class incoming_mail_manager:
         return normalized
 
     @staticmethod
+    def parse_spam_score(value) -> float | None:
+        try:
+            return float(str(value).strip())
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def is_spam_verdict(cls, spam_verdict: dict | None) -> tuple[bool, float | None]:
+        verdict = spam_verdict or {}
+        score = cls.parse_spam_score(verdict.get("score"))
+        flagged = str(verdict.get("flag", "")).strip().lower() in ("yes", "true", "1")
+        return flagged or (score is not None and score >= CONSTANTS.S_SPAM_SCORE_THRESHOLD), score
+
+    @staticmethod
     def normalize_message_id(value: str | None) -> str | None:
         if not value:
             return None
         match = re.search(r"<[^<>\s\r\n]{1,990}>", value)
         return match.group(0) if match else None
 
-    async def save_incoming_email(self, sender_address: str, receiver_address: str, subject: str, body: str, files: list[UploadFile], raw_message: UploadFile | None = None, to_addresses: list[str] | None = None, cc_addresses: list[str] | None = None, reply_to_address: str | None = None, message_id_header: str | None = None, in_reply_to: str | None = None, references: list[str] | None = None, body_html: str | None = None, file_content_ids: list[str] | None = None, authentication: dict | None = None, delivery_report: dict | None = None) -> dict:
+    @staticmethod
+    def stored_message_filter(mailbox: db_mailbox_model) -> dict:
+        return {"owner_mailbox_id": mailbox.id, "folder": {"$ne": MESSAGE_FOLDER.DRAFTS.value}}
+
+    async def stored_message_count(self, mailbox: db_mailbox_model) -> int:
+        return await self._engine.get_collection(db_message_model).count_documents(self.stored_message_filter(mailbox))
+
+    async def evictable_messages(self, mailbox: db_mailbox_model, limit: int) -> list[db_message_model]:
+        cutoff = datetime.now(UTC) - timedelta(days=MESSAGE_LIMITS.MAILBOX_EVICTION_MIN_AGE_DAYS)
+        return await self._engine.find(db_message_model, and_(eq(db_message_model.owner_mailbox_id, mailbox.id), ne(db_message_model.folder, MESSAGE_FOLDER.DRAFTS), lte(db_message_model.created_at, cutoff)), sort=db_message_model.created_at, limit=limit)
+
+    async def assert_mailbox_can_receive(self, mailbox: db_mailbox_model) -> None:
+        if await self.stored_message_count(mailbox) < MESSAGE_LIMITS.MAILBOX_MAX_MESSAGES:
+            return
+
+        if not await self.evictable_messages(mailbox, 1):
+            raise HTTPException(status_code=status.HTTP_507_INSUFFICIENT_STORAGE, detail="Mail quota exceeded. Delete messages or empty the trash to receive new mail.")
+
+    async def trim_mailbox_to_cap(self, mailbox: db_mailbox_model) -> int:
+        surplus = min(await self.stored_message_count(mailbox) - MESSAGE_LIMITS.MAILBOX_MAX_MESSAGES, MESSAGE_LIMITS.MAILBOX_EVICTION_BATCH)
+
+        if surplus <= 0:
+            return 0
+
+        evicted = 0
+        for message in await self.evictable_messages(mailbox, surplus):
+            await attachment_manager.get_instance().delete_message_attachments(message.id)
+            await attachment_manager.get_instance().delete_raw_source(message.raw_source_filename)
+            await self._engine.delete(message)
+            evicted += 1
+
+        return evicted
+
+    async def save_incoming_email(self, sender_address: str, receiver_address: str, subject: str, body: str, files: list[UploadFile], raw_message: UploadFile | None = None, to_addresses: list[str] | None = None, cc_addresses: list[str] | None = None, reply_to_address: str | None = None, message_id_header: str | None = None, in_reply_to: str | None = None, references: list[str] | None = None, body_html: str | None = None, file_content_ids: list[str] | None = None, authentication: dict | None = None, delivery_report: dict | None = None, spam_verdict: dict | None = None) -> dict:
         mailbox = await self._engine.find_one(db_mailbox_model, and_(eq(db_mailbox_model.mailbox_address, receiver_address.lower()), eq(db_mailbox_model.is_active, True)))
 
         if mailbox is None:
@@ -68,6 +116,9 @@ class incoming_mail_manager:
             duplicate = await self._engine.find_one(db_message_model, and_(eq(db_message_model.owner_mailbox_id, mailbox.id), eq(db_message_model.message_id_header, normalized_message_id), eq(db_message_model.direction, MESSAGE_DIRECTION.INCOMING)))
             if duplicate is not None:
                 return {"message": "Incoming email already stored"}
+
+        await self.assert_mailbox_can_receive(mailbox)
+
         normalized_in_reply_to = self.normalize_message_id(in_reply_to)
         normalized_references = []
         for reference in references or []:
@@ -84,8 +135,10 @@ class incoming_mail_manager:
             thread_parent = next((matching_by_header[candidate] for candidate in thread_candidates if candidate in matching_by_header), None)
 
         sender_is_blocked = await sender_safety_manager.get_instance().is_domain_blocked_for_user(mailbox.user_id, normalized_sender_address)
-        initial_folder = MESSAGE_FOLDER.SPAM if sender_is_blocked else MESSAGE_FOLDER.INBOX
-        previous_folder = MESSAGE_FOLDER.INBOX if sender_is_blocked else None
+        scanner_flagged_spam, scanner_spam_score = self.is_spam_verdict(spam_verdict)
+        routed_to_spam = sender_is_blocked or scanner_flagged_spam
+        initial_folder = MESSAGE_FOLDER.SPAM if routed_to_spam else MESSAGE_FOLDER.INBOX
+        previous_folder = MESSAGE_FOLDER.INBOX if routed_to_spam else None
         message = db_message_model(
             owner_mailbox_id=mailbox.id,
             sender_address=normalized_sender_address,
@@ -104,6 +157,7 @@ class incoming_mail_manager:
             spf_result=(authentication or {}).get("spf") or None,
             dkim_result=(authentication or {}).get("dkim") or None,
             dmarc_result=(authentication or {}).get("dmarc") or None,
+            spam_score=scanner_spam_score,
             message_id_header=normalized_message_id,
             in_reply_to=normalized_in_reply_to,
             references=normalized_references,
@@ -130,6 +184,11 @@ class incoming_mail_manager:
             await attachment_manager.get_instance().delete_raw_source(message.raw_source_filename)
             await self._engine.delete(message)
             raise
+
+        try:
+            await self.trim_mailbox_to_cap(mailbox)
+        except PyMongoError:
+            return {"message": "Incoming email saved successfully"}
 
         return {"message": "Incoming email saved successfully"}
 

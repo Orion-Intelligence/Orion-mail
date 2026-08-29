@@ -4,7 +4,6 @@ import struct
 from fastapi import HTTPException, status
 
 from orion.constants.constant import CONSTANTS
-from orion.services.log_manager.log_controller import log
 
 
 class antivirus_manager:

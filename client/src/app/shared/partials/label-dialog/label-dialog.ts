@@ -43,10 +43,16 @@ export class LabelDialog implements AfterViewInit {
     this.saving.set(true);
     this.errorMessage.set('');
     this.labelService.createLabel({ name: this.form.controls.name.value.trim(), color: this.form.controls.color.value })
-      .pipe(finalize(() => this.saving.set(false)))
+      .pipe(finalize(() => {
+        this.saving.set(false);
+      }))
       .subscribe({
-        next: () => this.close(),
-        error: (error: HttpErrorResponse) => this.errorMessage.set(extractErrorMessage(error, 'Could not create the label.')),
+        next: () => {
+          this.close();
+        },
+        error: (error: HttpErrorResponse) => {
+          this.errorMessage.set(extractErrorMessage(error, 'Could not create the label.'));
+        },
       });
   }
 

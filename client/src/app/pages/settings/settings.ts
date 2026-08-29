@@ -40,12 +40,16 @@ export class Settings implements OnInit {
   loadSettings(): void {
     this.loading.set(true);
     this.errorMessage.set('');
-    this.messageService.getMyMailbox().pipe(finalize(() => this.loading.set(false))).subscribe({
+    this.messageService.getMyMailbox().pipe(finalize(() => {
+      this.loading.set(false);
+    })).subscribe({
       next: (mailbox) => {
         this.mailboxAddress.set(mailbox.mailbox_address);
         this.form.reset({ signature: mailbox.signature ?? '' });
       },
-      error: (error) => this.errorMessage.set(extractErrorMessage(error, 'Could not load your settings.')),
+      error: (error) => {
+        this.errorMessage.set(extractErrorMessage(error, 'Could not load your settings.'));
+      },
     });
   }
 
@@ -58,18 +62,30 @@ export class Settings implements OnInit {
     this.saving.set(true);
     this.errorMessage.set('');
     this.statusMessage.set('');
-    this.messageService.updateMailboxSettings(this.form.controls.signature.value).pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => this.statusMessage.set('Settings saved.'),
-      error: (error) => this.errorMessage.set(extractErrorMessage(error, 'Could not save your settings.')),
+    this.messageService.updateMailboxSettings(this.form.controls.signature.value).pipe(finalize(() => {
+      this.saving.set(false);
+    })).subscribe({
+      next: () => {
+        this.statusMessage.set('Settings saved.');
+      },
+      error: (error) => {
+        this.errorMessage.set(extractErrorMessage(error, 'Could not save your settings.'));
+      },
     });
   }
 
   loadSystemConfig(): void {
     this.configLoading.set(true);
     this.configErrorMessage.set('');
-    this.configService.getSystemConfig().pipe(finalize(() => this.configLoading.set(false))).subscribe({
-      next: (config) => this.configForm.reset(config),
-      error: (error) => this.configErrorMessage.set(extractErrorMessage(error, 'Could not load the attachment limits.')),
+    this.configService.getSystemConfig().pipe(finalize(() => {
+      this.configLoading.set(false);
+    })).subscribe({
+      next: (config) => {
+        this.configForm.reset(config);
+      },
+      error: (error) => {
+        this.configErrorMessage.set(extractErrorMessage(error, 'Could not load the attachment limits.'));
+      },
     });
   }
 
@@ -82,12 +98,16 @@ export class Settings implements OnInit {
     this.configSaving.set(true);
     this.configErrorMessage.set('');
     this.configStatusMessage.set('');
-    this.configService.updateSystemConfig(this.configForm.getRawValue() as SystemConfig).pipe(finalize(() => this.configSaving.set(false))).subscribe({
+    this.configService.updateSystemConfig(this.configForm.getRawValue() as SystemConfig).pipe(finalize(() => {
+      this.configSaving.set(false);
+    })).subscribe({
       next: (config) => {
         this.configForm.reset(config);
         this.configStatusMessage.set('Attachment limits saved.');
       },
-      error: (error) => this.configErrorMessage.set(extractErrorMessage(error, 'Could not save the attachment limits.')),
+      error: (error) => {
+        this.configErrorMessage.set(extractErrorMessage(error, 'Could not save the attachment limits.'));
+      },
     });
   }
 

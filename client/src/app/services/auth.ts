@@ -17,7 +17,9 @@ export class AuthService {
   constructor(private readonly http: HttpClient) {}
 
   me(): Observable<CurrentUser> {
-    return this.http.get<CurrentUser>(`${this.baseUrl}/me`).pipe(tap((user) => this.currentUser.set(user)));
+    return this.http.get<CurrentUser>(`${this.baseUrl}/me`).pipe(tap((user) => {
+      this.currentUser.set(user);
+    }));
   }
 
   startOrionLogin(returnTo?: string): void {
@@ -34,10 +36,14 @@ export class AuthService {
   }
 
   updatePreferences(preferences: UserPreferences): Observable<UserPreferences> {
-    return this.http.put<UserPreferences>(`${this.baseUrl}/me/preferences`, preferences).pipe(tap((saved) => this.currentUser.update((user) => user ? { ...user, preferences: saved } : user)));
+    return this.http.put<UserPreferences>(`${this.baseUrl}/me/preferences`, preferences).pipe(tap((saved) => {
+      this.currentUser.update((user) => user ? { ...user, preferences: saved } : user);
+    }));
   }
 
   logout(): Observable<LogoutResponse> {
-    return this.http.post<LogoutResponse>(`${this.baseUrl}/logout`, {}).pipe(tap(() => this.currentUser.set(null)));
+    return this.http.post<LogoutResponse>(`${this.baseUrl}/logout`, {}).pipe(tap(() => {
+      this.currentUser.set(null);
+    }));
   }
 }

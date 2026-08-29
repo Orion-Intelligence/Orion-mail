@@ -7,4 +7,7 @@ export const TRANSLATION_LANGUAGES = [
   ['pt', 'Portuguese'], ['ru', 'Russian'], ['es', 'Spanish'], ['tr', 'Turkish'], ['uk', 'Ukrainian'], ['vi', 'Vietnamese'],
 ] as const;
 
-export const SOURCE_NAMES: Record<Exclude<MessageSource, 'label'>, string> = { inbox: 'Inbox', sent: 'Sent', archive: 'Archive', trash: 'Trash', spam: 'Spam', starred: 'Starred', important: 'Important', all: 'All Mail', search: 'Search results' };
+export const SOURCE_NAMES: ReadonlyMap<Exclude<MessageSource, 'label'> | string, string> = new Map<Exclude<MessageSource, 'label'> | string, string>([
+  ['inbox', 'Inbox'], ['sent', 'Sent'], ['archive', 'Archive'], ['trash', 'Trash'], ['spam', 'Spam'],
+  ['starred', 'Starred'], ['important', 'Important'], ['all', 'All Mail'], ['search', 'Search results'],
+]);

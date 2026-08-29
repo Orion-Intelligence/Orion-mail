@@ -99,6 +99,11 @@ async def get_user_mailbox_usage(current_user: db_user_model = Depends(get_curre
     return await message_manager.get_instance().get_mailbox_usage(current_user=current_user)
 
 
+@message_routes.get("/storage-status")
+async def get_server_storage_status(_current_user: db_user_model = Depends(get_current_user)):
+    return await message_manager.get_instance().server_storage_status()
+
+
 @message_routes.get("/search")
 async def search_user_messages(query: Annotated[str, Query(min_length=1, max_length=200)], scope: MESSAGE_SEARCH_SCOPE = MESSAGE_SEARCH_SCOPE.ALL, label_id: str | None = None, limit: Annotated[int | None, Query(ge=1, le=100)] = None, current_user: db_user_model = Depends(get_current_user)):
     return await message_manager.get_instance().search_messages(current_user=current_user, query=query, scope=scope, label_id=label_id, limit=limit)

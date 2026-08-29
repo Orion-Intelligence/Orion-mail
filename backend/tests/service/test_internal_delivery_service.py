@@ -45,4 +45,4 @@ async def test_partition_recipient_addresses_rejects_unknown_local_mailbox(monke
         await manager.partition_recipient_addresses(["missing@mail.orionintelligence.org"])
 
     assert error.value.status_code == 404
-    assert error.value.detail == "Mailbox not found: missing@mail.orionintelligence.org"
+    assert error.value.detail == "One or more local recipient mailboxes were not found"

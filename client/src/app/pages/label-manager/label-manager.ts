@@ -36,7 +36,9 @@ export class LabelManager implements OnInit {
   reloadLabels(): void {
     this.errorMessage.set('');
     this.labelService.loadLabels().subscribe({
-      error: () => this.errorMessage.set('Could not load your labels.'),
+      error: () => {
+        this.errorMessage.set('Could not load your labels.');
+      },
     });
   }
 
@@ -65,13 +67,17 @@ export class LabelManager implements OnInit {
     this.saving.set(true);
     this.clearFeedback();
     this.labelService.updateLabel(labelId, { name: this.editForm.controls.name.value.trim(), color: this.editForm.controls.color.value })
-      .pipe(finalize(() => this.saving.set(false)))
+      .pipe(finalize(() => {
+        this.saving.set(false);
+      }))
       .subscribe({
         next: (label) => {
           this.editingId.set(null);
           this.statusMessage.set(`Label “${label.name}” updated.`);
         },
-        error: (error: HttpErrorResponse) => this.errorMessage.set(this.errorDetail(error, 'Could not update the label.')),
+        error: (error: HttpErrorResponse) => {
+          this.errorMessage.set(this.errorDetail(error, 'Could not update the label.'));
+        },
       });
   }
 
@@ -93,13 +99,17 @@ export class LabelManager implements OnInit {
     this.deleting.set(true);
     this.clearFeedback();
     this.labelService.deleteLabel(label.id)
-      .pipe(finalize(() => this.deleting.set(false)))
+      .pipe(finalize(() => {
+        this.deleting.set(false);
+      }))
       .subscribe({
         next: () => {
           this.deleteCandidateId.set(null);
           this.statusMessage.set(`Label “${label.name}” deleted.`);
         },
-        error: (error: HttpErrorResponse) => this.errorMessage.set(this.errorDetail(error, 'Could not delete the label.')),
+        error: (error: HttpErrorResponse) => {
+          this.errorMessage.set(this.errorDetail(error, 'Could not delete the label.'));
+        },
       });
   }
 

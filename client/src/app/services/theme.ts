@@ -16,7 +16,7 @@ export class ThemeService {
 
   constructor() {
     effect(() => {
-      const savedTheme = this.authService.currentUser()?.preferences?.theme;
+      const savedTheme = this.authService.currentUser()?.preferences.theme;
       if (savedTheme && savedTheme !== this.theme()) {
         this.storeTheme(savedTheme);
         this.theme.set(savedTheme);
@@ -71,10 +71,6 @@ export class ThemeService {
     const roots = [this.document.documentElement, this.document.body];
 
     for (const root of roots) {
-      if (!root) {
-        continue;
-      }
-
       root.classList.toggle('dark-theme', isDark);
       root.classList.toggle('light-theme', !isDark);
     }

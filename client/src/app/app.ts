@@ -23,6 +23,8 @@ export class App {
   constructor(public readonly router: Router, themeService: ThemeService) {
     themeService.initialize();
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
-      .subscribe((event) => this.configureEmailRoute.set(event.urlAfterRedirects.startsWith('/configure-email')));
+      .subscribe((event) => {
+        this.configureEmailRoute.set(event.urlAfterRedirects.startsWith('/configure-email'));
+      });
   }
 }

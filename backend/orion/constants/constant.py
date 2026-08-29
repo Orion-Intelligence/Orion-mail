@@ -44,6 +44,8 @@ class CONSTANTS:
     S_RAW_MESSAGE_DIR = (S_ATTACHMENT_DIR / "raw").resolve()
     S_ATTACHMENT_CLEANUP_INTERVAL_SECONDS = int(env_handler.get_instance().env("ATTACHMENT_CLEANUP_INTERVAL_SECONDS", "3600"))
     S_SCHEDULED_DELIVERY_INTERVAL_SECONDS = int(env_handler.get_instance().env("SCHEDULED_DELIVERY_INTERVAL_SECONDS", "60"))
+    S_OUTGOING_STAGING_TTL_SECONDS = int(env_handler.get_instance().env("OUTGOING_STAGING_TTL_SECONDS", "3600"))
+    S_SERVER_STORAGE_QUOTA_BYTES = int(env_handler.get_instance().env("SERVER_STORAGE_QUOTA_GB", "10")) * 1024 * 1024 * 1024
 
     S_TRANSLATION_API_URL = env_handler.get_instance().env("TRANSLATION_API_URL", "https://translate.googleapis.com/translate_a/single").strip()
     S_TRANSLATION_TIMEOUT_SECONDS = int(env_handler.get_instance().env("TRANSLATION_TIMEOUT_SECONDS", "20"))
@@ -53,6 +55,11 @@ class CONSTANTS:
     S_CLAMAV_HOST = env_handler.get_instance().env("CLAMAV_HOST", "clamav")
     S_CLAMAV_PORT = int(env_handler.get_instance().env("CLAMAV_PORT", "3310"))
     S_CLAMAV_TIMEOUT_SECONDS = float(env_handler.get_instance().env("CLAMAV_TIMEOUT_SECONDS", "30"))
+
+    S_RSPAMD_CONTROLLER_URL = env_handler.get_instance().env("RSPAMD_CONTROLLER_URL", "http://rspamd:11334").strip().rstrip("/")
+    S_RSPAMD_CONTROLLER_PASSWORD = env_handler.get_instance().env("RSPAMD_CONTROLLER_PASSWORD", "")
+    S_RSPAMD_TIMEOUT_SECONDS = float(env_handler.get_instance().env("RSPAMD_TIMEOUT_SECONDS", "10"))
+    S_SPAM_SCORE_THRESHOLD = float(env_handler.get_instance().env("SPAM_SCORE_THRESHOLD", "6"))
 
     S_COOKIE_SECURE = env_handler.get_instance().env("COOKIE_SECURE", "true").lower() == "true"
     S_INCOMING_MAIL_TOKEN = env_handler.get_instance().env("INCOMING_MAIL_TOKEN", "")

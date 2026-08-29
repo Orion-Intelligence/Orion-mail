@@ -128,7 +128,7 @@ export class FolderMessages implements OnInit {
     this.errorMessage.set('');
     this.folderRequest().subscribe({
       next: (messages) => {
-        this.messages.set(messages.map((message) => ({ ...message, label_ids: message.label_ids ?? [] })));
+        this.messages.set(messages.map((message) => ({ ...message, label_ids: message.label_ids })));
         this.loading.set(false);
         this.messageService.refreshFolderCounts();
       },
@@ -155,12 +155,14 @@ export class FolderMessages implements OnInit {
     this.messageService.restoreMessage(message.id).subscribe({
       next: (restored) => {
         if (message.folder === 'trash' || message.folder === 'spam') {
-          this.labelService.adjustMessageCount(message.label_ids ?? [], 1);
+          this.labelService.adjustMessageCount(message.label_ids, 1);
         }
         this.replaceOrRemove(message.id, restored);
         this.messageService.refreshFolderCounts();
       },
-      error: () => this.errorMessage.set('Could not restore the email.'),
+      error: () => {
+        this.errorMessage.set('Could not restore the email.');
+      },
     });
   }
 
@@ -171,7 +173,9 @@ export class FolderMessages implements OnInit {
         this.replaceOrRemove(message.id, archived);
         this.messageService.refreshFolderCounts();
       },
-      error: () => this.errorMessage.set('Could not archive the email.'),
+      error: () => {
+        this.errorMessage.set('Could not archive the email.');
+      },
     });
   }
 
@@ -180,10 +184,12 @@ export class FolderMessages implements OnInit {
     this.messageService.moveToTrash(message.id).subscribe({
       next: () => {
         this.messages.update((messages) => messages.filter((item) => item.id !== message.id));
-        this.labelService.adjustMessageCount(message.label_ids ?? [], -1);
+        this.labelService.adjustMessageCount(message.label_ids, -1);
         this.messageService.refreshFolderCounts();
       },
-      error: () => this.errorMessage.set('Could not move the email to Trash.'),
+      error: () => {
+        this.errorMessage.set('Could not move the email to Trash.');
+      },
     });
   }
 
@@ -199,7 +205,9 @@ export class FolderMessages implements OnInit {
         this.messages.update((messages) => messages.filter((item) => item.id !== message.id));
         this.messageService.refreshFolderCounts();
       },
-      error: () => this.errorMessage.set(message.folder === 'drafts' ? 'Could not discard the draft.' : 'Could not permanently delete the email.'),
+      error: () => {
+        this.errorMessage.set(message.folder === 'drafts' ? 'Could not discard the draft.' : 'Could not permanently delete the email.');
+      },
     });
   }
 
@@ -215,17 +223,17 @@ export class FolderMessages implements OnInit {
     if (message.folder === 'drafts') {
       return 'Draft';
     }
-    return message.direction === 'outgoing' ? `To: ${message.receiver_address.split('@')[0] || '(no recipient)'}` : message.sender_address.split('@')[0];
+    return message.direction === 'outgoing' ? `To: ${message.receiver_address.split('@')[0] || '(no recipient)'}` : message.sender_address.split('@')[0] ?? message.sender_address;
   }
 
   messageLabels(labelIds: string[]): MailLabel[] {
-    const ids = new Set(labelIds ?? []);
+    const ids = new Set(labelIds);
     return this.labelService.labels().filter((label) => ids.has(label.id));
   }
 
   messageFolderName(message: MessageDetailResponse): string {
-    const names: Record<string, string> = { inbox: 'Inbox', sent: 'Sent', archive: 'Archive', drafts: 'Drafts', spam: 'Spam', trash: 'Trash' };
-    return names[message.folder] ?? message.folder;
+    const names = new Map([['inbox', 'Inbox'], ['sent', 'Sent'], ['archive', 'Archive'], ['drafts', 'Drafts'], ['spam', 'Spam'], ['trash', 'Trash']]);
+    return names.get(message.folder) ?? message.folder;
   }
 
   viewHint(): string {
@@ -241,25 +249,26 @@ export class FolderMessages implements OnInit {
       const labelId = scope.slice('label:'.length);
       return this.labelService.labels().find((label) => label.id === labelId)?.name ?? 'Label';
     }
-    const names: Record<string, string> = { all: 'All mail', inbox: 'Inbox', sent: 'Sent', archive: 'Archive', drafts: 'Drafts', spam: 'Spam', trash: 'Trash', starred: 'Starred', important: 'Important' };
-    return names[scope] ?? 'All mail';
+    const names = new Map([['all', 'All mail'], ['inbox', 'Inbox'], ['sent', 'Sent'], ['archive', 'Archive'], ['drafts', 'Drafts'], ['spam', 'Spam'], ['trash', 'Trash'], ['starred', 'Starred'], ['important', 'Important']]);
+    return names.get(scope) ?? 'All mail';
   }
 
   private folderRequest(): Observable<MessageDetailResponse[]> {
-    const requests: Record<SystemFolder, () => Observable<MessageDetailResponse[]>> = {
-      archive: () => this.messageService.getArchivedMessages(),
-      trash: () => this.messageService.getTrashMessages(),
-      spam: () => this.messageService.getSpamMessages(),
-      drafts: () => this.messageService.getDraftMessages(),
-      starred: () => this.messageService.getStarredMessages(),
-      important: () => this.messageService.getImportantMessages(),
-      all: () => this.messageService.getAllMessages(),
-      search: () => {
+    const requests = new Map<SystemFolder, () => Observable<MessageDetailResponse[]>>([
+      ['archive', () => this.messageService.getArchivedMessages()],
+      ['trash', () => this.messageService.getTrashMessages()],
+      ['spam', () => this.messageService.getSpamMessages()],
+      ['drafts', () => this.messageService.getDraftMessages()],
+      ['starred', () => this.messageService.getStarredMessages()],
+      ['important', () => this.messageService.getImportantMessages()],
+      ['all', () => this.messageService.getAllMessages()],
+      ['search', () => {
         const parameters = searchScopeParameters(this.submittedSearchScope());
         return this.searchQuery() ? this.messageService.searchMessages(this.searchQuery(), parameters.scope, parameters.labelId) : of([]);
-      },
-    };
-    return requests[this.folder()]();
+      }],
+    ]);
+    const request = requests.get(this.folder());
+    return request ? request() : of([]);
   }
 
   private runFlagAction(message: MessageDetailResponse, action: BulkMessageAction, failureText: string): void {
@@ -284,7 +293,7 @@ export class FolderMessages implements OnInit {
   }
 
   private replaceOrRemove(messageId: string, updated: MessageDetailResponse): void {
-    const normalized = { ...updated, label_ids: updated.label_ids ?? [] };
+    const normalized = { ...updated, label_ids: updated.label_ids };
     this.messages.update((messages) => this.belongsToView(normalized) ? messages.map((item) => item.id === messageId ? normalized : item) : messages.filter((item) => item.id !== messageId));
   }
 

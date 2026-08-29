@@ -13,6 +13,8 @@ from uuid import uuid4
 INCOMING_MAIL_URL = os.getenv("ORION_MAIL_INCOMING_URL", "http://127.0.0.1:8000/incoming-mail/")
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 AUTH_RESULT_PATTERN = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)", re.IGNORECASE)
+SPAM_SCORE_PATTERN = re.compile(r"\[\s*(-?\d+(?:\.\d+)?)\s*/\s*-?\d+(?:\.\d+)?\s*\]")
+SPAM_FLAG_VALUES = ("yes", "true", "1")
 
 
 def load_incoming_mail_token() -> str:
@@ -103,6 +105,18 @@ def extract_authentication_results(email_message: EmailMessage) -> dict:
     return verdicts
 
 
+def extract_spam_verdict(email_message: EmailMessage) -> dict:
+    verdict = {"score": "", "flag": ""}
+    for header_value in email_message.get_all("X-Spamd-Result", []):
+        match = SPAM_SCORE_PATTERN.search(str(header_value))
+        if match:
+            verdict["score"] = match.group(1)
+            break
+    if str(email_message.get("X-Spam", "")).strip().lower() in SPAM_FLAG_VALUES:
+        verdict["flag"] = "yes"
+    return verdict
+
+
 def apply_delivery_report_field(report: dict, name: str, value) -> None:
     key = name.strip().lower()
     cleaned = str(value).strip()
@@ -146,11 +160,12 @@ def extract_delivery_report(email_message: EmailMessage, reports: list[MIMEPart]
     return report if report["action"] or report["status"] or report["original_message_id"] else {}
 
 
-def build_multipart_request(sender_address: str, receiver_address: str, subject: str, body: str, attachments: list[dict], raw_email: bytes, body_html: str = "", to_addresses: list[str] | None = None, cc_addresses: list[str] | None = None, reply_to_address: str = "", message_id_header: str = "", in_reply_to: str = "", references: list[str] | None = None, authentication: dict | None = None, delivery_report: dict | None = None) -> tuple[bytes, str]:
+def build_multipart_request(sender_address: str, receiver_address: str, subject: str, body: str, attachments: list[dict], raw_email: bytes, body_html: str = "", to_addresses: list[str] | None = None, cc_addresses: list[str] | None = None, reply_to_address: str = "", message_id_header: str = "", in_reply_to: str = "", references: list[str] | None = None, authentication: dict | None = None, delivery_report: dict | None = None, spam_verdict: dict | None = None) -> tuple[bytes, str]:
     boundary = f"----OrionMailBoundary{uuid4().hex}"
     body_parts: list[bytes] = []
     authentication = authentication or {}
     delivery_report = delivery_report or {}
+    spam_verdict = spam_verdict or {}
     form_fields: list[tuple[str, str]] = [
         ("sender_address", sender_address),
         ("receiver_address", receiver_address),
@@ -167,6 +182,8 @@ def build_multipart_request(sender_address: str, receiver_address: str, subject:
         ("report_status", delivery_report.get("status", "")),
         ("report_recipient", delivery_report.get("recipient", "")),
         ("report_original_message_id", delivery_report.get("original_message_id", "")),
+        ("spam_score", spam_verdict.get("score", "")),
+        ("spam_flag", spam_verdict.get("flag", "")),
     ]
     form_fields.extend(("to_addresses", address) for address in to_addresses or [])
     form_fields.extend(("cc_addresses", address) for address in cc_addresses or [])
@@ -230,7 +247,7 @@ def main() -> int:
 
     try:
         email_message: EmailMessage = message_from_bytes(raw_email, policy=policy.default)
-    except Exception as error:
+    except Exception:
         print("5.6.0 Invalid email format", file=sys.stderr)
         return os.EX_DATAERR
 
@@ -252,6 +269,7 @@ def main() -> int:
 
     authentication = extract_authentication_results(email_message)
     delivery_report = extract_delivery_report(email_message, reports)
+    spam_verdict = extract_spam_verdict(email_message)
 
     request_body, content_type = build_multipart_request(
         sender_address=sender_address,
@@ -269,10 +287,11 @@ def main() -> int:
         references=references,
         authentication=authentication,
         delivery_report=delivery_report,
+        spam_verdict=spam_verdict,
     )
     try:
-        status_code, response_body = post_incoming_mail(request_body, content_type)
-    except (http.client.HTTPException, TimeoutError, OSError, ValueError) as error:
+        status_code, _ = post_incoming_mail(request_body, content_type)
+    except (http.client.HTTPException, TimeoutError, OSError, ValueError):
         print("4.3.0 Orion Mail incoming service unavailable", file=sys.stderr)
         return os.EX_TEMPFAIL
 
@@ -290,6 +309,10 @@ def main() -> int:
     if status_code in (400, 422):
         print("5.6.0 Orion Mail rejected the message as malformed.", file=sys.stderr)
         return os.EX_DATAERR
+
+    if status_code == 507:
+        print("4.2.2 Orion Mail recipient mailbox is full.", file=sys.stderr)
+        return os.EX_TEMPFAIL
 
     print(f"4.3.0 Orion Mail could not process the message. HTTP status: {status_code}", file=sys.stderr)
     return os.EX_TEMPFAIL

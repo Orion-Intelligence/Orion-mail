@@ -1,3 +1,4 @@
+import contextlib
 import re
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
@@ -8,6 +9,7 @@ from bson.errors import InvalidId
 from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException, UploadFile, status
 from fastapi.responses import Response
+from odmantic.exceptions import DocumentNotFoundError
 from odmantic.query import QueryExpression, and_, desc, eq, in_, match, ne, or_
 from starlette.datastructures import Headers
 
@@ -23,10 +25,12 @@ from orion.services.encryption_manager.message_crypto_manager import message_cry
 from orion.services.log_manager.log_controller import log
 from orion.services.mail_manager.mail_manager import mail_manager
 from orion.services.mongo_manager.mongo_controller import mongo_controller
+from orion.services.spam_manager.spam_manager import spam_manager
+from orion.services.mongo_manager.shared_model.db_attachment_model import ATTACHMENT_STATUS
 from orion.services.mongo_manager.shared_model.db_domain_safety_model import REPORT_TYPE
 from orion.services.mongo_manager.shared_model.db_label_model import db_label_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
-from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
+from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
 
@@ -175,10 +179,34 @@ class message_manager:
             "bounce_status": message.bounce_status,
             "bounce_recipient": message.bounce_recipient,
             "authentication": {"spf": message.spf_result, "dkim": message.dkim_result, "dmarc": message.dmarc_result},
+            "spam_score": message.spam_score,
             "thread_id": str(message.thread_id) if message.thread_id else str(message.id),
             "has_original_source": bool(message.raw_source_filename),
             "created_at": message.created_at,
         }
+
+    async def learn_message_class(self, message: db_message_model, is_spam: bool) -> None:
+        if message.direction != MESSAGE_DIRECTION.INCOMING or not message.raw_source_filename:
+            return
+
+        try:
+            source_path = attachment_manager.get_instance().get_raw_source_path(message.raw_source_filename)
+        except ValueError:
+            return
+
+        if not source_path.is_file():
+            return
+
+        try:
+            raw_source = await attachment_manager.get_instance().read_raw_source(message, source_path)
+        except Exception as error:
+            log.g().e(f"stored source could not be read for spam learning: {log.safe_error(error)}")
+            return
+
+        if is_spam:
+            await spam_manager.get_instance().learn_spam(raw_source)
+        else:
+            await spam_manager.get_instance().learn_ham(raw_source)
 
     @staticmethod
     def allowed_destinations(message: db_message_model) -> set[MESSAGE_FOLDER]:
@@ -359,18 +387,15 @@ class message_manager:
         message.thread_id = message.thread_id or message.id
         message = await message_crypto_manager.get_instance().save_message(message)
 
+        staged_attachments: list[dict] = []
         try:
-            saved_attachments = await attachment_manager.get_instance().save_outgoing_attachments(message_id=message.id, files=files)
-            forwarded_attachments = await attachment_manager.get_instance().clone_outgoing_attachments(
-                source_message_id=forward_source.id,
-                target_message_id=message.id,
-                attachment_ids=forward_attachment_ids or [],
-                existing_attachments=saved_attachments,
-            ) if forward_source else []
-            all_attachments = [*saved_attachments, *forwarded_attachments]
-            message.attachments = [db_message_attachment(**attachment) for attachment in all_attachments]
-            message.updated_at = datetime.now(UTC)
-            await message_crypto_manager.get_instance().save_message(message)
+            staged_attachments = await attachment_manager.get_instance().stage_outgoing_attachments(files=files)
+            if forward_source:
+                staged_attachments = [*staged_attachments, *await attachment_manager.get_instance().stage_forwarded_attachments(
+                    source_message_id=forward_source.id,
+                    attachment_ids=forward_attachment_ids or [],
+                    staged=staged_attachments,
+                )]
 
             email_message = mail_manager.get_instance().build_email_message(
                 sender_address=sender_mailbox.mailbox_address,
@@ -379,35 +404,33 @@ class message_manager:
                 subject=normalized_subject,
                 body=normalized_body,
                 body_html=message.body_html,
-                attachments=all_attachments,
+                attachments=staged_attachments,
                 message_id_header=message.message_id_header,
                 in_reply_to=message.in_reply_to,
                 references=message.references,
             )
             raw_source = mail_manager.get_instance().serialize_email_message(email_message)
-            raw_source_filename, raw_source_encrypted, raw_source_size = await attachment_manager.get_instance().save_raw_source(raw_source, message.owner_mailbox_id)
-            message.raw_source_filename = raw_source_filename
-            message.raw_source_encrypted = raw_source_encrypted
-            message.raw_source_size = raw_source_size
-            message.updated_at = datetime.now(UTC)
-            await message_crypto_manager.get_instance().save_message(message)
+            undeliverable_internal_recipients: list[str] = []
             for recipient_address in internal_recipient_addresses:
-                await self.deliver_internal_email(
-                    recipient_address=recipient_address,
-                    sender_address=sender_mailbox.mailbox_address,
-                    to_addresses=[normalized_receiver_address],
-                    cc_addresses=normalized_cc_addresses,
-                    subject=normalized_subject,
-                    body=normalized_body,
-                    body_html=message.body_html,
-                    attachments=all_attachments,
-                    raw_source=raw_source,
-                    message_id_header=message.message_id_header,
-                    in_reply_to=message.in_reply_to,
-                    references=message.references,
-                )
+                try:
+                    await self.deliver_internal_email(
+                        recipient_address=recipient_address,
+                        sender_address=sender_mailbox.mailbox_address,
+                        to_addresses=[normalized_receiver_address],
+                        cc_addresses=normalized_cc_addresses,
+                        subject=normalized_subject,
+                        body=normalized_body,
+                        body_html=message.body_html,
+                        attachments=staged_attachments,
+                        raw_source=raw_source,
+                        message_id_header=message.message_id_header,
+                        in_reply_to=message.in_reply_to,
+                        references=message.references,
+                    )
+                except HTTPException:
+                    undeliverable_internal_recipients.append(recipient_address)
             failed_recipients = await mail_manager.get_instance().send_email_source(raw_source=raw_source, sender_address=sender_mailbox.mailbox_address, recipient_addresses=external_recipient_addresses) if external_recipient_addresses else {}
-            message.failed_recipients = sorted(failed_recipients)
+            message.failed_recipients = sorted({*failed_recipients, *undeliverable_internal_recipients})
             message.delivery_status = DELIVERY_STATUS.PARTIAL if failed_recipients else DELIVERY_STATUS.SENT
             message.updated_at = datetime.now(UTC)
             await message_crypto_manager.get_instance().save_message(message)
@@ -417,14 +440,17 @@ class message_manager:
         except Exception as error:
             await self.mark_delivery_failed(message)
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
+        finally:
+            attachment_manager.get_instance().discard_staged_attachments(staged_attachments)
 
-        try:
+        with contextlib.suppress(Exception):
             await address_book_manager.get_instance().record_recipients(mailbox=sender_mailbox, recipient_addresses=recipient_addresses)
-        except Exception:
-            pass
 
         if draft is not None:
-            await self._engine.delete(draft)
+            try:
+                await self._engine.delete(draft)
+            except DocumentNotFoundError:
+                draft = None
 
         return {
             **self.serialize_message(message),
@@ -441,15 +467,25 @@ class message_manager:
         await message_crypto_manager.get_instance().decrypt_messages(messages)
         return [{**self.serialize_message(item), **self.message_state(item)} for item in messages]
 
-    async def mailbox_storage_used(self, mailbox: db_mailbox_model) -> int:
-        pipeline = [
-            {"$match": {"owner_mailbox_id": mailbox.id}},
-            {"$group": {"_id": None, "attachment_bytes": {"$sum": {"$sum": "$attachments.size"}}, "raw_bytes": {"$sum": "$raw_source_size"}}},
-        ]
+    async def storage_bytes_for(self, match_stage: dict | None) -> int:
+        available_attachments = {"$filter": {"input": {"$ifNull": ["$attachments", []]}, "as": "attachment", "cond": {"$eq": ["$$attachment.status", ATTACHMENT_STATUS.AVAILABLE.value]}}}
+        pipeline = [{"$match": match_stage}] if match_stage else []
+        pipeline.append({"$group": {"_id": None, "attachment_bytes": {"$sum": {"$sum": {"$map": {"input": available_attachments, "as": "attachment", "in": "$$attachment.size"}}}}, "raw_bytes": {"$sum": "$raw_source_size"}}})
         rows = await self._engine.get_collection(db_message_model).aggregate(pipeline).to_list(length=1)
         if not rows:
             return 0
         return int(rows[0].get("attachment_bytes", 0) or 0) + int(rows[0].get("raw_bytes", 0) or 0)
+
+    async def mailbox_storage_used(self, mailbox: db_mailbox_model) -> int:
+        return await self.storage_bytes_for({"owner_mailbox_id": mailbox.id})
+
+    async def server_storage_used(self) -> int:
+        return await self.storage_bytes_for(None)
+
+    async def server_storage_status(self) -> dict:
+        used_bytes = await self.server_storage_used()
+        quota_bytes = CONSTANTS.S_SERVER_STORAGE_QUOTA_BYTES
+        return {"used_bytes": used_bytes, "quota_bytes": quota_bytes, "storage_exceeded": used_bytes >= quota_bytes}
 
     async def get_mailbox_usage(self, current_user: db_user_model) -> dict:
         mailbox = await self.get_active_user_mailbox(current_user)
@@ -540,7 +576,7 @@ class message_manager:
             try:
                 await self.send_message(current_user=owner, receiver_address=draft.receiver_address, subject=draft.subject, body=draft.body, files=[], cc_addresses=list(draft.cc_addresses), bcc_addresses=list(draft.bcc_addresses), body_html=draft.body_html, draft_id=str(draft.id))
                 sent += 1
-            except Exception as error:
+            except Exception:
                 failed += 1
                 draft.scheduled_at = None
                 draft.updated_at = datetime.now(UTC)
@@ -685,8 +721,13 @@ class message_manager:
         if destination not in self.allowed_destinations(message):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message cannot be moved to that folder")
 
+        origin_folder = message.folder
         self.relocate_message(message, destination)
         await message_crypto_manager.get_instance().save_message(message)
+        if destination == MESSAGE_FOLDER.SPAM and origin_folder != MESSAGE_FOLDER.SPAM:
+            await self.learn_message_class(message, True)
+        elif origin_folder == MESSAGE_FOLDER.SPAM and destination != MESSAGE_FOLDER.SPAM:
+            await self.learn_message_class(message, False)
         return await self.message_response(current_user, message)
 
     async def report_sender(self, current_user: db_user_model, message_id: str, report_type: REPORT_TYPE) -> dict:
@@ -704,6 +745,7 @@ class message_manager:
             self.relocate_message(message, MESSAGE_FOLDER.SPAM)
             await message_crypto_manager.get_instance().save_message(message)
 
+        await self.learn_message_class(message, True)
         return {**await self.message_response(current_user, message), "report": report}
 
     async def block_sender(self, current_user: db_user_model, message_id: str) -> dict:
@@ -720,6 +762,7 @@ class message_manager:
         if message.folder != MESSAGE_FOLDER.SPAM:
             self.relocate_message(message, MESSAGE_FOLDER.SPAM)
             await message_crypto_manager.get_instance().save_message(message)
+            await self.learn_message_class(message, True)
 
         return {**await self.message_response(current_user, message), "block": block}
 
@@ -767,10 +810,13 @@ class message_manager:
         if message.folder not in self.RESTORABLE_FOLDERS:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Message is not archived, in Spam or in Trash")
 
+        origin_folder = message.folder
         message.folder = self.restore_target(message)
         message.previous_folder = None
         message.updated_at = datetime.now(UTC)
         await message_crypto_manager.get_instance().save_message(message)
+        if origin_folder == MESSAGE_FOLDER.SPAM:
+            await self.learn_message_class(message, False)
         return {**self.serialize_message(message), **self.message_state(message)}
 
     async def bulk_update_messages(self, current_user: db_user_model, message_ids: list[str], action: BULK_MESSAGE_ACTION, destination: MESSAGE_FOLDER | None = None, label_ids: list[str] | None = None) -> dict:
@@ -831,6 +877,7 @@ class message_manager:
                 processed_ids.append(str(message.id))
                 continue
 
+            origin_folder = message.folder
             if action == BULK_MESSAGE_ACTION.ARCHIVE:
                 message.previous_folder = MESSAGE_FOLDER.INBOX
                 message.folder = MESSAGE_FOLDER.ARCHIVE
@@ -866,6 +913,10 @@ class message_manager:
 
             message.updated_at = now
             await message_crypto_manager.get_instance().save_message(message)
+            if message.folder == MESSAGE_FOLDER.SPAM and origin_folder != MESSAGE_FOLDER.SPAM:
+                await self.learn_message_class(message, True)
+            elif origin_folder == MESSAGE_FOLDER.SPAM and message.folder != MESSAGE_FOLDER.SPAM:
+                await self.learn_message_class(message, False)
             processed_ids.append(str(message.id))
 
         return {

@@ -77,16 +77,18 @@ export class LabelMessages implements OnInit {
     this.messageService.moveToTrash(message.id).subscribe({
       next: () => {
         this.messages.update((messages) => messages.filter((item) => item.id !== message.id));
-        this.labelService.adjustMessageCount(message.label_ids ?? [], -1);
+        this.labelService.adjustMessageCount(message.label_ids, -1);
         this.label.update((label) => label ? { ...label, message_count: Math.max(0, label.message_count - 1) } : label);
         this.messageService.refreshFolderCounts();
       },
-      error: () => this.errorMessage.set('Could not move the email to Trash.'),
+      error: () => {
+        this.errorMessage.set('Could not move the email to Trash.');
+      },
     });
   }
 
   correspondent(message: MessageDetailResponse): string {
-    return message.direction === 'outgoing' ? `To: ${message.receiver_address.split('@')[0]}` : message.sender_address.split('@')[0];
+    return message.direction === 'outgoing' ? `To: ${message.receiver_address.split('@')[0] ?? message.receiver_address}` : message.sender_address.split('@')[0] ?? message.sender_address;
   }
 
   manageLabels(): void {

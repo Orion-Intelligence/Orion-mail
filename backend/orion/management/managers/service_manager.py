@@ -1,7 +1,6 @@
 from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manager
 from orion.api.server.config_manager.config_controller import config_controller
 from orion.constants.constant import CONSTANTS
-from orion.services.log_manager.log_controller import log
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 
 

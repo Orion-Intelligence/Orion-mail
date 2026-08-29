@@ -134,7 +134,7 @@
       <button data-mail-action="undo-send" type="button" (click)="cancelSend()" class="ml-1 h-9 shrink-0 cursor-pointer rounded-full border-none bg-transparent px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Undo</button>
     }
     @if (selectedFiles().length > 0 || forwardedAttachments().length > 0) {
-      <span class="ml-auto text-xs whitespace-nowrap text-muted">{{ getTotalFileSize() }} MB / 5 MB</span>
+      <span class="ml-auto text-xs whitespace-nowrap text-muted">{{ getTotalFileSize() }} MB / 1 MB</span>
     } @else {
       <span class="ml-auto"></span>
     }

@@ -13,6 +13,8 @@ EDGE_CONTAINER="trusted-web-nginx"
 MAINTENANCE_FLAG="backend/static/.maintenance"
 CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
 COMPOSE_FILE="docker-compose.yml"
+RSPAMD_IMAGE="rspamd/rspamd:3.11.1"
+RSPAMD_SECRET_FILE="rspamd/local.d/worker-controller-secret.inc"
 HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
 
 usage() {
@@ -133,6 +135,35 @@ require_env_file() {
     chmod 600 "$ENV_FILE"
 }
 
+ensure_rspamd_secret() {
+    local password
+    password="$(sed -n 's/^RSPAMD_CONTROLLER_PASSWORD=//p' "$ENV_FILE" | tail -1 | tr -d '\042\047')"
+    if [ -z "$password" ]; then
+        password="$(head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 32)"
+        if [ -n "$(tail -c 1 "$ENV_FILE")" ]; then
+            printf '\n' >> "$ENV_FILE"
+        fi
+        printf 'RSPAMD_CONTROLLER_PASSWORD=%s\n' "$password" >> "$ENV_FILE"
+        rm -f "$RSPAMD_SECRET_FILE"
+        echo "Generated RSPAMD_CONTROLLER_PASSWORD in $ENV_FILE"
+    fi
+
+    if [ -f "$RSPAMD_SECRET_FILE" ]; then
+        return
+    fi
+
+    local hash
+    hash="$(docker run --rm "$RSPAMD_IMAGE" rspamadm pw --encrypt -p "$password" 2>/dev/null | tail -1)"
+    if [ -z "$hash" ]; then
+        echo "Could not hash RSPAMD_CONTROLLER_PASSWORD with $RSPAMD_IMAGE" >&2
+        exit 1
+    fi
+
+    printf 'password = "%s";\nenable_password = "%s";\n' "$hash" "$hash" > "$RSPAMD_SECRET_FILE"
+    chmod 644 "$RSPAMD_SECRET_FILE"
+    echo "Wrote rspamd controller credentials to $RSPAMD_SECRET_FILE"
+}
+
 is_nginx_running() {
     docker inspect -f '{{.State.Running}}' "$NGINX_CONTAINER" 2>/dev/null | grep -qx true
 }
@@ -150,7 +181,7 @@ disable_maintenance_mode() {
 }
 
 ensure_runtime_dirs() {
-    mkdir -p backend/static/resource/attachments/incoming backend/static/resource/attachments/outgoing backend/static/resource/attachments/raw client/build
+    mkdir -p backend/static/resource/attachments/incoming backend/static/resource/attachments/outgoing backend/static/resource/attachments/raw backend/static/resource/attachments/staging client/build
     local app_uid app_gid
     app_uid="$(sed -n 's/^APP_UID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
     app_gid="$(sed -n 's/^APP_GID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
@@ -348,6 +379,7 @@ esac
 
 require_env_file
 ensure_runtime_dirs
+ensure_rspamd_secret
 
 if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-p" ]; }; then
     COMPOSE_FILE="docker-compose-production.yml"

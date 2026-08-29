@@ -26,6 +26,8 @@ export class ComposeService {
   showNotice(text: string): void {
     clearTimeout(this.noticeTimer);
     this.notice.set(text);
-    this.noticeTimer = setTimeout(() => this.notice.set(''), 4000);
+    this.noticeTimer = setTimeout(() => {
+      this.notice.set('');
+    }, 4000);
   }
 }

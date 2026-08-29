@@ -17,18 +17,18 @@ export class ConfigureEmail {
   errorMessage = signal('');
   user = this.authService.currentUser;
   mailDomain = computed(() => this.user()?.mail_domain || 'mail.orionintelligence.org');
-  mailboxUsername = computed(() => this.user()?.username?.trim().toLowerCase() || '');
+  mailboxUsername = computed(() => this.user()?.username.trim().toLowerCase() || '');
   mailboxAddress = computed(() => this.mailboxUsername() ? `${this.mailboxUsername()}@${this.mailDomain()}` : '');
-  accountName = computed(() => this.user()?.full_name?.trim() || this.user()?.username?.trim() || 'Orion Intelligence account');
+  accountName = computed(() => this.user()?.full_name.trim() || this.user()?.username.trim() || 'Orion Intelligence account');
   accountDetail = computed(() => {
     const user = this.user();
-    const email = user?.email?.trim();
-    const name = user?.full_name?.trim();
+    const email = user?.email.trim();
+    const name = user?.full_name.trim();
 
     if (email && email.toLowerCase() !== name?.toLowerCase()) {
       return email;
     }
-    return user?.username?.trim() ? `@${user.username.trim()}` : '';
+    return user?.username.trim() ? `@${user.username.trim()}` : '';
   });
   accountInitial = computed(() => this.accountName().charAt(0).toUpperCase() || 'O');
 

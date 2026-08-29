@@ -32,21 +32,21 @@ async def test_get_settings_exposes_defaults_as_snake_case_fields():
 
     settings = await controller.get_settings()
 
-    assert settings == {"outgoing_attachment_max_size_mb": 5, "incoming_attachment_max_size_mb": 5, "attachment_retention_hours": 168}
+    assert settings == {"outgoing_attachment_max_size_mb": 1, "incoming_attachment_max_size_mb": 5, "attachment_retention_hours": 48}
 
 
 @pytest.mark.anyio
 async def test_update_settings_persists_every_key():
     controller = build_controller()
 
-    updated = await controller.update_settings({"outgoing_attachment_max_size_mb": 2, "incoming_attachment_max_size_mb": 4, "attachment_retention_hours": 720})
+    updated = await controller.update_settings({"outgoing_attachment_max_size_mb": 1, "incoming_attachment_max_size_mb": 4, "attachment_retention_hours": 24})
 
-    assert updated == {"outgoing_attachment_max_size_mb": 2, "incoming_attachment_max_size_mb": 4, "attachment_retention_hours": 720}
-    assert controller._engine.documents[CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS].value == 720
+    assert updated == {"outgoing_attachment_max_size_mb": 1, "incoming_attachment_max_size_mb": 4, "attachment_retention_hours": 24}
+    assert controller._engine.documents[CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS].value == 24
     assert len(controller._engine.saved) == 3
 
 
-@pytest.mark.parametrize("key,value", [(CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB, 0), (CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB, 6), (CONFIG_KEYS.INCOMING_ATTACHMENT_MAX_SIZE_MB, 0), (CONFIG_KEYS.INCOMING_ATTACHMENT_MAX_SIZE_MB, 6), (CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS, 0), (CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS, 8761)])
+@pytest.mark.parametrize("key,value", [(CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB, 0), (CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB, 2), (CONFIG_KEYS.INCOMING_ATTACHMENT_MAX_SIZE_MB, 0), (CONFIG_KEYS.INCOMING_ATTACHMENT_MAX_SIZE_MB, 6), (CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS, 0), (CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS, 49)])
 @pytest.mark.anyio
 async def test_set_config_int_rejects_values_outside_the_allowed_range(key, value):
     controller = build_controller()
@@ -77,15 +77,15 @@ async def test_initialize_clamps_a_stored_value_above_the_current_maximum():
     await controller.initialize()
 
     assert controller._engine.documents[CONFIG_KEYS.INCOMING_ATTACHMENT_MAX_SIZE_MB].value == 5
-    assert await controller.get_settings() == {"outgoing_attachment_max_size_mb": 5, "incoming_attachment_max_size_mb": 5, "attachment_retention_hours": 168}
+    assert await controller.get_settings() == {"outgoing_attachment_max_size_mb": 1, "incoming_attachment_max_size_mb": 5, "attachment_retention_hours": 48}
 
 
 @pytest.mark.anyio
 async def test_initialize_leaves_in_range_values_untouched():
     controller = build_controller()
-    controller._engine.documents[CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS].value = 720
+    controller._engine.documents[CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS].value = 24
 
     await controller.initialize()
 
-    assert controller._engine.documents[CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS].value == 720
+    assert controller._engine.documents[CONFIG_KEYS.ATTACHMENT_RETENTION_HOURS].value == 24
     assert controller._engine.saved == []

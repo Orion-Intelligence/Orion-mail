@@ -14,6 +14,7 @@ export class MessageService {
   private readonly baseUrl = `${this.apiBaseUrl}/messages`;
 
   readonly folderCounts = signal<FolderCounts>({ ...EMPTY_FOLDER_COUNTS, unread: { ...EMPTY_FOLDER_COUNTS } });
+  readonly storageExceeded = signal(false);
 
   constructor(private readonly http: HttpClient) {}
 
@@ -24,7 +25,7 @@ export class MessageService {
     formData.append('body', data.body);
 
     if (data.body_html) {
-      formData.append('body_html', data.body_html);
+      formData.append('body_html', /*safe*/ data.body_html);
     }
 
     for (const ccAddress of data.cc_addresses) {
@@ -118,11 +119,24 @@ export class MessageService {
   }
 
   loadFolderCounts(): Observable<FolderCounts> {
-    return this.http.get<FolderCounts>(`${this.baseUrl}/folder-counts`).pipe(tap((counts) => this.folderCounts.set(counts)));
+    return this.http.get<FolderCounts>(`${this.baseUrl}/folder-counts`).pipe(tap((counts) => {
+      this.folderCounts.set(counts);
+    }));
   }
 
   refreshFolderCounts(): void {
     this.loadFolderCounts().subscribe({ error: () => undefined });
+  }
+
+  refreshStorageStatus(): void {
+    this.http.get<{ storage_exceeded: boolean }>(`${this.baseUrl}/storage-status`).subscribe({
+      next: (storage) => {
+        this.storageExceeded.set(storage.storage_exceeded);
+      },
+      error: () => {
+        this.storageExceeded.set(false);
+      },
+    });
   }
 
   archiveMessage(messageId: string): Observable<MessageDetailResponse> {

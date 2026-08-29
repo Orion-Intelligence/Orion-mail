@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import re
 import secrets
 from urllib.parse import urlencode, urlsplit
@@ -21,7 +22,6 @@ from configs.auth_cookie import (
 from orion.api.interactive.preference_manager.models.preference_param_model import UserPreferencesRequest
 from orion.api.interactive.preference_manager.preference_manager import preference_manager
 from orion.constants.constant import CONSTANTS
-from orion.services.log_manager.log_controller import log
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
@@ -162,11 +162,9 @@ async def logout(request: Request, response: Response):
     enforce_csrf(request)
     session_token = session_token_from_request(request)
     if session_token:
-        try:
+        with contextlib.suppress(HTTPException):
             await orion_identity_client.get_instance().revoke(session_token)
-        except HTTPException:
-            pass
-        
+
     clear_session_cookie(response)
     clear_sso_cookies(response)
     return {

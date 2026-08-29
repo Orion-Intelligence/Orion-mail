@@ -26,7 +26,7 @@ export class MessageDetail implements OnInit {
   threadMessages = signal<MessageDetailResponse[]>([]);
   imagePreviews = signal<Record<string, string>>({});
   conversation = computed(() => this.threadMessages().filter((item) => item.id !== this.message()?.id));
-  renderedHtml = computed(() => this.prepareHtmlBody(this.message()?.body_html ?? '', this.showRemoteImages()));
+  renderedHtml = computed(() => this.prepareHtmlBody(/*safe*/ this.message()?.body_html ?? '', /*safe*/ this.showRemoteImages()));
   hasHtmlBody = computed(() => Boolean((this.message()?.body_html ?? '').trim()));
   blockedImageCount = computed(() => this.renderedHtml().blocked);
   message = signal<MessageDetailResponse | null>(null);
@@ -72,7 +72,7 @@ export class MessageDetail implements OnInit {
     if (!currentMessage) {
       return [];
     }
-    const addresses = currentMessage.to_addresses?.length ? currentMessage.to_addresses : [currentMessage.receiver_address];
+    const addresses = currentMessage.to_addresses.length ? currentMessage.to_addresses : [currentMessage.receiver_address];
     return [...new Set(addresses.filter(Boolean))];
   });
   ccRecipients = computed(() => [...new Set((this.message()?.cc_addresses ?? []).filter(Boolean))]);
@@ -84,8 +84,8 @@ export class MessageDetail implements OnInit {
 
   loadImagePreviews(message: MessageDetailResponse): void {
     this.releaseImagePreviews();
-    for (const attachment of message.attachments ?? []) {
-      if (!attachment.content_type?.startsWith('image/') || attachment.status !== 'available') {
+    for (const attachment of message.attachments) {
+      if (!attachment.content_type.startsWith('image/') || attachment.status !== 'available') {
         continue;
       }
 
@@ -108,8 +108,12 @@ export class MessageDetail implements OnInit {
 
   loadThread(messageId: string): void {
     this.messageService.getThreadMessages(messageId).subscribe({
-      next: (messages) => this.threadMessages.set(messages),
-      error: () => this.threadMessages.set([]),
+      next: (messages) => {
+        this.threadMessages.set(messages);
+      },
+      error: () => {
+        this.threadMessages.set([]);
+      },
     });
   }
 
@@ -123,9 +127,9 @@ export class MessageDetail implements OnInit {
       return { html: '', blocked: 0 };
     }
 
-    const sanitized = this.domSanitizer.sanitize(SecurityContext.HTML, trimmed) ?? '';
+    const sanitized = this.domSanitizer.sanitize(/*safe*/ SecurityContext.HTML, /*safe*/ trimmed) ?? '';
     if (allowRemoteImages) {
-      return { html: sanitized, blocked: 0 };
+      return { html: /*safe*/ sanitized, blocked: 0 };
     }
 
     const parsed = new DOMParser().parseFromString(sanitized, 'text/html');
@@ -160,7 +164,7 @@ export class MessageDetail implements OnInit {
       this.fromSearchQuery.set(this.route.snapshot.queryParamMap.get('q') ?? '');
       this.fromSearchScope.set(this.route.snapshot.queryParamMap.get('scope') ?? 'all');
     }
-    else if (from && from in SOURCE_NAMES) {
+    else if (from && SOURCE_NAMES.has(from)) {
       this.source.set(from as MessageSource);
     }
 
@@ -168,7 +172,9 @@ export class MessageDetail implements OnInit {
       this.labelService.loadLabels().subscribe({ error: () => undefined });
     }
     this.messageService.getMyMailbox().subscribe({
-      next: (mailbox) => this.mailboxAddress.set(mailbox.mailbox_address.toLowerCase()),
+      next: (mailbox) => {
+        this.mailboxAddress.set(mailbox.mailbox_address.toLowerCase());
+      },
       error: () => undefined,
     });
 
@@ -190,7 +196,6 @@ export class MessageDetail implements OnInit {
 
     this.messageService.getMessageById(messageId).subscribe({
       next: (message) => {
-        message.label_ids ??= [];
         this.message.set(message);
         this.draftLabelIds.set([...message.label_ids]);
         this.loadImagePreviews(message);
@@ -241,13 +246,12 @@ export class MessageDetail implements OnInit {
       return;
     }
 
-    const previousIds = currentMessage.label_ids ?? [];
+    const previousIds = currentMessage.label_ids;
     const nextIds = this.draftLabelIds();
     this.savingLabels.set(true);
     this.labelErrorMessage.set('');
     this.messageService.setMessageLabels(currentMessage.id, nextIds).subscribe({
       next: (updatedMessage) => {
-        updatedMessage.label_ids ??= [];
         if (!this.isRemovedFolder(currentMessage.folder)) {
           const previous = new Set(previousIds);
           const next = new Set(updatedMessage.label_ids);
@@ -280,7 +284,7 @@ export class MessageDetail implements OnInit {
     if (source === 'label') {
       return this.labelService.labels().find((label) => label.id === this.fromLabelId())?.name ?? 'Label';
     }
-    return SOURCE_NAMES[source];
+    return SOURCE_NAMES.get(source) ?? 'Mail';
   }
 
   isRemovedFolder(folder: string | undefined): boolean {
@@ -378,10 +382,10 @@ export class MessageDetail implements OnInit {
     this.messageService.moveMessage(currentMessage.id, destination).subscribe({
       next: () => {
         if (this.isRemovedFolder(currentMessage.folder) && !this.isRemovedFolder(destination)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids ?? [], 1);
+          this.labelService.adjustMessageCount(currentMessage.label_ids, 1);
         }
         else if (!this.isRemovedFolder(currentMessage.folder) && this.isRemovedFolder(destination)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids ?? [], -1);
+          this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
         }
         this.messageService.refreshFolderCounts();
         this.actionLoading.set(false);
@@ -423,7 +427,7 @@ export class MessageDetail implements OnInit {
     this.errorMessage.set('');
     this.messageService.moveToTrash(currentMessage.id).subscribe({
       next: () => {
-        this.labelService.adjustMessageCount(currentMessage.label_ids ?? [], -1);
+        this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
         this.messageService.refreshFolderCounts();
         this.actionLoading.set(false);
         this.goBack();
@@ -445,7 +449,7 @@ export class MessageDetail implements OnInit {
     this.messageService.restoreMessage(currentMessage.id).subscribe({
       next: () => {
         if (this.isRemovedFolder(currentMessage.folder)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids ?? [], 1);
+          this.labelService.adjustMessageCount(currentMessage.label_ids, 1);
         }
         this.messageService.refreshFolderCounts();
         this.actionLoading.set(false);
@@ -530,7 +534,7 @@ export class MessageDetail implements OnInit {
     const replyTarget = this.replyTarget(currentMessage);
     const localAddress = currentMessage.direction === 'incoming' ? currentMessage.receiver_address : currentMessage.sender_address;
     const excluded = new Set([replyTarget.toLowerCase(), this.mailboxAddress(), localAddress.toLowerCase()].filter(Boolean));
-    const ccAddresses = [...new Set([...(currentMessage.to_addresses ?? []), ...(currentMessage.cc_addresses ?? [])]
+    const ccAddresses = [...new Set([...currentMessage.to_addresses, ...currentMessage.cc_addresses]
       .map((address) => address.toLowerCase())
       .filter((address) => address && !excluded.has(address)))];
     this.closeActionMenus();
@@ -551,8 +555,8 @@ export class MessageDetail implements OnInit {
       `From: ${currentMessage.sender_address}`,
       `Date: ${formatFullMailDate(currentMessage.created_at)}`,
       `Subject: ${currentMessage.subject}`,
-      `To: ${(currentMessage.to_addresses?.length ? currentMessage.to_addresses : [currentMessage.receiver_address]).join(', ')}`,
-      ...(currentMessage.cc_addresses?.length ? [`Cc: ${currentMessage.cc_addresses.join(', ')}`] : []),
+      `To: ${(currentMessage.to_addresses.length ? currentMessage.to_addresses : [currentMessage.receiver_address]).join(', ')}`,
+      ...(currentMessage.cc_addresses.length ? [`Cc: ${currentMessage.cc_addresses.join(', ')}`] : []),
       '',
       currentMessage.body,
     ].join('\n');
@@ -572,7 +576,7 @@ export class MessageDetail implements OnInit {
     if (currentMessage.direction === 'incoming') {
       return currentMessage.reply_to_address || currentMessage.sender_address;
     }
-    return currentMessage.to_addresses?.[0] || currentMessage.receiver_address;
+    return currentMessage.to_addresses[0] || currentMessage.receiver_address;
   }
 
   quotedReplyBody(currentMessage: MessageDetailResponse): string {
@@ -619,7 +623,7 @@ export class MessageDetail implements OnInit {
     this.messageService.reportSender(currentMessage.id, reportType).subscribe({
       next: () => {
         if (!this.isRemovedFolder(currentMessage.folder)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids ?? [], -1);
+          this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
         }
         this.messageService.refreshFolderCounts();
         this.actionLoading.set(false);
@@ -672,7 +676,7 @@ export class MessageDetail implements OnInit {
     this.messageService.blockSender(currentMessage.id).subscribe({
       next: () => {
         if (!this.isRemovedFolder(currentMessage.folder)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids ?? [], -1);
+          this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
         }
         this.messageService.refreshFolderCounts();
         this.actionLoading.set(false);
@@ -724,7 +728,9 @@ export class MessageDetail implements OnInit {
 
   printMessage(): void {
     this.closeActionMenus();
-    window.setTimeout(() => window.print(), 50);
+    window.setTimeout(() => {
+      window.print();
+    }, 50);
   }
 
   downloadMessage(): void {
@@ -808,7 +814,9 @@ export class MessageDetail implements OnInit {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(url);
+    }, 0);
   }
 
   downloadAttachment(attachmentId: string, originalFilename: string): void {

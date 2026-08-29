@@ -19,11 +19,11 @@ export const SEARCH_SCOPE_OPTIONS: SearchScopeOption[] = [
   { value: 'important', label: 'Important', icon: 'labelImportant' },
 ];
 
-export const MESSAGE_FOLDER_NAMES: Record<string, string> = {
-  inbox: 'Inbox',
-  sent: 'Sent',
-  archive: 'Archive',
-  drafts: 'Drafts',
-  spam: 'Spam',
-  trash: 'Trash',
-};
+export const MESSAGE_FOLDER_NAMES: ReadonlyMap<string, string> = new Map([
+  ['inbox', 'Inbox'],
+  ['sent', 'Sent'],
+  ['archive', 'Archive'],
+  ['drafts', 'Drafts'],
+  ['spam', 'Spam'],
+  ['trash', 'Trash'],
+]);
