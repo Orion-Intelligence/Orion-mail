@@ -329,7 +329,7 @@ export class MessageDetail implements OnInit {
     this.closeActionMenus();
     this.messageService.bulkUpdateMessages([currentMessage.id], action).subscribe({
       next: (response) => {
-        const updatedMessage = response.messages[0];
+        const updatedMessage = response.messages.at(0);
         if (updatedMessage) {
           this.message.set(updatedMessage);
         }
@@ -355,7 +355,7 @@ export class MessageDetail implements OnInit {
     this.closeActionMenus();
     this.messageService.bulkUpdateMessages([currentMessage.id], action).subscribe({
       next: (response) => {
-        const updatedMessage = response.messages[0];
+        const updatedMessage = response.messages.at(0);
         if (updatedMessage) {
           this.message.set(updatedMessage);
         }

@@ -279,7 +279,7 @@ export class FolderMessages implements OnInit {
     this.errorMessage.set('');
     this.messageService.bulkUpdateMessages([message.id], action).subscribe({
       next: (response) => {
-        const updated = response.messages[0];
+        const updated = response.messages.at(0);
         if (updated) {
           this.replaceOrRemove(message.id, updated);
         }

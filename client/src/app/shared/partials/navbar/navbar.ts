@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet, UrlSegmentGroup } from '@angular/router';
 import { Subject, catchError, debounceTime, distinctUntilChanged, filter, finalize, of, switchMap } from 'rxjs';
 
 import { Compose } from '../../../pages/compose/compose';
@@ -144,7 +144,7 @@ export class Navbar implements OnInit {
       event.preventDefault();
       const activeOption = this.activeSearchOption();
       if (this.searchSuggestionsOpen() && activeOption > 0) {
-        const hint = this.searchHints()[activeOption - 1];
+        const hint = this.searchHints().at(activeOption - 1);
         if (hint) {
           this.openSearchHint(hint);
           return;
@@ -359,7 +359,8 @@ export class Navbar implements OnInit {
 
   private syncSearchStateFromUrl(url: string): void {
     const urlTree = this.router.parseUrl(url);
-    const firstSegment = urlTree.root.children['primary']?.segments[0]?.path;
+    const primaryOutlet = urlTree.root.children['primary'] as UrlSegmentGroup | undefined;
+    const firstSegment = primaryOutlet?.segments.at(0)?.path;
     if (firstSegment !== 'search') {
       if (firstSegment && MAILBOX_ROUTE_SEGMENTS.has(firstSegment)) {
         this.resetSearchState();
