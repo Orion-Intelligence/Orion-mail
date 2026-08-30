@@ -106,9 +106,11 @@
     </button>
   }
 
-  @if (loading() || actionLoading()) {
-    <div class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft"><div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div></div>
-  }
+  <div class="mail-motion-progress h-0.5 w-full shrink-0 transition-opacity" [class.bg-primary-soft]="loading() || actionLoading()" [class.opacity-0]="!loading() && !actionLoading()">
+    @if (loading() || actionLoading()) {
+      <div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div>
+    }
+  </div>
 
   @if (errorMessage()) {
     <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 my-2 flex items-center justify-between gap-4 rounded-lg bg-danger-soft px-4 py-3 text-[13px] text-danger" role="alert">
@@ -121,7 +123,19 @@
     <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 my-2 flex items-center justify-between gap-4 rounded-lg bg-primary-soft px-4 py-2.5 text-[13px] text-primary" role="status"><span>{{ actionNotice() }}</span><button type="button" (click)="actionNotice.set('')" title="Dismiss" aria-label="Dismiss notification" class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-primary hover:bg-surface/60 focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'close'" class="h-4 w-4" /></button></div>
   }
 
-  @if (!loading() && !errorMessage() && filteredMessages().length === 0) {
+  @if (loading() && pageMessages().length === 0) {
+    <div role="list" aria-label="Loading messages" aria-busy="true" class="min-h-0 flex-1 overflow-hidden">
+      @for (row of listSkeletonRows; track row) {
+        <div aria-hidden="true" class="grid min-h-10 grid-cols-[4.5rem_minmax(8rem,12rem)_minmax(0,1fr)_2rem_6rem] items-center border-b border-row-line px-3 last:border-b-0 max-[900px]:grid-cols-[4.5rem_minmax(7rem,10rem)_minmax(0,1fr)_6rem] max-[720px]:min-h-16 max-[720px]:grid-cols-[minmax(0,1fr)_5rem] max-[720px]:px-3 max-[720px]:py-2">
+          <span class="mail-skeleton mr-4 h-3 w-10 max-[720px]:hidden"></span>
+          <span class="mail-skeleton mr-4 h-3 w-28"></span>
+          <span class="mail-skeleton mr-4 h-3 w-3/5"></span>
+          <span class="mail-skeleton h-3 w-3 max-[900px]:hidden"></span>
+          <span class="mail-skeleton ml-auto h-3 w-12"></span>
+        </div>
+      }
+    </div>
+  } @else if (!loading() && !errorMessage() && filteredMessages().length === 0) {
     <div class="flex flex-1 flex-col items-center justify-center px-5 py-16 text-center">
       <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-hover-soft text-faint"><app-icon [name]="searchTerm() ? 'search' : 'inbox'" class="h-6 w-6" /></span>
       <h2 class="text-sm font-medium text-ink-soft">{{ searchTerm() ? 'No messages match your search' : 'No messages in Inbox' }}</h2>

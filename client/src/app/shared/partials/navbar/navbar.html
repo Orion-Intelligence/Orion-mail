@@ -218,6 +218,14 @@
         </div>
 
         <nav aria-label="Labels" class="flex shrink-0 flex-col gap-px pb-2">
+          @if (labelsPending()) {
+            @for (row of labelSkeletonRows; track row) {
+              <span aria-hidden="true" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 max-[720px]:h-10">
+                <span class="mail-skeleton h-3 w-3 shrink-0 rounded-sm"></span>
+                <span class="mail-skeleton h-3 min-w-0 flex-1 {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}"></span>
+              </span>
+            }
+          } @else {
           @for (label of labelService.labels(); track label.id) {
             <a [routerLink]="['/label', label.id]" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" [title]="label.name" animate.enter="mail-motion-row-enter" animate.leave="mail-motion-row-leave" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
               <span class="flex h-5 w-5 shrink-0 items-center justify-center"><span class="h-3 w-3 rounded-sm" [class]="labelColorClass(label.color)"></span></span>
@@ -229,11 +237,18 @@
               <button type="button" (click)="openCreateLabel()" class="mt-1 ml-6 cursor-pointer border-none bg-transparent py-1 text-left text-xs text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">Create your first label</button>
             }
           }
+          }
         </nav>
       </div>
     </aside>
 
     <main class="mail-paper-surface relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-transparent pr-4 pb-4 max-[720px]:px-2 max-[720px]:pb-2">
+      @if (composeService.sendFailure()) {
+        <div role="alert" class="mx-1 mt-2 mb-1 flex items-start gap-3 rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-danger">
+          <span class="min-w-0 flex-1">{{ composeService.sendFailure() }}</span>
+          <button type="button" (click)="composeService.dismissSendFailure()" aria-label="Dismiss" class="shrink-0 cursor-pointer border-none bg-transparent text-sm font-medium text-danger underline focus-visible:outline-2 focus-visible:outline-primary">Dismiss</button>
+        </div>
+      }
       @if (messageService.storageExceeded()) {
         <div role="alert" class="mx-1 mt-2 mb-1 rounded-lg border border-danger/40 bg-danger-soft px-4 py-3 text-sm text-danger">
           Server storage limit reached &mdash; please contact the administrator.

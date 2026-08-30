@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subscription, catchError, debounceTime, distinctUntilChanged, finalize, map, of, switchMap } from 'rxjs';
+import { Subscription, catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
 
 import { Icon } from '../../shared/icons/icon/icon';
 import { IconName } from '../../shared/model/icon.model';
@@ -10,7 +10,6 @@ import { ComposeService } from '../../services/compose';
 import { ComposeRequest } from '../../shared/model/compose.model';
 import { MessageService } from '../../services/message';
 import { Attachment, DraftMessageRequest } from '../../shared/model/message.model';
-import { UNDO_SEND_SECONDS } from '../../shared/constants/compose.constants';
 import { RecipientHintField, RichTextCommandRunner } from '../../shared/model/compose.model';
 
 @Component({
@@ -30,8 +29,6 @@ export class Compose implements AfterViewInit, OnDestroy {
   private savingDraft = false;
   private draftChangedWhileSaving = false;
   private pendingDiscard = false;
-  private undoTimer?: ReturnType<typeof setTimeout>;
-  private undoInterval?: ReturnType<typeof setInterval>;
 
   request = input<ComposeRequest | null>(null);
   inline = input(false);
@@ -44,8 +41,6 @@ export class Compose implements AfterViewInit, OnDestroy {
   fileError = signal('');
   dragActive = signal(false);
   richText = signal(true);
-  pendingSend = signal(false);
-  undoSeconds = signal(0);
   ccError = signal('');
   receiverHints = signal<AddressHint[]>([]);
   ccHints = signal<AddressHint[]>([]);
@@ -89,8 +84,6 @@ export class Compose implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    clearTimeout(this.undoTimer);
-    clearInterval(this.undoInterval);
     this.autosave.unsubscribe();
     this.hintSubscriptions.unsubscribe();
     this.saveDraft();
@@ -590,45 +583,15 @@ export class Compose implements AfterViewInit, OnDestroy {
     const ccAddresses = this.parseCcAddresses(this.form.controls.cc_addresses.value);
     const bccAddresses = this.parseCcAddresses(this.form.controls.bcc_addresses.value);
     this.ccError.set(ccAddresses === null ? 'Enter valid Cc addresses separated by commas.' : bccAddresses === null ? 'Enter valid Bcc addresses separated by commas.' : '');
-    if (this.form.invalid || ccAddresses === null || bccAddresses === null || !this.validateAttachmentLimits() || this.loading() || this.pendingSend()) {
+    if (this.form.invalid || ccAddresses === null || bccAddresses === null || !this.validateAttachmentLimits() || this.loading()) {
       this.form.markAllAsTouched();
       return;
     }
 
-    this.pendingSend.set(true);
-    this.undoSeconds.set(UNDO_SEND_SECONDS);
-    this.undoInterval = setInterval(() => {
-      this.undoSeconds.update((seconds) => Math.max(0, seconds - 1));
-    }, 1000);
-    this.undoTimer = setTimeout(() => {
-      this.performSend();
-    }, UNDO_SEND_SECONDS * 1000);
-  }
-
-  cancelSend(): void {
-    clearTimeout(this.undoTimer);
-    clearInterval(this.undoInterval);
-    this.undoTimer = undefined;
-    this.undoInterval = undefined;
-    this.pendingSend.set(false);
-    this.undoSeconds.set(0);
-  }
-
-  private performSend(): void {
-    clearInterval(this.undoInterval);
-    this.undoTimer = undefined;
-    this.undoInterval = undefined;
-    this.pendingSend.set(false);
-    this.undoSeconds.set(0);
-
-    const ccAddresses = this.parseCcAddresses(this.form.controls.cc_addresses.value) ?? [];
-    const bccAddresses = this.parseCcAddresses(this.form.controls.bcc_addresses.value) ?? [];
-    this.loading.set(true);
+    const formValue = this.form.getRawValue();
     this.errorMessage.set('');
 
-    const formValue = this.form.getRawValue();
-
-    const messageData = {
+    this.composeService.send({
       receiver_address: formValue.receiver_address,
       cc_addresses: ccAddresses,
       bcc_addresses: bccAddresses,
@@ -640,42 +603,15 @@ export class Compose implements AfterViewInit, OnDestroy {
       forward_message_id: this.forwardMessageId,
       forward_attachment_ids: this.forwardedAttachments().map((attachment) => attachment.id),
       draft_id: this.draftId() ?? undefined,
-    };
+    });
 
-    this.messageService
-      .sendMessage(messageData)
-      .pipe(finalize(() => {
-        this.loading.set(false);
-      }),)
-      .subscribe({
-        next: (response) => {
-          this.resetComposer();
-          if (this.savingDraft) {
-            this.pendingDiscard = true;
-          }
-          this.messageService.refreshFolderCounts();
-          this.sent.emit(response.message);
-          if (!this.inline()) {
-            this.composeService.showNotice(response.message);
-            this.composeService.close();
-          }
-        },
-
-        error: (error) => {
-          const detail = error?.error?.detail;
-
-          if (Array.isArray(detail)) {
-            this.errorMessage.set(detail[0]?.msg || 'Email could not be sent.');
-            return;
-          }
-
-          if (typeof detail === 'string') {
-            this.errorMessage.set(detail);
-            return;
-          }
-
-          this.errorMessage.set('Email could not be sent. Please try again.');
-        },
-      });
+    this.resetComposer();
+    if (this.savingDraft) {
+      this.pendingDiscard = true;
+    }
+    this.sent.emit('Sending\u2026');
+    if (!this.inline()) {
+      this.composeService.close();
+    }
   }
 }

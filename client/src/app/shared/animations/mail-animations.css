@@ -328,6 +328,23 @@ app-root [data-mail-action="refresh"]:active app-icon {
   }
 }
 
+.mail-skeleton {
+  background: linear-gradient(90deg, var(--color-hover-soft) 25%, var(--color-hover) 37%, var(--color-hover-soft) 63%);
+  background-size: 400% 100%;
+  animation: mail-skeleton-sheen 1.4s ease-in-out infinite;
+  border-radius: 0.25rem;
+}
+
+@keyframes mail-skeleton-sheen {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --mail-motion-instant: 1ms;
@@ -358,6 +375,7 @@ app-root [data-mail-action="refresh"]:active app-icon {
   .mail-motion-chip-enter,
   .mail-motion-chip-leave,
   .mail-motion-progress-bar,
+  .mail-skeleton,
   app-root input:is([type="checkbox"], [type="radio"]):checked {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;

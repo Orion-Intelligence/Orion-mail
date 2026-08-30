@@ -8,9 +8,70 @@
     <meta name="theme-color" content="#edf4fb" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="preload" as="image" href="/assets/images/orion-mail-backdrop.webp" />
+    <link rel="preload" as="image" href="/assets/images/logo-wide.svg" />
+    <link rel="preload" as="image" href="/assets/images/logo-wide-dark.svg" />
     <script src="/assets/scripts/initialize-theme.js"></script>
+    <style nonce="__CSP_NONCE__">
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #edf4fb;
+        opacity: 1;
+        transition: opacity 240ms ease-out;
+      }
+
+      html.dark-theme #app-splash {
+        background: #090b0f;
+      }
+
+      #app-splash img {
+        width: 200px;
+        height: 36px;
+        animation: app-splash-breathe 1700ms ease-in-out infinite;
+      }
+
+      #app-splash .app-splash-dark,
+      html.dark-theme #app-splash .app-splash-light {
+        display: none;
+      }
+
+      html.dark-theme #app-splash .app-splash-dark {
+        display: block;
+      }
+
+      #app-splash.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      @keyframes app-splash-breathe {
+        0%,
+        100% {
+          opacity: 0.55;
+        }
+
+        50% {
+          opacity: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash img {
+          animation: none;
+          opacity: 1;
+        }
+      }
+    </style>
   </head>
   <body class="min-h-screen bg-page text-ink antialiased">
+    <div id="app-splash" role="status" aria-label="Loading Orion Mail">
+      <img class="app-splash-light" src="/assets/images/logo-wide.svg" width="200" height="36" alt="" />
+      <img class="app-splash-dark" src="/assets/images/logo-wide-dark.svg" width="200" height="36" alt="" />
+    </div>
     <app-root ngCspNonce="__CSP_NONCE__"></app-root>
   </body>
 </html>

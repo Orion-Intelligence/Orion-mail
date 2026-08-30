@@ -5,6 +5,7 @@ import { Icon } from '../../shared/icons/icon/icon';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { MessageService } from '../../services/message';
+import { SplashService } from '../../services/splash';
 import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, InboxMessage } from '../../shared/model/message.model';
 import { SearchService } from '../../services/search';
 import { formatMailDate } from '../../shared/utils/date-utils';
@@ -20,6 +21,7 @@ import { SelectionMode, SortOrder, ToolbarMenu } from '../../shared/model/inbox.
 })
 export class Inbox implements OnInit {
   readonly pageSize = 50;
+  readonly listSkeletonRows = [0, 1, 2, 3, 4, 5, 6, 7];
   readonly labelColorClass = labelColorClass;
   readonly formatMailDate = formatMailDate;
   messages = signal<InboxMessage[]>([]);
@@ -60,7 +62,7 @@ export class Inbox implements OnInit {
   selectedContainNotImportant = computed(() => this.selectedMessages().some((message) => !message.is_important));
   @ViewChild('toolbarArea') toolbarArea?: ElementRef<HTMLElement>;
 
-  constructor(public readonly mailPollService: MailPollService, private readonly messageService: MessageService, private readonly router: Router, private readonly searchService: SearchService, public readonly labelService: LabelService) {
+  constructor(public readonly mailPollService: MailPollService, private readonly messageService: MessageService, private readonly router: Router, private readonly searchService: SearchService, public readonly labelService: LabelService, private readonly splashService: SplashService) {
     this.searchTerm = this.searchService.searchTerm;
   }
 
@@ -86,11 +88,13 @@ export class Inbox implements OnInit {
         this.messages.set(messages.map((message) => this.normalizeInboxMessage(message)));
         this.selectedIds.set(new Set());
         this.loading.set(false);
+        this.splashService.hide();
         this.messageService.refreshFolderCounts();
       },
       error: () => {
         this.errorMessage.set('Could not load inbox emails.');
         this.loading.set(false);
+        this.splashService.hide();
       },
     });
   }

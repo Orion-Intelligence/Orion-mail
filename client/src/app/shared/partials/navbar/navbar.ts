@@ -50,6 +50,7 @@ export class Navbar implements OnInit {
   private pendingGoTo = false;
   private goToTimer?: ReturnType<typeof setTimeout>;
 
+  readonly labelSkeletonRows = [0, 1, 2];
   mailbox = signal<Mailbox | null>(null);
   profileMenuOpen = signal(false);
   searchSuggestionsOpen = signal(false);
@@ -79,6 +80,10 @@ export class Navbar implements OnInit {
   constructor(public readonly messageService: MessageService, private readonly searchService: SearchService, public readonly labelService: LabelService, public readonly themeService: ThemeService, public readonly composeService: ComposeService, public readonly mailPollService: MailPollService, public readonly router: Router) {
     this.searchTerm = this.searchService.searchTerm;
     this.searchScope = this.searchService.searchScope;
+  }
+
+  labelsPending(): boolean {
+    return this.labelService.loading() && this.labelService.labels().length === 0;
   }
 
   ngOnInit(): void {

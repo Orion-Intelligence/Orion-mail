@@ -123,16 +123,13 @@
   }
 
   <div class="flex h-14 shrink-0 items-center gap-1 px-4">
-    <button data-mail-action="send" type="submit" [disabled]="loading() || pendingSend()" class="flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:cursor-pointer hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
-      <span>{{ pendingSend() ? 'Sending in ' + undoSeconds() + 's' : loading() ? 'Sending…' : 'Send' }}</span>
+    <button data-mail-action="send" type="submit" [disabled]="loading()" class="flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:cursor-pointer hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
+      <span>Send</span>
     </button>
     <label [attr.for]="'file-input-' + uid()" title="Attach files" aria-label="Attach files" class="ml-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-icon transition-colors hover:bg-hover-soft hover:text-ink focus-within:outline-2 focus-within:outline-primary">
       <app-icon [name]="'attach'" class="h-5 w-5" />
       <input [id]="'file-input-' + uid()" type="file" multiple class="sr-only" (change)="onFilesSelected($event)" />
     </label>
-    @if (pendingSend()) {
-      <button data-mail-action="undo-send" type="button" (click)="cancelSend()" class="ml-1 h-9 shrink-0 cursor-pointer rounded-full border-none bg-transparent px-3 text-sm font-semibold text-primary transition-colors hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Undo</button>
-    }
     @if (selectedFiles().length > 0 || forwardedAttachments().length > 0) {
       <span class="ml-auto text-xs whitespace-nowrap text-muted">{{ getTotalFileSize() }} MB / 1 MB</span>
     } @else {
