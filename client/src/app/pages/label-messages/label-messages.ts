@@ -9,10 +9,11 @@ import { MessageService } from '../../services/message';
 import { MessageDetailResponse } from '../../shared/model/message.model';
 import { SearchService } from '../../services/search';
 import { formatMailDate } from '../../shared/utils/date-utils';
+import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 @Component({
   selector: 'app-label-messages',
-  imports: [Icon],
+  imports: [Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './label-messages.html',
 })

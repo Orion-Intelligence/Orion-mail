@@ -12,16 +12,16 @@ import { formatMailDate } from '../../shared/utils/date-utils';
 import { extractErrorMessage } from '../../shared/utils/http-error';
 import { MailPollService } from '../../services/mail-poll';
 import { SelectionMode, SortOrder, ToolbarMenu } from '../../shared/model/inbox.model';
+import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 @Component({
   selector: 'app-inbox',
-  imports: [Icon],
+  imports: [Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './inbox.html',
 })
 export class Inbox implements OnInit {
   readonly pageSize = 50;
-  readonly listSkeletonRows = [0, 1, 2, 3, 4, 5, 6, 7];
   readonly labelColorClass = labelColorClass;
   readonly formatMailDate = formatMailDate;
   messages = signal<InboxMessage[]>([]);

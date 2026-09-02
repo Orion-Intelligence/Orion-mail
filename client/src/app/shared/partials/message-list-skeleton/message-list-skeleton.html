@@ -1,0 +1,20 @@
+<div role="list" aria-label="Loading messages" aria-busy="true" class="min-h-0 flex-1 overflow-hidden">
+  @for (row of rows; track row) {
+    @if (variant() === 'select') {
+      <div aria-hidden="true" class="grid min-h-10 grid-cols-[4.5rem_minmax(8rem,12rem)_minmax(0,1fr)_2rem_6rem] items-center border-b border-row-line px-3 last:border-b-0 max-[900px]:grid-cols-[4.5rem_minmax(7rem,10rem)_minmax(0,1fr)_6rem] max-[720px]:min-h-16 max-[720px]:grid-cols-[minmax(0,1fr)_5rem] max-[720px]:px-3 max-[720px]:py-2">
+        <span class="mail-skeleton mr-4 h-3 w-10 max-[720px]:hidden"></span>
+        <span class="mail-skeleton mr-4 h-3 w-28"></span>
+        <span class="mail-skeleton mr-4 h-3 w-3/5"></span>
+        <span class="mail-skeleton h-3 w-3 max-[900px]:hidden"></span>
+        <span class="mail-skeleton ml-auto h-3 w-12"></span>
+      </div>
+    } @else {
+      <div aria-hidden="true" class="grid h-10 grid-cols-[minmax(8rem,12rem)_minmax(0,1fr)_2rem_5rem] items-center border-b border-row-line px-4 last:border-b-0 max-[900px]:grid-cols-[minmax(7rem,10rem)_minmax(0,1fr)_5rem] max-[720px]:h-auto max-[720px]:min-h-16 max-[720px]:grid-cols-[minmax(0,1fr)_2.5rem] max-[720px]:px-3 max-[720px]:py-2">
+        <span class="mail-skeleton mr-4 h-3 w-28"></span>
+        <span class="mail-skeleton mr-4 h-3 w-3/5"></span>
+        <span class="mail-skeleton h-3 w-3 max-[900px]:hidden"></span>
+        <span class="mail-skeleton ml-auto h-3 w-12"></span>
+      </div>
+    }
+  }
+</div>

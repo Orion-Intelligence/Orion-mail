@@ -8,10 +8,11 @@ import { MailLabel } from '../../shared/model/label.model';
 import { SearchService } from '../../services/search';
 import { formatMailDate } from '../../shared/utils/date-utils';
 import { Icon } from '../../shared/icons/icon/icon';
+import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 @Component({
   selector: 'app-sent',
-  imports: [Icon],
+  imports: [Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './sent.html',
 })
