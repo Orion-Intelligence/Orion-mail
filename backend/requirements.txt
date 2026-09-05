@@ -1,5 +1,5 @@
 aiosmtplib==5.1.2
-coverage==7.15.4
+coverage==7.16.0
 cryptography==50.0.0
 email-validator==2.3.0
 fastapi==0.141.1
