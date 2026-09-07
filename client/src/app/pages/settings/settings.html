@@ -10,22 +10,87 @@
   <div class="min-h-0 flex-1 overflow-y-auto px-6 py-7 max-[720px]:px-4 max-[720px]:py-5">
     <div class="mx-auto w-full max-w-220">
       @if (errorMessage()) {
-        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
+      <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
       }
       @if (statusMessage()) {
-        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ statusMessage() }}</div>
+      <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ statusMessage() }}</div>
       }
+
+      <section class="mb-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
+        <h2 class="text-lg font-medium text-ink">Disposable emails</h2>
+        <p class="mt-1 text-sm text-muted">You can keep up to 5 active disposable emails.</p>
+
+        @if (identityErrorMessage()) {
+        <div class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ identityErrorMessage()
+          }}</div>
+        }
+
+        @if (identityStatusMessage()) {
+        <div class="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{
+          identityStatusMessage() }}</div>
+        }
+
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <select class="h-10 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none" [value]="selectedPgpKeyId()" (change)="selectedPgpKeyId.set($any($event.target).value)">
+            <option value="">Generate new PGP</option>
+            @for (key of savedPgpKeys(); track key.id) {
+            <option [value]="key.id">Use saved PGP — {{ key.fingerprint }}</option>
+            }
+          </select>
+
+          <button type="button" (click)="generateDisposableEmail()" [disabled]="identitySaving() || disposableEmails().length >= 5" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary disabled:cursor-wait disabled:opacity-55">
+            {{ identitySaving() ? 'Generating…' : 'Generate disposable email' }}
+          </button>
+        </div>
+
+        <div class="mt-4 space-y-2">
+          @for (identity of disposableEmails(); track identity.id) {
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface px-3 py-2">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-ink">{{ identity.mailbox_address }}</p>
+              <p class="truncate text-xs text-muted">PGP: {{ identity.fingerprint }}</p>
+            </div>
+
+            <button type="button" (click)="deleteDisposableEmail(identity)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+              Delete
+            </button>
+          </div>
+          }
+        </div>
+      </section>
+
+      <section class="mb-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
+        <h2 class="text-lg font-medium text-ink">Saved PGP keys</h2>
+        <p class="mt-1 text-sm text-muted">You can keep up to 5 saved disposable PGP keys.</p>
+
+        <div class="mt-4 space-y-2">
+          @for (key of savedPgpKeys(); track key.id) {
+          <div class="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface px-3 py-2">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium text-ink">{{ key.fingerprint }}</p>
+              <p class="text-xs text-muted">{{ key.created_at }}</p>
+            </div>
+
+            <button type="button" (click)="deleteSavedPgpKey(key)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+              Delete PGP
+            </button>
+          </div>
+          }
+        </div>
+      </section>
 
       <form [formGroup]="form" (ngSubmit)="saveSettings()" class="rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
         <h2 class="text-lg font-medium text-ink">Signature</h2>
         <p class="mt-1 text-sm text-muted">Appended to new messages you compose.</p>
         <textarea formControlName="signature" rows="6" maxlength="10000" aria-label="Email signature" placeholder="Your name&#10;Orion Intelligence" class="mt-4 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
         @if (form.controls.signature.touched && form.controls.signature.invalid) {
-          <p animate.enter="mail-motion-notice-enter" class="mt-2 text-xs text-danger">A signature cannot exceed 10000 characters.</p>
+        <p animate.enter="mail-motion-notice-enter" class="mt-2 text-xs text-danger">A signature cannot exceed 10000
+          characters.</p>
         }
         <div class="mt-4 flex items-center justify-end gap-2">
           <button type="button" (click)="loadSettings()" [disabled]="loading() || saving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">Reset</button>
-          <button type="submit" [disabled]="saving()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ saving() ? 'Saving…' : 'Save' }}</button>
+          <button type="submit" [disabled]="saving()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
+            saving() ? 'Saving…' : 'Save' }}</button>
         </div>
       </form>
 
@@ -34,31 +99,35 @@
         <p class="mt-1 text-sm text-muted">These limits apply to every mailbox on this server.</p>
 
         @if (configErrorMessage()) {
-          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ configErrorMessage() }}</div>
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ configErrorMessage() }}
+        </div>
         }
         @if (configStatusMessage()) {
-          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ configStatusMessage() }}</div>
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ configStatusMessage()
+          }}</div>
         }
 
         @for (field of configFields; track field.key) {
-          <div class="mt-4 flex items-start justify-between gap-5 max-[560px]:flex-col max-[560px]:gap-2">
-            <label [attr.for]="'config-' + field.key" class="min-w-0 flex-1">
-              <span class="block text-sm font-medium text-ink">{{ field.label }}</span>
-              <span class="mt-0.5 block text-xs text-muted">{{ field.description }}</span>
-            </label>
-            <span class="flex shrink-0 items-center gap-2">
-              <input [id]="'config-' + field.key" type="number" [formControlName]="field.key" [attr.aria-label]="field.label" [min]="field.minimum" [max]="field.maximum" step="1" class="h-10 w-28 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
-              <span class="w-12 text-xs text-muted">{{ field.unit }}</span>
-            </span>
-          </div>
-          @if (configForm.controls[field.key].touched && configForm.controls[field.key].invalid) {
-            <p animate.enter="mail-motion-notice-enter" class="mt-1 text-xs text-danger">Enter a whole number between {{ field.minimum }} and {{ field.maximum }}.</p>
-          }
+        <div class="mt-4 flex items-start justify-between gap-5 max-[560px]:flex-col max-[560px]:gap-2">
+          <label [attr.for]="'config-' + field.key" class="min-w-0 flex-1">
+            <span class="block text-sm font-medium text-ink">{{ field.label }}</span>
+            <span class="mt-0.5 block text-xs text-muted">{{ field.description }}</span>
+          </label>
+          <span class="flex shrink-0 items-center gap-2">
+            <input [id]="'config-' + field.key" type="number" [formControlName]="field.key" [attr.aria-label]="field.label" [min]="field.minimum" [max]="field.maximum" step="1" class="h-10 w-28 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+            <span class="w-12 text-xs text-muted">{{ field.unit }}</span>
+          </span>
+        </div>
+        @if (configForm.controls[field.key].touched && configForm.controls[field.key].invalid) {
+        <p animate.enter="mail-motion-notice-enter" class="mt-1 text-xs text-danger">Enter a whole number between {{
+          field.minimum }} and {{ field.maximum }}.</p>
+        }
         }
 
         <div class="mt-5 flex items-center justify-end gap-2">
           <button type="button" (click)="loadSystemConfig()" [disabled]="configLoading() || configSaving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">Reset</button>
-          <button type="submit" [disabled]="configSaving() || configLoading()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ configSaving() ? 'Saving…' : 'Save' }}</button>
+          <button type="submit" [disabled]="configSaving() || configLoading()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
+            configSaving() ? 'Saving…' : 'Save' }}</button>
         </div>
       </form>
     </div>

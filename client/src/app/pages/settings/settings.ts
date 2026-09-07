@@ -9,6 +9,7 @@ import { MessageService } from '../../services/message';
 import { extractErrorMessage } from '../../shared/utils/http-error';
 import { SYSTEM_CONFIG_FIELDS } from '../../shared/constants/config.constants';
 import { SystemConfig, SystemConfigField } from '../../shared/model/config.model';
+import { SavedPgpKey, SenderIdentity } from '../../shared/model/message.model';
 
 @Component({
   selector: 'app-settings',
@@ -29,12 +30,21 @@ export class Settings implements OnInit {
   configErrorMessage = signal('');
   configStatusMessage = signal('');
   mailboxAddress = signal('');
+  disposableEmails = signal<SenderIdentity[]>([]);
+  savedPgpKeys = signal<SavedPgpKey[]>([]);
+  identityLoading = signal(false);
+  identitySaving = signal(false);
+  identityErrorMessage = signal('');
+  identityStatusMessage = signal('');
+  selectedPgpKeyId = signal<string>('');
 
-  constructor(private readonly messageService: MessageService, private readonly configService: ConfigService, private readonly router: Router) {}
+  constructor(private readonly messageService: MessageService, private readonly configService: ConfigService, private readonly router: Router) { }
 
   ngOnInit(): void {
     this.loadSettings();
     this.loadSystemConfig();
+    this.loadSenderIdentities();
+    this.loadSavedPgpKeys();
   }
 
   loadSettings(): void {
@@ -120,5 +130,67 @@ export class Settings implements OnInit {
     const minimum = field?.minimum ?? 1;
     const maximum = field?.maximum ?? Number.MAX_SAFE_INTEGER;
     return new FormControl(minimum, { nonNullable: true, validators: [Validators.required, Validators.min(minimum), Validators.max(maximum)] });
+  }
+
+  loadSenderIdentities(): void {
+    this.identityLoading.set(true);
+    this.identityErrorMessage.set('');
+
+    this.messageService.getSenderIdentities().pipe(finalize(() => this.identityLoading.set(false))).subscribe({
+      next: (response) => this.disposableEmails.set(response.disposable),
+      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not load disposable emails.')),
+    });
+  }
+
+  loadSavedPgpKeys(): void {
+    this.messageService.getSavedPgpKeys().subscribe({
+      next: (keys) => this.savedPgpKeys.set(keys),
+      error: () => undefined,
+    });
+  }
+
+  generateDisposableEmail(): void {
+    if (this.identitySaving()) {
+      return;
+    }
+
+    this.identitySaving.set(true);
+    this.identityErrorMessage.set('');
+    this.identityStatusMessage.set('');
+
+    this.messageService.generateDisposableMailbox(this.selectedPgpKeyId() || undefined)
+      .pipe(finalize(() => this.identitySaving.set(false)))
+      .subscribe({
+        next: () => {
+          this.identityStatusMessage.set('Disposable email generated.');
+          this.selectedPgpKeyId.set('');
+          this.loadSenderIdentities();
+          this.loadSavedPgpKeys();
+        },
+        error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not generate disposable email.')),
+      });
+  }
+
+  deleteDisposableEmail(identity: SenderIdentity): void {
+    const keepPgp = window.confirm('Keep this PGP key for future use?');
+
+    this.messageService.deleteDisposableMailbox(identity.id, keepPgp).subscribe({
+      next: () => {
+        this.identityStatusMessage.set('Disposable email deleted.');
+        this.loadSenderIdentities();
+        this.loadSavedPgpKeys();
+      },
+      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not delete disposable email.')),
+    });
+  }
+
+  deleteSavedPgpKey(key: SavedPgpKey): void {
+    this.messageService.deleteSavedPgpKey(key.id).subscribe({
+      next: () => {
+        this.identityStatusMessage.set('Saved PGP key deleted.');
+        this.loadSavedPgpKeys();
+      },
+      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not delete saved PGP key.')),
+    });
   }
 }

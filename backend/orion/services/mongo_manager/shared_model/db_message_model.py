@@ -33,6 +33,11 @@ class DELIVERY_STATUS(str, Enum):
     FAILED = "failed"
 
 
+class SENDER_IDENTITY_TYPE(str, Enum):
+    ORIGINAL = "original"
+    DISPOSABLE = "disposable"
+
+
 class db_message_attachment(EmbeddedModel):
     id: str
     original_filename: str
@@ -86,5 +91,8 @@ class db_message_model(Model):
     raw_source_filename: Optional[str] = Field(default=None)
     raw_source_encrypted: bool = Field(default=False)
     raw_source_size: int = Field(default=0, ge=0)
+    sender_identity_type: SENDER_IDENTITY_TYPE = Field(default=SENDER_IDENTITY_TYPE.ORIGINAL)
+    sender_identity_id: Optional[ObjectId] = Field(default=None)
+    pgp_key_id: Optional[ObjectId] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

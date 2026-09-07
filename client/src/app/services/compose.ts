@@ -53,7 +53,7 @@ export class ComposeService {
       error: (error) => {
         this.sending.update((count) => Math.max(0, count - 1));
         this.messageService.refreshFolderCounts();
-        this.sendFailure.set(`${extractErrorMessage(error, 'Message could not be sent.')} It is waiting in your inbox.`);
+        this.sendFailure.set(extractErrorMessage(error, 'Message could not be sent.'));
       },
     });
   }

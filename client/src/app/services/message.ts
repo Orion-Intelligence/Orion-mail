@@ -4,7 +4,7 @@ import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { EMPTY_FOLDER_COUNTS } from '../shared/constants/message.constants';
-import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, DeleteMessageResponse, DraftMessageRequest, FolderCounts, InboxMessage, Mailbox, MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType, SendMessageRequest, SendMessageResponse, SenderReportResponse, SentMessage } from '../shared/model/message.model';
+import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, DeleteMessageResponse, DraftMessageRequest, FolderCounts, InboxMessage, Mailbox, MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType, SavedPgpKey, SendMessageRequest, SendMessageResponse, SenderIdentity, SenderIdentityResponse, SenderReportResponse, SentMessage } from '../shared/model/message.model';
 
 @Injectable({
   providedIn: 'root',
@@ -16,7 +16,7 @@ export class MessageService {
   readonly folderCounts = signal<FolderCounts>({ ...EMPTY_FOLDER_COUNTS, unread: { ...EMPTY_FOLDER_COUNTS } });
   readonly storageExceeded = signal(false);
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) { }
 
   sendMessage(data: SendMessageRequest): Observable<SendMessageResponse> {
     const formData = new FormData();
@@ -54,6 +54,12 @@ export class MessageService {
 
     if (data.draft_id) {
       formData.append('draft_id', data.draft_id);
+    }
+
+    formData.append('sender_identity_type', data.sender_identity_type);
+
+    if (data.disposable_mailbox_id) {
+      formData.append('disposable_mailbox_id', data.disposable_mailbox_id);
     }
 
     return this.http.post<SendMessageResponse>(`${this.baseUrl}/send`, formData);
@@ -235,5 +241,29 @@ export class MessageService {
 
   translateMessage(messageId: string, targetLanguage: string): Observable<MessageTranslationResponse> {
     return this.http.post<MessageTranslationResponse>(`${this.baseUrl}/${messageId}/translate`, { target_language: targetLanguage });
+  }
+
+  getSenderIdentities(): Observable<SenderIdentityResponse> {
+    return this.http.get<SenderIdentityResponse>(`${this.apiBaseUrl}/sender-identities`);
+  }
+
+  generateDisposableMailbox(pgpKeyId?: string): Observable<SenderIdentity> {
+    return this.http.post<SenderIdentity>(`${this.apiBaseUrl}/sender-identities/disposable`, {
+      pgp_key_id: pgpKeyId ?? null,
+    });
+  }
+
+  deleteDisposableMailbox(disposableId: string, keepPgp: boolean): Observable<{ message: string }> {
+    return this.http.request<{ message: string }>('delete', `${this.apiBaseUrl}/sender-identities/disposable/${disposableId}`, {
+      body: { keep_pgp: keepPgp },
+    });
+  }
+
+  getSavedPgpKeys(): Observable<SavedPgpKey[]> {
+    return this.http.get<SavedPgpKey[]>(`${this.apiBaseUrl}/sender-identities/saved-pgp`);
+  }
+
+  deleteSavedPgpKey(pgpKeyId: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiBaseUrl}/sender-identities/saved-pgp/${pgpKeyId}`);
   }
 }

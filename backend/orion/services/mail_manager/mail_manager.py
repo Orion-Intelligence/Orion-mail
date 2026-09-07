@@ -64,6 +64,34 @@ class mail_manager:
         return email_message
 
     @staticmethod
+    def build_signed_email_message(email_message: EmailMessage, signature: str) -> EmailMessage:
+        signed_message = EmailMessage()
+
+        for header in ["From", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References"]:
+            if header in email_message:
+                signed_message[header] = email_message[header]
+
+        for header in ["From", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References"]:
+            if header in email_message:
+                del email_message[header]
+
+        signed_message.set_type("multipart/signed")
+        signed_message.set_param("protocol", "application/pgp-signature")
+        signed_message.set_param("micalg", "pgp-sha256")
+
+        signed_message.attach(email_message)
+
+        signature_part = EmailMessage()
+        signature_part.set_type("application/pgp-signature")
+        signature_part.set_payload(signature)
+        signature_part["Content-Description"] = "OpenPGP digital signature"
+        signature_part.add_header("Content-Disposition", "attachment", filename="signature.asc")
+
+        signed_message.attach(signature_part)
+
+        return signed_message
+
+    @staticmethod
     def serialize_email_message(email_message: EmailMessage) -> bytes:
         return email_message.as_bytes(policy=policy.SMTP)
 
