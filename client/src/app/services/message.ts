@@ -247,10 +247,16 @@ export class MessageService {
     return this.http.get<SenderIdentityResponse>(`${this.apiBaseUrl}/sender-identities`);
   }
 
-  generateDisposableMailbox(pgpKeyId?: string): Observable<SenderIdentity> {
+  generateDisposableMailbox(identitySignature: string, pgpKeyId?: string): Observable<SenderIdentity> {
     return this.http.post<SenderIdentity>(`${this.apiBaseUrl}/sender-identities/disposable`, {
+      identity_signature: identitySignature,
       pgp_key_id: pgpKeyId ?? null,
     });
+  }
+
+  updateDisposableSignature(disposableId: string, identitySignature: string): Observable<SenderIdentity> {
+    return this.http.put<SenderIdentity>(`${this.apiBaseUrl}/sender-identities/disposable/${disposableId}/signature`,
+      { identity_signature: identitySignature },);
   }
 
   deleteDisposableMailbox(disposableId: string, keepPgp: boolean): Observable<{ message: string }> {

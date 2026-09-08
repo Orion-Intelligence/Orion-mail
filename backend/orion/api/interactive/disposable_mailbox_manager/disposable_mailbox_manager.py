@@ -104,8 +104,10 @@ class disposable_mailbox_manager:
 
         return key
 
-    async def generate_disposable_mailbox(self, current_user: db_user_model, pgp_key_id: str | None = None) -> dict:
+    async def generate_disposable_mailbox(self, current_user: db_user_model, identity_signature: str, pgp_key_id: str | None = None) -> dict:
         mailbox = await self.get_owner_mailbox(current_user)
+
+        identity_signature = self.validate_identity_signature(identity_signature)
 
         if await self.active_disposable_count(current_user) >= CONSTANTS.S_DISPOSABLE_MAILBOX_LIMIT:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Disposable email limit reached")
@@ -128,14 +130,17 @@ class disposable_mailbox_manager:
                 owner_mailbox_id=mailbox.id,
                 mailbox_address=await self.generate_random_address(),
                 pgp_key_id=pgp_key.id,
+                identity_signature=identity_signature,
             )
         )
 
         return {
+            "type": "disposable",
             "id": str(disposable.id),
             "mailbox_address": disposable.mailbox_address,
             "pgp_key_id": str(pgp_key.id),
             "fingerprint": pgp_key.fingerprint,
+            "identity_signature": disposable.identity_signature,
             "created_at": disposable.created_at,
         }
 
@@ -165,6 +170,7 @@ class disposable_mailbox_manager:
                     "mailbox_address": item.mailbox_address,
                     "pgp_key_id": str(item.pgp_key_id),
                     "fingerprint": pgp_by_id.get(item.pgp_key_id).fingerprint if pgp_by_id.get(item.pgp_key_id) else None,
+                    "identity_signature": item.identity_signature,
                     "created_at": item.created_at,
                 }
                 for item in disposable
@@ -205,6 +211,9 @@ class disposable_mailbox_manager:
 
         pgp_key = await self._engine.find_one(db_pgp_key_model, db_pgp_key_model.id == disposable.pgp_key_id)
 
+        if (keep_pgp and pgp_key and pgp_key.key_type == PGP_KEY_TYPE.DISPOSABLE and await self.saved_pgp_count(current_user) >= CONSTANTS.S_SAVED_DISPOSABLE_PGP_LIMIT):
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Saved PGP limit reached")
+
         messages = await self._engine.find(
             db_message_model,
             db_message_model.owner_mailbox_id == disposable.owner_mailbox_id,
@@ -227,9 +236,6 @@ class disposable_mailbox_manager:
 
         if pgp_key and pgp_key.key_type == PGP_KEY_TYPE.DISPOSABLE:
             if keep_pgp:
-                if await self.saved_pgp_count(current_user) >= CONSTANTS.S_SAVED_DISPOSABLE_PGP_LIMIT:
-                    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Saved PGP limit reached")
-
                 pgp_key.status = PGP_KEY_STATUS.SAVED
                 pgp_key.updated_at = datetime.now(UTC)
                 await self._engine.save(pgp_key)
@@ -246,3 +252,44 @@ class disposable_mailbox_manager:
 
         await self._engine.delete(key)
         return {"message": "Saved PGP key deleted"}
+
+    async def update_disposable_signature(self, current_user: db_user_model, disposable_id: str, identity_signature: str) -> dict:
+        try:
+            disposable_object_id = ObjectId(disposable_id)
+        except InvalidId as error:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid disposable mailbox ID") from error
+
+        disposable = await self._engine.find_one(
+            db_disposable_mailbox_model,
+            and_(
+                eq(db_disposable_mailbox_model.id, disposable_object_id),
+                eq(db_disposable_mailbox_model.user_id, current_user.id),
+            ),
+        )
+
+        if disposable is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disposable mailbox not found")
+
+        disposable.identity_signature = self.validate_identity_signature(identity_signature)
+        disposable.updated_at = datetime.now(UTC)
+
+        await self._engine.save(disposable)
+
+        return {
+            "id": str(disposable.id),
+            "mailbox_address": disposable.mailbox_address,
+            "identity_signature": disposable.identity_signature,
+            "message": "Disposable signature updated",
+        }
+
+    @staticmethod
+    def validate_identity_signature(identity_signature: str) -> str:
+        value = identity_signature.strip()
+
+        if not value:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Disposable signature is required")
+
+        if len(value) > 5000:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Disposable signature cannot exceed 5000 characters")
+
+        return value

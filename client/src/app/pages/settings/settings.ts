@@ -37,6 +37,9 @@ export class Settings implements OnInit {
   identityErrorMessage = signal('');
   identityStatusMessage = signal('');
   selectedPgpKeyId = signal<string>('');
+  newDisposableSignature = signal('');
+  editingDisposableId = signal<string | null>(null);
+  editingDisposableSignature = signal('');
 
   constructor(private readonly messageService: MessageService, private readonly configService: ConfigService, private readonly router: Router) { }
 
@@ -150,6 +153,13 @@ export class Settings implements OnInit {
   }
 
   generateDisposableEmail(): void {
+    const identitySignature = this.newDisposableSignature().trim();
+
+    if (!identitySignature) {
+      this.identityErrorMessage.set('Disposable signature is required.');
+      return;
+    }
+
     if (this.identitySaving()) {
       return;
     }
@@ -158,17 +168,46 @@ export class Settings implements OnInit {
     this.identityErrorMessage.set('');
     this.identityStatusMessage.set('');
 
-    this.messageService.generateDisposableMailbox(this.selectedPgpKeyId() || undefined)
+    this.messageService.generateDisposableMailbox(identitySignature, this.selectedPgpKeyId() || undefined)
       .pipe(finalize(() => this.identitySaving.set(false)))
       .subscribe({
         next: () => {
           this.identityStatusMessage.set('Disposable email generated.');
           this.selectedPgpKeyId.set('');
+          this.newDisposableSignature.set('');
           this.loadSenderIdentities();
           this.loadSavedPgpKeys();
         },
         error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not generate disposable email.')),
       });
+  }
+
+  startEditDisposableSignature(identity: SenderIdentity): void {
+    this.editingDisposableId.set(identity.id);
+    this.editingDisposableSignature.set(identity.identity_signature ?? '');
+  }
+
+  cancelEditDisposableSignature(): void {
+    this.editingDisposableId.set(null);
+    this.editingDisposableSignature.set('');
+  }
+
+  updateDisposableSignature(identity: SenderIdentity): void {
+    const value = this.editingDisposableSignature().trim();
+
+    if (!value) {
+      this.identityErrorMessage.set('Disposable signature is required.');
+      return;
+    }
+
+    this.messageService.updateDisposableSignature(identity.id, value).subscribe({
+      next: () => {
+        this.identityStatusMessage.set('Disposable signature updated.');
+        this.cancelEditDisposableSignature();
+        this.loadSenderIdentities();
+      },
+      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not update disposable signature.')),
+    });
   }
 
   deleteDisposableEmail(identity: SenderIdentity): void {

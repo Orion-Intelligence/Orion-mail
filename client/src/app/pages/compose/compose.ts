@@ -467,27 +467,11 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.modeIcon.set(request.mode === 'reply-all' ? 'replyAll' : request.mode === 'reply' ? 'reply' : request.mode === 'forward' ? 'forward' : 'edit');
     this.form.patchValue({ receiver_address: request.to ?? '', cc_addresses: request.cc?.join(', ') ?? '', bcc_addresses: '', subject: request.subject ?? '', body: request.body ?? '' });
     this.form.controls.body_html.setValue('');
-    this.applySignature(request.body ?? '');
     setTimeout(() => {
       this.syncEditorFromForm();
     }, 0);
     this.validateAttachmentLimits();
     this.focusComposer();
-  }
-
-  private applySignature(existingBody: string): void {
-    const generation = this.generation;
-    this.messageService.getMyMailbox().subscribe({
-      next: (mailbox) => {
-        const signature = (mailbox.signature ?? '').trim();
-        if (!signature || generation !== this.generation || this.form.controls.body.value !== existingBody) {
-          return;
-        }
-        this.form.controls.body.setValue(`${existingBody}\n\n--\n${signature}`);
-        this.lastSavedDraft = this.snapshot();
-      },
-      error: () => undefined,
-    });
   }
 
   private loadDraft(draftId: string): void {

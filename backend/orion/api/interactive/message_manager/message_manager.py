@@ -3,6 +3,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from uuid import uuid4
+from html import escape
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -338,13 +339,11 @@ class message_manager:
         sender_mailbox = await self.get_active_user_mailbox(current_user)
 
         if sender_identity_type not in {"original", "disposable"}:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid sender identity type",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sender identity type")
 
         sender_identity_id = sender_mailbox.id
         sender_address = sender_mailbox.mailbox_address
+        disposable_sender = None
 
         if sender_identity_type == "disposable":
             if not disposable_mailbox_id:
@@ -366,6 +365,7 @@ class message_manager:
             sender_identity_id = disposable.id
             sender_address = disposable.mailbox_address
             pgp_key_id = disposable.pgp_key_id
+            disposable_sender = disposable
 
         else:
             pgp_key = await self._engine.find_one(
@@ -382,10 +382,7 @@ class message_manager:
         pgp_key = await self._engine.find_one(db_pgp_key_model, db_pgp_key_model.id == pgp_key_id)
 
         if pgp_key is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="PGP key not found"
-            )
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PGP key not found")
 
         normalized_receiver_address = receiver_address.strip().lower()
         normalized_subject = subject.strip()
@@ -435,6 +432,15 @@ class message_manager:
                 references.append(parent_header)
             references = references[-MESSAGE_LIMITS.MAX_THREAD_REFERENCES:]
 
+        identity_signature_text = self.resolve_identity_signature_text(current_user=current_user, sender_mailbox=sender_mailbox, sender_identity_type=sender_identity_type, disposable=disposable_sender)
+        pgp_identity_signature = await pgp_manager.get_instance().sign_bytes(identity_signature_text.encode("utf-8"), pgp_key.wrapped_private_key)
+        final_body = normalized_body + self.build_identity_signature_block(identity_signature_text, pgp_identity_signature)
+        normalized_body_html = (body_html or "").strip() or None
+        final_body_html = None
+
+        if normalized_body_html:
+            final_body_html = normalized_body_html + self.build_identity_signature_block_html(identity_signature_text, pgp_identity_signature)
+
         message = db_message_model(
             owner_mailbox_id=sender_mailbox.id,
             sender_address=sender_address,
@@ -446,8 +452,8 @@ class message_manager:
             cc_addresses=normalized_cc_addresses,
             bcc_addresses=normalized_bcc_addresses,
             subject=normalized_subject,
-            body=normalized_body,
-            body_html=(body_html or "").strip() or None,
+            body=final_body,
+            body_html=final_body_html,
             direction=MESSAGE_DIRECTION.OUTGOING,
             folder=MESSAGE_FOLDER.SENT,
             delivery_status=DELIVERY_STATUS.QUEUED,
@@ -463,6 +469,17 @@ class message_manager:
         staged_attachments: list[dict] = []
         try:
             staged_attachments = await attachment_manager.get_instance().stage_outgoing_attachments(files=files)
+
+            if len(staged_attachments) + 1 > MESSAGE_LIMITS.MAX_ATTACHMENTS:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_ATTACHMENTS} attachments")
+
+            public_key_attachment = await attachment_manager.get_instance().stage_generated_attachment(
+                original_filename=f"public-key-{pgp_key.fingerprint[-16:]}.asc",
+                content=pgp_key.public_key.encode("utf-8"),
+                content_type="application/pgp-keys",
+            )
+
+            staged_attachments.append(public_key_attachment)
             if forward_source:
                 staged_attachments = [*staged_attachments, *await attachment_manager.get_instance().stage_forwarded_attachments(
                     source_message_id=forward_source.id,
@@ -470,7 +487,15 @@ class message_manager:
                     staged=staged_attachments,
                 )]
 
-            message.attachments = [db_message_attachment(**attachment) for attachment in staged_attachments]
+            message.attachments = [
+                db_message_attachment(
+                    **{
+                        **attachment,
+                        "id": attachment.get("id") or uuid4().hex,
+                    }
+                )
+                for attachment in staged_attachments
+            ]
             message.updated_at = datetime.now(UTC)
             await message_crypto_manager.get_instance().save_message(message)
 
@@ -479,16 +504,13 @@ class message_manager:
                 receiver_addresses=[normalized_receiver_address],
                 cc_addresses=normalized_cc_addresses,
                 subject=normalized_subject,
-                body=normalized_body,
-                body_html=message.body_html,
+                body=final_body,
+                body_html=final_body_html,
                 attachments=staged_attachments,
                 message_id_header=message.message_id_header,
                 in_reply_to=message.in_reply_to,
                 references=message.references,
             )
-            content_source = mail_manager.get_instance().serialize_email_message(email_message)
-            signature = await pgp_manager.get_instance().sign_bytes(content_source, pgp_key.wrapped_private_key)
-            email_message = mail_manager.get_instance().build_signed_email_message(email_message, signature)
             raw_source = mail_manager.get_instance().serialize_email_message(email_message)
             raw_source_filename, raw_source_encrypted, raw_source_size = await attachment_manager.get_instance().save_raw_source(
                 raw_source, message.owner_mailbox_id)
@@ -507,8 +529,8 @@ class message_manager:
                         to_addresses=[normalized_receiver_address],
                         cc_addresses=normalized_cc_addresses,
                         subject=normalized_subject,
-                        body=normalized_body,
-                        body_html=message.body_html,
+                        body=final_body,
+                        body_html=final_body_html,
                         attachments=staged_attachments,
                         raw_source=raw_source,
                         message_id_header=message.message_id_header,
@@ -526,6 +548,7 @@ class message_manager:
             await self.mark_delivery_failed(message)
             raise
         except Exception as error:
+            log.g().e(f"Email delivery failed: {log.safe_error(error)}")
             await self.mark_delivery_failed(message)
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
         finally:
@@ -1075,3 +1098,38 @@ class message_manager:
     async def delete_message(self, current_user: db_user_model, message_id: str) -> dict:
         await self.move_to_trash(current_user, message_id)
         return {"message": "Message moved to Trash"}
+
+    @staticmethod
+    def build_identity_signature_block(identity_text: str, pgp_signature: str) -> str:
+        return (
+            "\n\n--\n"
+            "PGP Identity Proof\n"
+            "Signed Identity Text:\n"
+            f"{identity_text}\n\n"
+            "PGP Signature:\n"
+            f"{pgp_signature.strip()}\n"
+        )
+
+    @staticmethod
+    def build_identity_signature_block_html(identity_text: str, pgp_signature: str) -> str:
+        return (
+            "<hr>"
+            "<p><strong>PGP Identity Proof</strong></p>"
+            "<p><strong>Signed Identity Text:</strong></p>"
+            f"<pre>{escape(identity_text)}</pre>"
+            "<p><strong>PGP Signature:</strong></p>"
+            f"<pre>{escape(pgp_signature.strip())}</pre>"
+        )
+
+    @staticmethod
+    def resolve_identity_signature_text(current_user: db_user_model, sender_mailbox: db_mailbox_model, sender_identity_type: str, disposable: db_disposable_mailbox_model | None) -> str:
+        if sender_identity_type == "original":
+            return (sender_mailbox.signature or current_user.username or current_user.email.split("@")[0]).strip()
+
+        if disposable is None or not disposable.identity_signature.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Disposable signature is required before sending",
+            )
+
+        return disposable.identity_signature.strip()

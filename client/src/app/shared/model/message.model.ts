@@ -6,6 +6,7 @@ export interface SenderIdentity {
   mailbox_address: string;
   pgp_key_id: string;
   fingerprint: string;
+  identity_signature?: string;
   created_at?: string;
 }
 

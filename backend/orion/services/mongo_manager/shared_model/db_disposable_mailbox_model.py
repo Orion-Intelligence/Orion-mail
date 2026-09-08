@@ -18,6 +18,7 @@ class db_disposable_mailbox_model(Model):
     owner_mailbox_id: ObjectId = Field(index=True)
     mailbox_address: str = Field(unique=True)
     pgp_key_id: ObjectId = Field(index=True)
+    identity_signature: str = Field(default="")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -25,3 +26,8 @@ class db_disposable_mailbox_model(Model):
     @classmethod
     def normalize_mailbox_address(cls, value: str) -> str:
         return value.strip().lower()
+
+    @field_validator("identity_signature")
+    @classmethod
+    def normalize_identity_signature(cls, value: str) -> str:
+        return value.strip()

@@ -38,22 +38,50 @@
             }
           </select>
 
-          <button type="button" (click)="generateDisposableEmail()" [disabled]="identitySaving() || disposableEmails().length >= 5" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary disabled:cursor-wait disabled:opacity-55">
+          <textarea [value]="newDisposableSignature()" (input)="newDisposableSignature.set($any($event.target).value)" rows="3" placeholder="Enter disposable identity signature" class="w-full rounded-lg border border-outline bg-field px-3 py-2 text-sm text-ink outline-none">
+</textarea>
+
+          <button type="button" (click)="generateDisposableEmail()" [disabled]="identitySaving() || disposableEmails().length >= 5 || !newDisposableSignature().trim()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary disabled:cursor-wait disabled:opacity-55">
             {{ identitySaving() ? 'Generating…' : 'Generate disposable email' }}
           </button>
         </div>
 
         <div class="mt-4 space-y-2">
           @for (identity of disposableEmails(); track identity.id) {
-          <div class="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface px-3 py-2">
-            <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-ink">{{ identity.mailbox_address }}</p>
-              <p class="truncate text-xs text-muted">PGP: {{ identity.fingerprint }}</p>
+          <div class="rounded-lg border border-line-soft bg-surface px-3 py-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-ink">{{ identity.mailbox_address }}</p>
+                <p class="truncate text-xs text-muted">PGP: {{ identity.fingerprint }}</p>
+              </div>
+
+              <button type="button" (click)="deleteDisposableEmail(identity)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+                Delete
+              </button>
             </div>
 
-            <button type="button" (click)="deleteDisposableEmail(identity)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
-              Delete
+            @if (editingDisposableId() === identity.id) {
+            <textarea [value]="editingDisposableSignature()" (input)="editingDisposableSignature.set($any($event.target).value)" rows="3" class="mt-3 w-full rounded-lg border border-outline bg-field px-3 py-2 text-sm text-ink outline-none">
+        </textarea>
+
+            <div class="mt-2 flex justify-end gap-2">
+              <button type="button" (click)="cancelEditDisposableSignature()" class="h-8 cursor-pointer rounded-full border-none bg-transparent px-3 text-xs font-medium text-primary">
+                Cancel
+              </button>
+
+              <button type="button" (click)="updateDisposableSignature(identity)" [disabled]="!editingDisposableSignature().trim()" class="h-8 cursor-pointer rounded-full border-none bg-primary-solid px-3 text-xs font-medium text-on-primary disabled:cursor-wait disabled:opacity-55">
+                Update Signature
+              </button>
+            </div>
+            } @else {
+            <p class="mt-2 whitespace-pre-wrap text-xs text-muted">
+              Signature: {{ identity.identity_signature }}
+            </p>
+
+            <button type="button" (click)="startEditDisposableSignature(identity)" class="mt-2 h-8 cursor-pointer rounded-full border-none bg-primary-soft px-3 text-xs font-medium text-primary">
+              Edit Signature
             </button>
+            }
           </div>
           }
         </div>
@@ -81,7 +109,8 @@
 
       <form [formGroup]="form" (ngSubmit)="saveSettings()" class="rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
         <h2 class="text-lg font-medium text-ink">Signature</h2>
-        <p class="mt-1 text-sm text-muted">Appended to new messages you compose.</p>
+        <p class="mt-1 text-sm text-muted">Used as your main mailbox identity signature. If empty, your username will be
+          used.</p>
         <textarea formControlName="signature" rows="6" maxlength="10000" aria-label="Email signature" placeholder="Your name&#10;Orion Intelligence" class="mt-4 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
         @if (form.controls.signature.touched && form.controls.signature.invalid) {
         <p animate.enter="mail-motion-notice-enter" class="mt-2 text-xs text-danger">A signature cannot exceed 10000

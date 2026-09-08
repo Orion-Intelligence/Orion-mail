@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import Enum
 from typing import List, Optional
+from uuid import uuid4
 
 from odmantic import EmbeddedModel, Field, Model, ObjectId
 
@@ -39,13 +40,13 @@ class SENDER_IDENTITY_TYPE(str, Enum):
 
 
 class db_message_attachment(EmbeddedModel):
-    id: str
+    id: str = Field(default_factory=lambda: uuid4().hex)
     original_filename: str
     stored_filename: str
     size: int
     content_type: str = Field(default="application/octet-stream")
     storage_type: STORAGE_TYPE
-    expires_at: datetime
+    expires_at: Optional[datetime] = Field(default=None)
     status: ATTACHMENT_STATUS = Field(default=ATTACHMENT_STATUS.AVAILABLE)
     deleted_at: Optional[datetime] = Field(default=None)
 
