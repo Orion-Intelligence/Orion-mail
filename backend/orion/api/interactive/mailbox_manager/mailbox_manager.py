@@ -15,6 +15,7 @@ from orion.services.mongo_manager.shared_model.db_label_model import db_label_mo
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
+from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager import disposable_mailbox_manager
 
 
 class mailbox_manager:
@@ -35,19 +36,39 @@ class mailbox_manager:
 
     async def create_mailbox(self, current_user: db_user_model) -> dict:
         if await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == current_user.id) is not None:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already has a mailbox")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="User already has a mailbox"
+            )
 
         try:
             username = MailboxCreateRequest(username=current_user.username).username
         except ValidationError as error:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Your Orion Intelligence username cannot be used as an email username") from error
-        mailbox_address = f"{username}@{CONSTANTS.S_MAIL_DOMAIN}"
-        try:
-            mailbox = await self._engine.save(db_mailbox_model(user_id=current_user.id, mailbox_address=mailbox_address))
-        except DuplicateKeyError as error:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Mailbox address already exists") from error
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Your Orion Intelligence username cannot be used as an email username"
+            ) from error
 
-        return {"mailbox_address": mailbox.mailbox_address, "is_active": mailbox.is_active, "signature": mailbox.signature}
+        mailbox_address = f"{username}@{CONSTANTS.S_MAIL_DOMAIN}"
+
+        try:
+            mailbox = await self._engine.save(
+                db_mailbox_model(user_id=current_user.id, mailbox_address=mailbox_address))
+        except DuplicateKeyError as error:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Mailbox address already exists"
+            ) from error
+
+        pgp_key = await disposable_mailbox_manager.get_instance().get_or_create_original_pgp(current_user, mailbox)
+
+        return {
+            "mailbox_address": mailbox.mailbox_address,
+            "is_active": mailbox.is_active,
+            "signature": mailbox.signature,
+            "pgp_key_id": str(pgp_key.id),
+            "fingerprint": pgp_key.fingerprint,
+        }
 
     async def seed_local_test_mailboxes(self) -> int:
         user_collection = self._engine.get_collection(db_user_model)

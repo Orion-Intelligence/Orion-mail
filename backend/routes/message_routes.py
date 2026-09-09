@@ -12,13 +12,15 @@ message_routes = APIRouter(prefix="/messages", tags=["Messages"])
 
 
 @message_routes.post("/send")
-async def send_user_message(receiver_address: Annotated[str, Form()], subject: Annotated[str, Form()], body: Annotated[str, Form()], files: Annotated[list[UploadFile] | None, File()] = None, cc_addresses: Annotated[list[str] | None, Form()] = None, in_reply_to_message_id: Annotated[str | None, Form()] = None, forward_message_id: Annotated[str | None, Form()] = None, forward_attachment_ids: Annotated[list[str] | None, Form()] = None, draft_id: Annotated[str | None, Form()] = None, bcc_addresses: Annotated[list[str] | None, Form()] = None, body_html: Annotated[str | None, Form()] = None, current_user: db_user_model = Depends(get_current_user)):
+async def send_user_message(receiver_address: Annotated[str, Form()], subject: Annotated[str, Form()], body: Annotated[str, Form()], files: Annotated[list[UploadFile] | None, File()] = None, sender_identity_type: Annotated[str, Form()] = "original", disposable_mailbox_id: Annotated[str | None, Form()] = None, cc_addresses: Annotated[list[str] | None, Form()] = None, in_reply_to_message_id: Annotated[str | None, Form()] = None, forward_message_id: Annotated[str | None, Form()] = None, forward_attachment_ids: Annotated[list[str] | None, Form()] = None, draft_id: Annotated[str | None, Form()] = None, bcc_addresses: Annotated[list[str] | None, Form()] = None, body_html: Annotated[str | None, Form()] = None, current_user: db_user_model = Depends(get_current_user)):
     return await message_manager.get_instance().send_message(
         current_user=current_user,
         receiver_address=receiver_address,
         subject=subject,
         body=body,
         files=files or [],
+        sender_identity_type=sender_identity_type,
+        disposable_mailbox_id=disposable_mailbox_id,
         cc_addresses=cc_addresses,
         bcc_addresses=bcc_addresses,
         body_html=body_html,
@@ -212,6 +214,11 @@ async def restore_user_message(message_id: str, current_user: db_user_model = De
 @message_routes.delete("/{message_id}/permanent")
 async def permanently_delete_user_message(message_id: str, current_user: db_user_model = Depends(get_current_user)):
     return await message_manager.get_instance().permanently_delete_message(current_user=current_user, message_id=message_id)
+
+
+@message_routes.get("/{message_id}/source")
+async def get_user_message_source(message_id: str, current_user: db_user_model = Depends(get_current_user)):
+    return await message_manager.get_instance().get_message_source(current_user=current_user, message_id=message_id)
 
 
 @message_routes.get("/{message_id}")

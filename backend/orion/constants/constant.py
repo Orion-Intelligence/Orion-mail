@@ -65,3 +65,8 @@ class CONSTANTS:
     S_INCOMING_MAIL_TOKEN = env_handler.get_instance().env("INCOMING_MAIL_TOKEN", "")
     S_ALLOWED_HOSTS = [host.strip() for host in env_handler.get_instance().env("ALLOWED_HOSTS", f"{S_MAIL_DOMAIN},localhost,127.0.0.1").split(",") if host.strip()]
     S_CORS_ALLOWED_ORIGINS = [origin.strip() for origin in env_handler.get_instance().env("CORS_ALLOWED_ORIGINS", "http://localhost:4300,http://127.0.0.1:4300").split(",") if origin.strip()]
+
+    S_DISPOSABLE_MAILBOX_LIMIT = int(env_handler.get_instance().env("DISPOSABLE_MAILBOX_LIMIT", "5"))
+    S_SAVED_DISPOSABLE_PGP_LIMIT = int(env_handler.get_instance().env("SAVED_DISPOSABLE_PGP_LIMIT", "5"))
+    S_RANDOM_MAILBOX_LENGTH = int(env_handler.get_instance().env("RANDOM_MAILBOX_LENGTH", "32"))
+    S_PGP_KEY_BITS = int(env_handler.get_instance().env("PGP_KEY_BITS", "3072"))

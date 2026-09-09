@@ -1,3 +1,26 @@
+export type SenderIdentityType = 'original' | 'disposable';
+
+export interface SenderIdentity {
+  type: SenderIdentityType;
+  id: string;
+  mailbox_address: string;
+  pgp_key_id: string;
+  fingerprint: string;
+  identity_signature?: string;
+  created_at?: string;
+}
+
+export interface SenderIdentityResponse {
+  original: SenderIdentity;
+  disposable: SenderIdentity[];
+}
+
+export interface SavedPgpKey {
+  id: string;
+  fingerprint: string;
+  created_at: string;
+}
+
 export interface SendMessageRequest {
   receiver_address: string;
   cc_addresses: string[];
@@ -10,6 +33,8 @@ export interface SendMessageRequest {
   forward_message_id?: string;
   forward_attachment_ids: string[];
   draft_id?: string;
+  sender_identity_type: SenderIdentityType;
+  disposable_mailbox_id?: string;
 }
 
 export interface Mailbox {
@@ -17,6 +42,8 @@ export interface Mailbox {
   mailbox_address: string;
   is_active: boolean;
   signature?: string;
+  pgp_key_id?: string;
+  fingerprint?: string;
 }
 
 export interface InboxMessage {

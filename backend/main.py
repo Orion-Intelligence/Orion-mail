@@ -15,6 +15,7 @@ from routes.incoming_mail_routes import incoming_mail_routes
 from routes.label_routes import label_routes
 from routes.mailbox_routes import mailbox_routes
 from routes.message_routes import message_routes
+from routes.disposable_mailbox_routes import disposable_mailbox_routes
 
 
 @asynccontextmanager
@@ -50,3 +51,4 @@ app.include_router(label_routes)
 app.include_router(incoming_mail_routes)
 app.include_router(attachment_routes)
 app.include_router(config_routes)
+app.include_router(disposable_mailbox_routes)

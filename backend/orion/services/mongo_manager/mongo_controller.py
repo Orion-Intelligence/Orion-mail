@@ -11,6 +11,8 @@ from orion.services.mongo_manager.shared_model.db_message_model import db_messag
 from orion.services.mongo_manager.shared_model.db_system_config_model import db_system_config_model
 from orion.services.mongo_manager.shared_model.db_user_key_model import db_user_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
+from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
+from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
 
 
 class mongo_controller:
@@ -58,6 +60,12 @@ class mongo_controller:
         await self.__engine.get_collection(db_message_model).create_index([("owner_mailbox_id", 1), ("thread_id", 1), ("created_at", 1)], sparse=True)
         await self.__engine.get_collection(db_attachment_model).create_index("message_id")
         await self.__engine.get_collection(db_attachment_model).create_index([("status", 1), ("expires_at", 1)])
+        await self.__engine.get_collection(db_disposable_mailbox_model).create_index("mailbox_address", unique=True)
+        await self.__engine.get_collection(db_disposable_mailbox_model).create_index([("user_id", 1), ("created_at", -1)])
+        await self.__engine.get_collection(db_disposable_mailbox_model).create_index("pgp_key_id", unique=True)
+        await self.__engine.get_collection(db_pgp_key_model).create_index("fingerprint", unique=True)
+        await self.__engine.get_collection(db_pgp_key_model).create_index([("user_id", 1), ("status", 1)])
+        await self.__engine.get_collection(db_pgp_key_model).create_index([("owner_mailbox_id", 1), ("key_type", 1)])
 
     async def close_connection(self) -> None:
         self.__client.close()

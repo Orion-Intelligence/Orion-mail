@@ -177,6 +177,29 @@ class attachment_manager:
 
         return staged
 
+    async def stage_generated_attachment(self, original_filename: str, content: bytes, content_type: str) -> dict:
+        if not content:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Generated attachment is empty")
+
+        limit_mb, max_total_size = await self.outgoing_size_limit()
+
+        if len(content) > max_total_size:
+            raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"{original_filename} is larger than the {limit_mb} MB attachment limit")
+
+        staging_directory = self.staging_directory()
+        safe_filename = self.sanitize_original_filename(original_filename)
+        stored_filename = self.generate_stored_filename(safe_filename)
+
+        self.get_attachment_path(staging_directory, stored_filename).write_bytes(content)
+
+        return {
+            "original_filename": safe_filename,
+            "stored_filename": stored_filename,
+            "size": len(content),
+            "content_type": content_type,
+            "storage_type": STORAGE_TYPE.STAGING.value,
+        }
+
     async def stage_forwarded_attachments(self, source_message_id: ObjectId, attachment_ids: list[str], staged: list[dict]) -> list[dict]:
         if not attachment_ids:
             return []

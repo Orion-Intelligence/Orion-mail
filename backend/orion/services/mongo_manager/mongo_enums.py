@@ -9,6 +9,8 @@ class MONGO_CONNECTIONS:
 class MONGO_COLLECTIONS:
     USERS = "users"
     MAILBOXES = "mailboxes"
+    DISPOSABLE_MAILBOXES = "disposable_mailboxes"
+    PGP_KEYS = "pgp_keys"
     ADDRESS_BOOK = "address_book"
     MESSAGES = "messages"
     LABELS = "labels"

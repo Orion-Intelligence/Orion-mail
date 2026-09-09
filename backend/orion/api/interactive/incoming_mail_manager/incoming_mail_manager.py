@@ -15,6 +15,7 @@ from orion.services.encryption_manager.message_crypto_manager import message_cry
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
+from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
 
 
 class incoming_mail_manager:
@@ -99,10 +100,30 @@ class incoming_mail_manager:
         return evicted
 
     async def save_incoming_email(self, sender_address: str, receiver_address: str, subject: str, body: str, files: list[UploadFile], raw_message: UploadFile | None = None, to_addresses: list[str] | None = None, cc_addresses: list[str] | None = None, reply_to_address: str | None = None, message_id_header: str | None = None, in_reply_to: str | None = None, references: list[str] | None = None, body_html: str | None = None, file_content_ids: list[str] | None = None, authentication: dict | None = None, delivery_report: dict | None = None, spam_verdict: dict | None = None) -> dict:
-        mailbox = await self._engine.find_one(db_mailbox_model, and_(eq(db_mailbox_model.mailbox_address, receiver_address.lower()), eq(db_mailbox_model.is_active, True)))
+        normalized_receiver_lookup = receiver_address.strip().lower()
+
+        mailbox = await self._engine.find_one(
+            db_mailbox_model,
+            and_(eq(db_mailbox_model.mailbox_address, normalized_receiver_lookup), eq(db_mailbox_model.is_active, True)),
+        )
 
         if mailbox is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receiver mailbox not found")
+            disposable = await self._engine.find_one(
+                db_disposable_mailbox_model,
+                eq(db_disposable_mailbox_model.mailbox_address, normalized_receiver_lookup),
+            )
+
+            if disposable is not None:
+                mailbox = await self._engine.find_one(
+                    db_mailbox_model,
+                    eq(db_mailbox_model.id, disposable.owner_mailbox_id),
+                )
+
+        if mailbox is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Receiver mailbox not found"
+            )
 
         normalized_sender_address = sender_address.strip().lower()
         normalized_receiver_address = receiver_address.strip().lower()

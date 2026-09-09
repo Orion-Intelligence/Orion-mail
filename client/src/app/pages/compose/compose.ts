@@ -9,7 +9,7 @@ import { AddressHint } from '../../shared/model/address-book.model';
 import { ComposeService } from '../../services/compose';
 import { ComposeRequest } from '../../shared/model/compose.model';
 import { MessageService } from '../../services/message';
-import { Attachment, DraftMessageRequest } from '../../shared/model/message.model';
+import { Attachment, DraftMessageRequest, SenderIdentity } from '../../shared/model/message.model';
 import { RecipientHintField, RichTextCommandRunner } from '../../shared/model/compose.model';
 
 @Component({
@@ -54,12 +54,15 @@ export class Compose implements AfterViewInit, OnDestroy {
   inReplyToMessageId?: string;
   forwardMessageId?: string;
   form;
+  senderIdentities = signal<SenderIdentity[]>([]);
   @ViewChild('bodyArea') bodyArea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('richEditor') richEditor?: ElementRef<HTMLDivElement>;
   @ViewChild('receiverInput') receiverInput?: ElementRef<HTMLInputElement>;
 
-  constructor( private readonly formBuilder: FormBuilder, private readonly messageService: MessageService, private readonly composeService: ComposeService, private readonly addressBookService: AddressBookService, ) {
+  constructor(private readonly formBuilder: FormBuilder, private readonly messageService: MessageService, private readonly composeService: ComposeService, private readonly addressBookService: AddressBookService,) {
     this.form = this.formBuilder.nonNullable.group({
+      sender_identity_type: ['original'],
+      disposable_mailbox_id: [''],
       receiver_address: ['', [Validators.required, Validators.email]],
       cc_addresses: [''],
       bcc_addresses: [''],
@@ -81,6 +84,7 @@ export class Compose implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.focusComposer();
+    this.loadSenderIdentities();
   }
 
   ngOnDestroy(): void {
@@ -119,6 +123,15 @@ export class Compose implements AfterViewInit, OnDestroy {
 
   private hintsFor(field: RecipientHintField): AddressHint[] {
     return field === 'to' ? this.receiverHints() : this.ccHints();
+  }
+
+  private loadSenderIdentities(): void {
+    this.messageService.getSenderIdentities().subscribe({
+      next: (response) => {
+        this.senderIdentities.set([response.original, ...response.disposable]);
+      },
+      error: () => undefined,
+    });
   }
 
   openHints(field: RecipientHintField): void {
@@ -195,6 +208,17 @@ export class Compose implements AfterViewInit, OnDestroy {
     }
   }
 
+  onSenderChanged(value: string): void {
+    if (value === 'original') {
+      this.form.controls.sender_identity_type.setValue('original');
+      this.form.controls.disposable_mailbox_id.setValue('');
+      return;
+    }
+
+    this.form.controls.sender_identity_type.setValue('disposable');
+    this.form.controls.disposable_mailbox_id.setValue(value);
+  }
+
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
     if (!this.inline()) {
@@ -238,9 +262,11 @@ export class Compose implements AfterViewInit, OnDestroy {
         }
         if (this.pendingDiscard) {
           this.pendingDiscard = false;
-          this.messageService.permanentlyDeleteMessage(draft.id).subscribe({ next: () => {
-            this.messageService.refreshFolderCounts();
-          }, error: () => undefined });
+          this.messageService.permanentlyDeleteMessage(draft.id).subscribe({
+            next: () => {
+              this.messageService.refreshFolderCounts();
+            }, error: () => undefined
+          });
           return;
         }
         this.draftId.set(draft.id);
@@ -267,9 +293,11 @@ export class Compose implements AfterViewInit, OnDestroy {
       this.pendingDiscard = true;
     }
     else if (draftId) {
-      this.messageService.permanentlyDeleteMessage(draftId).subscribe({ next: () => {
-        this.messageService.refreshFolderCounts();
-      }, error: () => undefined });
+      this.messageService.permanentlyDeleteMessage(draftId).subscribe({
+        next: () => {
+          this.messageService.refreshFolderCounts();
+        }, error: () => undefined
+      });
     }
     this.dismiss();
   }
@@ -439,27 +467,11 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.modeIcon.set(request.mode === 'reply-all' ? 'replyAll' : request.mode === 'reply' ? 'reply' : request.mode === 'forward' ? 'forward' : 'edit');
     this.form.patchValue({ receiver_address: request.to ?? '', cc_addresses: request.cc?.join(', ') ?? '', bcc_addresses: '', subject: request.subject ?? '', body: request.body ?? '' });
     this.form.controls.body_html.setValue('');
-    this.applySignature(request.body ?? '');
     setTimeout(() => {
       this.syncEditorFromForm();
     }, 0);
     this.validateAttachmentLimits();
     this.focusComposer();
-  }
-
-  private applySignature(existingBody: string): void {
-    const generation = this.generation;
-    this.messageService.getMyMailbox().subscribe({
-      next: (mailbox) => {
-        const signature = (mailbox.signature ?? '').trim();
-        if (!signature || generation !== this.generation || this.form.controls.body.value !== existingBody) {
-          return;
-        }
-        this.form.controls.body.setValue(`${existingBody}\n\n--\n${signature}`);
-        this.lastSavedDraft = this.snapshot();
-      },
-      error: () => undefined,
-    });
   }
 
   private loadDraft(draftId: string): void {
@@ -536,6 +548,8 @@ export class Compose implements AfterViewInit, OnDestroy {
   }
 
   private resetComposer(): void {
+    this.form.controls.sender_identity_type.setValue('original');
+    this.form.controls.disposable_mailbox_id.setValue('');
     this.form.reset();
     this.selectedFiles.set([]);
     this.forwardedAttachments.set([]);
@@ -592,6 +606,8 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.errorMessage.set('');
 
     this.composeService.send({
+      sender_identity_type: formValue.sender_identity_type as 'original' | 'disposable',
+      disposable_mailbox_id: formValue.disposable_mailbox_id || undefined,
       receiver_address: formValue.receiver_address,
       cc_addresses: ccAddresses,
       bcc_addresses: bccAddresses,

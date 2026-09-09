@@ -3,6 +3,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from uuid import uuid4
+from html import escape
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -30,8 +31,11 @@ from orion.services.mongo_manager.shared_model.db_attachment_model import ATTACH
 from orion.services.mongo_manager.shared_model.db_domain_safety_model import REPORT_TYPE
 from orion.services.mongo_manager.shared_model.db_label_model import db_label_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
-from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
+from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
+from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
+from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
+from orion.services.pgp_manager.pgp_manager import pgp_manager
 
 
 class message_manager:
@@ -89,23 +93,37 @@ class message_manager:
     @staticmethod
     async def mark_delivery_failed(message: db_message_model) -> None:
         message.delivery_status = DELIVERY_STATUS.FAILED
-        message.previous_folder = MESSAGE_FOLDER.SENT
-        message.folder = MESSAGE_FOLDER.INBOX
         message.updated_at = datetime.now(UTC)
         await message_crypto_manager.get_instance().save_message(message)
 
     async def partition_recipient_addresses(self, recipient_addresses: list[str]) -> tuple[list[str], list[str]]:
-        mailboxes = await self._engine.find(db_mailbox_model, and_(in_(db_mailbox_model.mailbox_address, recipient_addresses), eq(db_mailbox_model.is_active, True)))
-        internal_addresses = {mailbox.mailbox_address for mailbox in mailboxes}
-        missing_local_addresses = [address for address in recipient_addresses if address.rpartition("@")[2] == CONSTANTS.S_MAIL_DOMAIN.lower() and address not in internal_addresses]
+        mailboxes = await self._engine.find(
+            db_mailbox_model,
+            and_(in_(db_mailbox_model.mailbox_address, recipient_addresses), eq(db_mailbox_model.is_active, True)),
+        )
+
+        disposable_mailboxes = await self._engine.find(db_disposable_mailbox_model, in_(db_disposable_mailbox_model.mailbox_address, recipient_addresses))
+
+        internal_addresses = {
+            mailbox.mailbox_address for mailbox in mailboxes
+        } | {
+            disposable.mailbox_address for disposable in disposable_mailboxes
+        }
+
+        missing_local_addresses = [
+            address
+            for address in recipient_addresses
+            if address.rpartition("@")[2] == CONSTANTS.S_MAIL_DOMAIN.lower()
+            and address not in internal_addresses
+        ]
 
         if missing_local_addresses:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or more local recipient mailboxes were not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="One or more local recipient mailboxes were not found",
+            )
 
-        return (
-            [address for address in recipient_addresses if address in internal_addresses],
-            [address for address in recipient_addresses if address not in internal_addresses],
-        )
+        return ([address for address in recipient_addresses if address in internal_addresses], [address for address in recipient_addresses if address not in internal_addresses])
 
     @staticmethod
     def validate_subject_and_body(normalized_subject: str, body: str) -> None:
@@ -317,8 +335,55 @@ class message_manager:
         await message_crypto_manager.get_instance().save_message(message)
         return {**self.serialize_message(message), **self.message_state(message)}
 
-    async def send_message(self, current_user: db_user_model, receiver_address: str, subject: str, body: str, files: list[UploadFile], cc_addresses: list[str] | None = None, bcc_addresses: list[str] | None = None, in_reply_to_message_id: str | None = None, forward_message_id: str | None = None, forward_attachment_ids: list[str] | None = None, draft_id: str | None = None, body_html: str | None = None) -> dict:
+    async def send_message(self, current_user: db_user_model, receiver_address: str, subject: str, body: str, files: list[UploadFile], sender_identity_type: str = "original", disposable_mailbox_id: str | None = None, cc_addresses: list[str] | None = None, bcc_addresses: list[str] | None = None, in_reply_to_message_id: str | None = None, forward_message_id: str | None = None, forward_attachment_ids: list[str] | None = None, draft_id: str | None = None, body_html: str | None = None) -> dict:
         sender_mailbox = await self.get_active_user_mailbox(current_user)
+
+        if sender_identity_type not in {"original", "disposable"}:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid sender identity type")
+
+        sender_identity_id = sender_mailbox.id
+        sender_address = sender_mailbox.mailbox_address
+        disposable_sender = None
+
+        if sender_identity_type == "disposable":
+            if not disposable_mailbox_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Disposable sender is required")
+
+            try:
+                disposable_object_id = ObjectId(disposable_mailbox_id)
+            except InvalidId as error:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid disposable sender ID") from error
+
+            disposable = await self._engine.find_one(
+                db_disposable_mailbox_model,
+                and_(eq(db_disposable_mailbox_model.id, disposable_object_id), eq(db_disposable_mailbox_model.user_id, current_user.id), eq(db_disposable_mailbox_model.owner_mailbox_id, sender_mailbox.id)),
+            )
+
+            if disposable is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disposable sender not found")
+
+            sender_identity_id = disposable.id
+            sender_address = disposable.mailbox_address
+            pgp_key_id = disposable.pgp_key_id
+            disposable_sender = disposable
+
+        else:
+            pgp_key = await self._engine.find_one(
+                db_pgp_key_model,
+                and_(eq(db_pgp_key_model.user_id, current_user.id), eq(db_pgp_key_model.owner_mailbox_id, sender_mailbox.id), eq(db_pgp_key_model.key_type, "original")),
+            )
+
+            if pgp_key is None:
+                from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager import disposable_mailbox_manager
+                pgp_key = await disposable_mailbox_manager.get_instance().get_or_create_original_pgp(current_user, sender_mailbox)
+
+            pgp_key_id = pgp_key.id
+
+        pgp_key = await self._engine.find_one(db_pgp_key_model, db_pgp_key_model.id == pgp_key_id)
+
+        if pgp_key is None:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PGP key not found")
+
         normalized_receiver_address = receiver_address.strip().lower()
         normalized_subject = subject.strip()
         normalized_body = body.strip()
@@ -367,16 +432,28 @@ class message_manager:
                 references.append(parent_header)
             references = references[-MESSAGE_LIMITS.MAX_THREAD_REFERENCES:]
 
+        identity_signature_text = self.resolve_identity_signature_text(current_user=current_user, sender_mailbox=sender_mailbox, sender_identity_type=sender_identity_type, disposable=disposable_sender)
+        pgp_identity_signature = await pgp_manager.get_instance().sign_bytes(identity_signature_text.encode("utf-8"), pgp_key.wrapped_private_key)
+        final_body = normalized_body + self.build_identity_signature_block(identity_signature_text, pgp_identity_signature)
+        normalized_body_html = (body_html or "").strip() or None
+        final_body_html = None
+
+        if normalized_body_html:
+            final_body_html = normalized_body_html + self.build_identity_signature_block_html(identity_signature_text, pgp_identity_signature)
+
         message = db_message_model(
             owner_mailbox_id=sender_mailbox.id,
-            sender_address=sender_mailbox.mailbox_address,
+            sender_address=sender_address,
+            sender_identity_type=sender_identity_type,
+            sender_identity_id=sender_identity_id,
+            pgp_key_id=pgp_key.id,
             receiver_address=normalized_receiver_address,
             to_addresses=[normalized_receiver_address],
             cc_addresses=normalized_cc_addresses,
             bcc_addresses=normalized_bcc_addresses,
             subject=normalized_subject,
-            body=normalized_body,
-            body_html=(body_html or "").strip() or None,
+            body=final_body,
+            body_html=final_body_html,
             direction=MESSAGE_DIRECTION.OUTGOING,
             folder=MESSAGE_FOLDER.SENT,
             delivery_status=DELIVERY_STATUS.QUEUED,
@@ -392,6 +469,17 @@ class message_manager:
         staged_attachments: list[dict] = []
         try:
             staged_attachments = await attachment_manager.get_instance().stage_outgoing_attachments(files=files)
+
+            if len(staged_attachments) + 1 > MESSAGE_LIMITS.MAX_ATTACHMENTS:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_ATTACHMENTS} attachments")
+
+            public_key_attachment = await attachment_manager.get_instance().stage_generated_attachment(
+                original_filename=f"public-key-{pgp_key.fingerprint[-16:]}.asc",
+                content=pgp_key.public_key.encode("utf-8"),
+                content_type="application/pgp-keys",
+            )
+
+            staged_attachments.append(public_key_attachment)
             if forward_source:
                 staged_attachments = [*staged_attachments, *await attachment_manager.get_instance().stage_forwarded_attachments(
                     source_message_id=forward_source.id,
@@ -399,30 +487,50 @@ class message_manager:
                     staged=staged_attachments,
                 )]
 
+            message.attachments = [
+                db_message_attachment(
+                    **{
+                        **attachment,
+                        "id": attachment.get("id") or uuid4().hex,
+                    }
+                )
+                for attachment in staged_attachments
+            ]
+            message.updated_at = datetime.now(UTC)
+            await message_crypto_manager.get_instance().save_message(message)
+
             email_message = mail_manager.get_instance().build_email_message(
-                sender_address=sender_mailbox.mailbox_address,
+                sender_address=sender_address,
                 receiver_addresses=[normalized_receiver_address],
                 cc_addresses=normalized_cc_addresses,
                 subject=normalized_subject,
-                body=normalized_body,
-                body_html=message.body_html,
+                body=final_body,
+                body_html=final_body_html,
                 attachments=staged_attachments,
                 message_id_header=message.message_id_header,
                 in_reply_to=message.in_reply_to,
                 references=message.references,
             )
             raw_source = mail_manager.get_instance().serialize_email_message(email_message)
+            raw_source_filename, raw_source_encrypted, raw_source_size = await attachment_manager.get_instance().save_raw_source(
+                raw_source, message.owner_mailbox_id)
+
+            message.raw_source_filename = raw_source_filename
+            message.raw_source_encrypted = raw_source_encrypted
+            message.raw_source_size = raw_source_size
+            message.updated_at = datetime.now(UTC)
+            await message_crypto_manager.get_instance().save_message(message)
             undeliverable_internal_recipients: list[str] = []
             for recipient_address in internal_recipient_addresses:
                 try:
                     await self.deliver_internal_email(
                         recipient_address=recipient_address,
-                        sender_address=sender_mailbox.mailbox_address,
+                        sender_address=sender_address,
                         to_addresses=[normalized_receiver_address],
                         cc_addresses=normalized_cc_addresses,
                         subject=normalized_subject,
-                        body=normalized_body,
-                        body_html=message.body_html,
+                        body=final_body,
+                        body_html=final_body_html,
                         attachments=staged_attachments,
                         raw_source=raw_source,
                         message_id_header=message.message_id_header,
@@ -431,15 +539,16 @@ class message_manager:
                     )
                 except HTTPException:
                     undeliverable_internal_recipients.append(recipient_address)
-            failed_recipients = await mail_manager.get_instance().send_email_source(raw_source=raw_source, sender_address=sender_mailbox.mailbox_address, recipient_addresses=external_recipient_addresses) if external_recipient_addresses else {}
+            failed_recipients = await mail_manager.get_instance().send_email_source(raw_source=raw_source, sender_address=sender_address, recipient_addresses=external_recipient_addresses) if external_recipient_addresses else {}
             message.failed_recipients = sorted({*failed_recipients, *undeliverable_internal_recipients})
-            message.delivery_status = DELIVERY_STATUS.PARTIAL if failed_recipients else DELIVERY_STATUS.SENT
+            message.delivery_status = DELIVERY_STATUS.PARTIAL if message.failed_recipients else DELIVERY_STATUS.SENT
             message.updated_at = datetime.now(UTC)
             await message_crypto_manager.get_instance().save_message(message)
         except HTTPException:
             await self.mark_delivery_failed(message)
             raise
         except Exception as error:
+            log.g().e(f"Email delivery failed: {log.safe_error(error)}")
             await self.mark_delivery_failed(message)
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
         finally:
@@ -989,3 +1098,38 @@ class message_manager:
     async def delete_message(self, current_user: db_user_model, message_id: str) -> dict:
         await self.move_to_trash(current_user, message_id)
         return {"message": "Message moved to Trash"}
+
+    @staticmethod
+    def build_identity_signature_block(identity_text: str, pgp_signature: str) -> str:
+        return (
+            "\n\n--\n"
+            "PGP Identity Proof\n"
+            "Signed Identity Text:\n"
+            f"{identity_text}\n\n"
+            "PGP Signature:\n"
+            f"{pgp_signature.strip()}\n"
+        )
+
+    @staticmethod
+    def build_identity_signature_block_html(identity_text: str, pgp_signature: str) -> str:
+        return (
+            "<hr>"
+            "<p><strong>PGP Identity Proof</strong></p>"
+            "<p><strong>Signed Identity Text:</strong></p>"
+            f"<pre>{escape(identity_text)}</pre>"
+            "<p><strong>PGP Signature:</strong></p>"
+            f"<pre>{escape(pgp_signature.strip())}</pre>"
+        )
+
+    @staticmethod
+    def resolve_identity_signature_text(current_user: db_user_model, sender_mailbox: db_mailbox_model, sender_identity_type: str, disposable: db_disposable_mailbox_model | None) -> str:
+        if sender_identity_type == "original":
+            return (sender_mailbox.signature or current_user.username or current_user.email.split("@")[0]).strip()
+
+        if disposable is None or not disposable.identity_signature.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Disposable signature is required before sending",
+            )
+
+        return disposable.identity_signature.strip()

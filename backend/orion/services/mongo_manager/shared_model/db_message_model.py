@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import Enum
 from typing import List, Optional
+from uuid import uuid4
 
 from odmantic import EmbeddedModel, Field, Model, ObjectId
 
@@ -33,14 +34,19 @@ class DELIVERY_STATUS(str, Enum):
     FAILED = "failed"
 
 
+class SENDER_IDENTITY_TYPE(str, Enum):
+    ORIGINAL = "original"
+    DISPOSABLE = "disposable"
+
+
 class db_message_attachment(EmbeddedModel):
-    id: str
+    id: str = Field(default_factory=lambda: uuid4().hex)
     original_filename: str
     stored_filename: str
     size: int
     content_type: str = Field(default="application/octet-stream")
     storage_type: STORAGE_TYPE
-    expires_at: datetime
+    expires_at: Optional[datetime] = Field(default=None)
     status: ATTACHMENT_STATUS = Field(default=ATTACHMENT_STATUS.AVAILABLE)
     deleted_at: Optional[datetime] = Field(default=None)
 
@@ -86,5 +92,8 @@ class db_message_model(Model):
     raw_source_filename: Optional[str] = Field(default=None)
     raw_source_encrypted: bool = Field(default=False)
     raw_source_size: int = Field(default=0, ge=0)
+    sender_identity_type: SENDER_IDENTITY_TYPE = Field(default=SENDER_IDENTITY_TYPE.ORIGINAL)
+    sender_identity_id: Optional[ObjectId] = Field(default=None)
+    pgp_key_id: Optional[ObjectId] = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
