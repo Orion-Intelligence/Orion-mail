@@ -417,13 +417,13 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
     fi
 
     if [ "$EXTRA_FLAG" = "-full" ]; then
-        compose up -d --pull missing --force-recreate "${compose_up_services[@]}"
+        compose up --pull missing --force-recreate "${compose_up_services[@]}"
     else
-        compose up -d --pull missing "${compose_up_services[@]}"
+        compose up --pull missing "${compose_up_services[@]}"
     fi
 
     if [ "$COMMAND" = "build" ] && is_nginx_running; then
-        compose up -d --force-recreate --no-deps nginx
+        compose up --force-recreate --no-deps nginx
         reload_edge_proxy
     fi
 
@@ -441,7 +441,7 @@ elif [ "$COMMAND" = "build" ] && { [ "$FLAG" = "-d" ] || [ "$FLAG" = "-t" ]; }; 
         client_build instrumented
     fi
     compose build --pull web postfix
-    compose up -d --pull missing
+    compose up --pull missing
     wait_for_application_services
     cat <<MSG
 

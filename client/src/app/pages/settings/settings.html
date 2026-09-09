@@ -55,7 +55,7 @@
                 <p class="truncate text-xs text-muted">PGP: {{ identity.fingerprint }}</p>
               </div>
 
-              <button type="button" (click)="deleteDisposableEmail(identity)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+              <button type="button" (click)="requestDeleteDisposableEmail(identity)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
                 Delete
               </button>
             </div>
@@ -99,7 +99,7 @@
               <p class="text-xs text-muted">{{ key.created_at }}</p>
             </div>
 
-            <button type="button" (click)="deleteSavedPgpKey(key)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+            <button type="button" (click)="requestDeleteSavedPgpKey(key)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
               Delete PGP
             </button>
           </div>
@@ -117,7 +117,9 @@
           characters.</p>
         }
         <div class="mt-4 flex items-center justify-end gap-2">
-          <button type="button" (click)="loadSettings()" [disabled]="loading() || saving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">Reset</button>
+          <button type="button" (click)="requestResetMainSignature()" [disabled]="loading() || saving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
+            Reset to username
+          </button>
           <button type="submit" [disabled]="saving()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
             saving() ? 'Saving…' : 'Save' }}</button>
         </div>
@@ -161,4 +163,49 @@
       </form>
     </div>
   </div>
+  <app-confirm-dialog [open]="resetSignatureOpen()" title="Reset main signature?"
+    message="This will remove your custom signature. Your username will be used as the identity signature."
+    confirmText="Reset" cancelText="Cancel" [busy]="saving()" (confirmed)="confirmResetMainSignature()"
+    (cancelled)="cancelResetMainSignature()">
+  </app-confirm-dialog>
+  <app-confirm-dialog [open]="deleteDisposableTarget() !== null" title="Delete disposable email?"
+    [defaultActions]="false" [busy]="identityDeleting()" (cancelled)="cancelDeleteDisposableEmail()">
+
+    <ng-container ngProjectAs="[confirm-body]">
+      @if (deleteDisposableTarget(); as identity) {
+      <p class="mt-2 text-sm leading-6 text-muted">
+        You are deleting:
+      </p>
+
+      <p class="mt-2 break-all rounded-lg bg-surface-muted px-3 py-2 text-sm font-medium text-ink">
+        {{ identity.mailbox_address }}
+      </p>
+
+      <p class="mt-3 text-sm leading-6 text-muted">
+        Choose whether to keep this disposable email's PGP key for future use.
+      </p>
+      }
+    </ng-container>
+
+    <ng-container ngProjectAs="[confirm-actions]">
+      <div class="mt-5 flex flex-wrap justify-end gap-2">
+        <button type="button" (click)="cancelDeleteDisposableEmail()" [disabled]="identityDeleting()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary hover:enabled:bg-primary-soft disabled:cursor-wait disabled:opacity-55">
+          Cancel
+        </button>
+
+        <button type="button" (click)="confirmDeleteDisposableEmail(false)" [disabled]="identityDeleting()" class="h-10 cursor-pointer rounded-full border-none bg-danger-soft px-4 text-sm font-medium text-danger disabled:cursor-wait disabled:opacity-55">
+          Delete + remove PGP
+        </button>
+
+        <button type="button" (click)="confirmDeleteDisposableEmail(true)" [disabled]="identityDeleting()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-4 text-sm font-medium text-on-primary disabled:cursor-wait disabled:opacity-55">
+          Delete + keep PGP
+        </button>
+      </div>
+    </ng-container>
+  </app-confirm-dialog>
+  <app-confirm-dialog [open]="deleteSavedPgpTarget() !== null" title="Delete saved PGP key?"
+    message="This saved PGP key will be permanently deleted and cannot be reused later." confirmText="Delete PGP"
+    cancelText="Cancel" [destructive]="true" [busy]="savedPgpDeleting()" (confirmed)="confirmDeleteSavedPgpKey()"
+    (cancelled)="cancelDeleteSavedPgpKey()">
+  </app-confirm-dialog>
 </section>

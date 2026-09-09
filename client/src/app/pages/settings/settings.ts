@@ -10,10 +10,11 @@ import { extractErrorMessage } from '../../shared/utils/http-error';
 import { SYSTEM_CONFIG_FIELDS } from '../../shared/constants/config.constants';
 import { SystemConfig, SystemConfigField } from '../../shared/model/config.model';
 import { SavedPgpKey, SenderIdentity } from '../../shared/model/message.model';
+import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
 
 @Component({
   selector: 'app-settings',
-  imports: [Icon, ReactiveFormsModule],
+  imports: [Icon, ReactiveFormsModule, ConfirmDialog],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './settings.html',
 })
@@ -40,6 +41,11 @@ export class Settings implements OnInit {
   newDisposableSignature = signal('');
   editingDisposableId = signal<string | null>(null);
   editingDisposableSignature = signal('');
+  resetSignatureOpen = signal(false);
+  deleteDisposableTarget = signal<SenderIdentity | null>(null);
+  deleteSavedPgpTarget = signal<SavedPgpKey | null>(null);
+  identityDeleting = signal(false);
+  savedPgpDeleting = signal(false);
 
   constructor(private readonly messageService: MessageService, private readonly configService: ConfigService, private readonly router: Router) { }
 
@@ -210,26 +216,113 @@ export class Settings implements OnInit {
     });
   }
 
-  deleteDisposableEmail(identity: SenderIdentity): void {
-    const keepPgp = window.confirm('Keep this PGP key for future use?');
-
-    this.messageService.deleteDisposableMailbox(identity.id, keepPgp).subscribe({
-      next: () => {
-        this.identityStatusMessage.set('Disposable email deleted.');
-        this.loadSenderIdentities();
-        this.loadSavedPgpKeys();
-      },
-      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not delete disposable email.')),
-    });
+  requestResetMainSignature(): void {
+    this.errorMessage.set('');
+    this.statusMessage.set('');
+    this.resetSignatureOpen.set(true);
   }
 
-  deleteSavedPgpKey(key: SavedPgpKey): void {
-    this.messageService.deleteSavedPgpKey(key.id).subscribe({
-      next: () => {
-        this.identityStatusMessage.set('Saved PGP key deleted.');
-        this.loadSavedPgpKeys();
-      },
-      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not delete saved PGP key.')),
-    });
+  cancelResetMainSignature(): void {
+    if (!this.saving()) {
+      this.resetSignatureOpen.set(false);
+    }
+  }
+
+  confirmResetMainSignature(): void {
+    if (this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.errorMessage.set('');
+    this.statusMessage.set('');
+
+    this.messageService.updateMailboxSettings('')
+      .pipe(finalize(() => this.saving.set(false)))
+      .subscribe({
+        next: () => {
+          this.form.reset({ signature: '' });
+          this.statusMessage.set('Signature reset. Username will be used.');
+          this.resetSignatureOpen.set(false);
+        },
+        error: (error) => {
+          this.errorMessage.set(extractErrorMessage(error, 'Could not reset your signature.'));
+        },
+      });
+  }
+
+  requestDeleteDisposableEmail(identity: SenderIdentity): void {
+    this.identityErrorMessage.set('');
+    this.identityStatusMessage.set('');
+    this.deleteDisposableTarget.set(identity);
+  }
+
+  cancelDeleteDisposableEmail(): void {
+    if (!this.identityDeleting()) {
+      this.deleteDisposableTarget.set(null);
+    }
+  }
+
+  confirmDeleteDisposableEmail(keepPgp: boolean): void {
+    const identity = this.deleteDisposableTarget();
+
+    if (!identity || this.identityDeleting()) {
+      return;
+    }
+
+    this.identityDeleting.set(true);
+    this.identityErrorMessage.set('');
+    this.identityStatusMessage.set('');
+
+    this.messageService.deleteDisposableMailbox(identity.id, keepPgp)
+      .pipe(finalize(() => this.identityDeleting.set(false)))
+      .subscribe({
+        next: () => {
+          this.identityStatusMessage.set(keepPgp ? 'Disposable email deleted. PGP key saved.' : 'Disposable email and PGP key deleted.');
+          this.deleteDisposableTarget.set(null);
+          this.loadSenderIdentities();
+          this.loadSavedPgpKeys();
+        },
+        error: (error) => {
+          this.identityErrorMessage.set(extractErrorMessage(error, 'Could not delete disposable email.'));
+        },
+      });
+  }
+
+  requestDeleteSavedPgpKey(key: SavedPgpKey): void {
+    this.identityErrorMessage.set('');
+    this.identityStatusMessage.set('');
+    this.deleteSavedPgpTarget.set(key);
+  }
+
+  cancelDeleteSavedPgpKey(): void {
+    if (!this.savedPgpDeleting()) {
+      this.deleteSavedPgpTarget.set(null);
+    }
+  }
+
+  confirmDeleteSavedPgpKey(): void {
+    const key = this.deleteSavedPgpTarget();
+
+    if (!key || this.savedPgpDeleting()) {
+      return;
+    }
+
+    this.savedPgpDeleting.set(true);
+    this.identityErrorMessage.set('');
+    this.identityStatusMessage.set('');
+
+    this.messageService.deleteSavedPgpKey(key.id)
+      .pipe(finalize(() => this.savedPgpDeleting.set(false)))
+      .subscribe({
+        next: () => {
+          this.identityStatusMessage.set('Saved PGP key deleted.');
+          this.deleteSavedPgpTarget.set(null);
+          this.loadSavedPgpKeys();
+        },
+        error: (error) => {
+          this.identityErrorMessage.set(extractErrorMessage(error, 'Could not delete saved PGP key.'));
+        },
+      });
   }
 }
