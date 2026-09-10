@@ -253,35 +253,6 @@ class disposable_mailbox_manager:
         await self._engine.delete(key)
         return {"message": "Saved PGP key deleted"}
 
-    async def update_disposable_signature(self, current_user: db_user_model, disposable_id: str, identity_signature: str) -> dict:
-        try:
-            disposable_object_id = ObjectId(disposable_id)
-        except InvalidId as error:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid disposable mailbox ID") from error
-
-        disposable = await self._engine.find_one(
-            db_disposable_mailbox_model,
-            and_(
-                eq(db_disposable_mailbox_model.id, disposable_object_id),
-                eq(db_disposable_mailbox_model.user_id, current_user.id),
-            ),
-        )
-
-        if disposable is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Disposable mailbox not found")
-
-        disposable.identity_signature = self.validate_identity_signature(identity_signature)
-        disposable.updated_at = datetime.now(UTC)
-
-        await self._engine.save(disposable)
-
-        return {
-            "id": str(disposable.id),
-            "mailbox_address": disposable.mailbox_address,
-            "identity_signature": disposable.identity_signature,
-            "message": "Disposable signature updated",
-        }
-
     @staticmethod
     def validate_identity_signature(identity_signature: str) -> str:
         value = identity_signature.strip()

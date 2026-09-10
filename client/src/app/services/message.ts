@@ -254,11 +254,6 @@ export class MessageService {
     });
   }
 
-  updateDisposableSignature(disposableId: string, identitySignature: string): Observable<SenderIdentity> {
-    return this.http.put<SenderIdentity>(`${this.apiBaseUrl}/sender-identities/disposable/${disposableId}/signature`,
-      { identity_signature: identitySignature },);
-  }
-
   deleteDisposableMailbox(disposableId: string, keepPgp: boolean): Observable<{ message: string }> {
     return this.http.request<{ message: string }>('delete', `${this.apiBaseUrl}/sender-identities/disposable/${disposableId}`, {
       body: { keep_pgp: keepPgp },
