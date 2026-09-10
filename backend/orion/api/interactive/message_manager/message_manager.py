@@ -1103,7 +1103,6 @@ class message_manager:
     def build_identity_signature_block(identity_text: str, pgp_signature: str) -> str:
         return (
             "\n\n--\n"
-            "PGP Identity Proof\n"
             "Signed Identity Text:\n"
             f"{identity_text}\n\n"
             "PGP Signature:\n"
@@ -1114,7 +1113,6 @@ class message_manager:
     def build_identity_signature_block_html(identity_text: str, pgp_signature: str) -> str:
         return (
             "<hr>"
-            "<p><strong>PGP Identity Proof</strong></p>"
             "<p><strong>Signed Identity Text:</strong></p>"
             f"<pre>{escape(identity_text)}</pre>"
             "<p><strong>PGP Signature:</strong></p>"

@@ -39,8 +39,6 @@ export class Settings implements OnInit {
   identityStatusMessage = signal('');
   selectedPgpKeyId = signal<string>('');
   newDisposableSignature = signal('');
-  editingDisposableId = signal<string | null>(null);
-  editingDisposableSignature = signal('');
   resetSignatureOpen = signal(false);
   deleteDisposableTarget = signal<SenderIdentity | null>(null);
   deleteSavedPgpTarget = signal<SavedPgpKey | null>(null);
@@ -186,34 +184,6 @@ export class Settings implements OnInit {
         },
         error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not generate disposable email.')),
       });
-  }
-
-  startEditDisposableSignature(identity: SenderIdentity): void {
-    this.editingDisposableId.set(identity.id);
-    this.editingDisposableSignature.set(identity.identity_signature ?? '');
-  }
-
-  cancelEditDisposableSignature(): void {
-    this.editingDisposableId.set(null);
-    this.editingDisposableSignature.set('');
-  }
-
-  updateDisposableSignature(identity: SenderIdentity): void {
-    const value = this.editingDisposableSignature().trim();
-
-    if (!value) {
-      this.identityErrorMessage.set('Disposable signature is required.');
-      return;
-    }
-
-    this.messageService.updateDisposableSignature(identity.id, value).subscribe({
-      next: () => {
-        this.identityStatusMessage.set('Disposable signature updated.');
-        this.cancelEditDisposableSignature();
-        this.loadSenderIdentities();
-      },
-      error: (error) => this.identityErrorMessage.set(extractErrorMessage(error, 'Could not update disposable signature.')),
-    });
   }
 
   requestResetMainSignature(): void {
