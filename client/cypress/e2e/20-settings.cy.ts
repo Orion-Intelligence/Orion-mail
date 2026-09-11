@@ -1,5 +1,7 @@
 import {
   assertMailboxAddress,
+  deleteDisposable,
+  generateDisposable,
   openSettings,
   resetSignature,
   saveAttachmentRetention,
@@ -31,6 +33,14 @@ describe('Orion Mail - Settings', () => {
     saveSignature(`Cypress Signature ${Date.now()}`);
 
     resetSignature();
+  });
+
+  it('generates and deletes a disposable email', () => {
+    const signature = `Cypress Disposable ${Date.now()}`;
+
+    generateDisposable(signature);
+
+    deleteDisposable(signature);
   });
 
 });

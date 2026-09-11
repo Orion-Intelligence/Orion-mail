@@ -70,6 +70,54 @@ export function saveAttachmentRetention(hours: number) {
     .should('contain.text', 'Attachment limits saved.');
 }
 
+export function generateDisposable(signature: string) {
+  void cy.intercept({
+    method: 'POST',
+    pathname: '**/sender-identities/disposable',
+  }).as('generateDisposable');
+
+  void cy.get('[data-testid="disposable-signature-input"]')
+    .should('be.visible')
+    .clear()
+    .type(signature);
+
+  void cy.get('[data-testid="generate-disposable-button"]')
+    .should('be.visible')
+    .and('not.be.disabled')
+    .click();
+
+  void cy.wait('@generateDisposable', { timeout: 30000 })
+    .its('response.statusCode')
+    .should('eq', 200);
+
+  void cy.contains('[data-testid="disposable-email-item"]', signature, { timeout: 15000 })
+    .should('be.visible');
+}
+
+export function deleteDisposable(signature: string) {
+  void cy.intercept({
+    method: 'DELETE',
+    pathname: '**/sender-identities/disposable/*',
+  }).as('deleteDisposable');
+
+  void cy.contains('[data-testid="disposable-email-item"]', signature)
+    .should('be.visible')
+    .within(() => {
+      cy.get('[data-testid="delete-disposable-button"]').click();
+    });
+
+  void cy.get('[data-testid="delete-disposable-remove-pgp"]')
+    .should('be.visible')
+    .click();
+
+  void cy.wait('@deleteDisposable')
+    .its('response.statusCode')
+    .should('eq', 200);
+
+  void cy.contains('[data-testid="disposable-email-item"]', signature)
+    .should('not.exist');
+}
+
 export function resetSignature() {
   void cy.intercept({
     method: 'PUT',
