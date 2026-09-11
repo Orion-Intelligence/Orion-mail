@@ -50,3 +50,9 @@ backend/*.log
 
 # Backups
 /backups/
+
+# Backend coverage artifacts
+backend/.coverage
+backend/.coverage.*
+backend/coverage.xml
+backend/e2e-coverage/.coverage*

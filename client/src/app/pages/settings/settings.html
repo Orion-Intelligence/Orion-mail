@@ -89,16 +89,16 @@
         <h2 class="text-lg font-medium text-ink">Signature</h2>
         <p class="mt-1 text-sm text-muted">Used as your main mailbox identity signature. If empty, your username will be
           used.</p>
-        <textarea formControlName="signature" rows="6" maxlength="10000" aria-label="Email signature" placeholder="Your name&#10;Orion Intelligence" class="mt-4 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
+        <textarea formControlName="signature" rows="6" maxlength="10000" aria-label="Email signature" placeholder="Your name&#10;Orion Intelligence" data-testid="signature-input" class="mt-4 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
         @if (form.controls.signature.touched && form.controls.signature.invalid) {
         <p animate.enter="mail-motion-notice-enter" class="mt-2 text-xs text-danger">A signature cannot exceed 10000
           characters.</p>
         }
         <div class="mt-4 flex items-center justify-end gap-2">
-          <button type="button" (click)="requestResetMainSignature()" [disabled]="loading() || saving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
+          <button type="button" (click)="requestResetMainSignature()" [disabled]="loading() || saving()" data-testid="reset-signature-button" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
             Reset to username
           </button>
-          <button type="submit" [disabled]="saving()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
+          <button type="submit" [disabled]="saving()" data-testid="save-signature-button" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
             saving() ? 'Saving…' : 'Save' }}</button>
         </div>
       </form>
@@ -123,7 +123,7 @@
             <span class="mt-0.5 block text-xs text-muted">{{ field.description }}</span>
           </label>
           <span class="flex shrink-0 items-center gap-2">
-            <input [id]="'config-' + field.key" type="number" [formControlName]="field.key" [attr.aria-label]="field.label" [min]="field.minimum" [max]="field.maximum" step="1" class="h-10 w-28 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+            <input [id]="'config-' + field.key" type="number" [formControlName]="field.key" [attr.aria-label]="field.label" [attr.data-testid]="'config-input-' + field.key" [min]="field.minimum" [max]="field.maximum" step="1" class="h-10 w-28 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
             <span class="w-12 text-xs text-muted">{{ field.unit }}</span>
           </span>
         </div>
@@ -135,7 +135,7 @@
 
         <div class="mt-5 flex items-center justify-end gap-2">
           <button type="button" (click)="loadSystemConfig()" [disabled]="configLoading() || configSaving()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">Reset</button>
-          <button type="submit" [disabled]="configSaving() || configLoading()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
+          <button type="submit" [disabled]="configSaving() || configLoading()" data-testid="save-config-button" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{
             configSaving() ? 'Saving…' : 'Save' }}</button>
         </div>
       </form>

@@ -48,7 +48,7 @@
               <div class="max-h-64 overflow-y-auto p-2">
                 @for (label of labelService.labels(); track label.id) {
                   <label class="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-2 text-sm text-ink-soft hover:bg-hover-soft">
-                    <input type="checkbox" [checked]="labelIsSelected(label)" (change)="toggleDraftLabel(label.id)" class="h-4 w-4 accent-primary" />
+                    <input type="checkbox" [checked]="labelIsSelected(label)" (change)="toggleDraftLabel(label.id)" data-testid="label-checkbox" class="h-4 w-4 accent-primary" />
                     <span class="h-3 w-3 shrink-0 rounded-sm" [class]="labelColorClass(label.color)"></span>
                     <span class="min-w-0 flex-1 truncate">{{ label.name }}</span>
                   </label>
@@ -57,7 +57,7 @@
               @if (labelErrorMessage()) { <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-3 mb-2 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger" role="alert">{{ labelErrorMessage() }}</div> }
               <div class="flex items-center justify-between border-t border-line-soft p-2">
                 <button type="button" (click)="manageLabels()" class="h-9 cursor-pointer rounded-full border-none bg-transparent px-3 text-xs font-medium text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary">Manage labels</button>
-                <button type="button" (click)="applyLabels()" [disabled]="savingLabels()" class="h-9 cursor-pointer rounded-full border-none bg-primary px-4 text-xs font-medium text-white hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ savingLabels() ? 'Saving…' : 'Apply' }}</button>
+                <button type="button" (click)="applyLabels()" [disabled]="savingLabels()" data-testid="apply-labels-button" class="h-9 cursor-pointer rounded-full border-none bg-primary px-4 text-xs font-medium text-white hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">{{ savingLabels() ? 'Saving…' : 'Apply' }}</button>
               </div>
             </div>
           }
@@ -68,7 +68,7 @@
             <div role="menu" aria-label="More email options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_36px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left] max-[900px]:right-0 max-[900px]:left-auto max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
               @if (message()?.direction === 'incoming') {
                 <button data-mail-action="reply" data-testid="reply-menu-button" role="menuitem" type="button" (click)="reply()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'reply'" class="h-4.5 w-4.5 text-icon" />Reply</button>
-                <button role="menuitem" type="button" (click)="replyAll()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'replyAll'" class="h-4.5 w-4.5 text-icon" />Reply all</button>
+                <button role="menuitem" type="button" (click)="replyAll()" data-testid="reply-all-menu-button" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'replyAll'" class="h-4.5 w-4.5 text-icon" />Reply all</button>
               }
               <button data-mail-action="forward" data-testid="forward-menu-button" role="menuitem" type="button" (click)="forward()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'forward'" class="h-4.5 w-4.5 text-icon" />Forward</button>
 
@@ -81,8 +81,8 @@
               @if (message()?.direction === 'incoming') {
                 <button data-mail-action="mark-unread" role="menuitem" type="button" (click)="markUnread()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'markUnread'" class="h-4.5 w-4.5 text-icon" />Mark as unread</button>
               }
-              <button data-mail-action="star" role="menuitem" type="button" (click)="toggleStar()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="message()?.is_starred ? 'star' : 'starBorder'" class="h-4.5 w-4.5 text-icon" />{{ message()?.is_starred ? 'Remove star' : 'Add star' }}</button>
-              <button data-mail-action="important" role="menuitem" type="button" (click)="toggleImportant()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="message()?.is_important ? 'labelImportantFilled' : 'labelImportant'" class="h-4.5 w-4.5 text-icon" />{{ message()?.is_important ? 'Mark as not important' : 'Mark as important' }}</button>
+              <button data-mail-action="star" role="menuitem" type="button" (click)="toggleStar()" data-testid="star-menu-button" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="message()?.is_starred ? 'star' : 'starBorder'" class="h-4.5 w-4.5 text-icon" />{{ message()?.is_starred ? 'Remove star' : 'Add star' }}</button>
+              <button data-mail-action="important" role="menuitem" type="button" (click)="toggleImportant()" data-testid="important-menu-button" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="message()?.is_important ? 'labelImportantFilled' : 'labelImportant'" class="h-4.5 w-4.5 text-icon" />{{ message()?.is_important ? 'Mark as not important' : 'Mark as important' }}</button>
               <div class="hidden max-[720px]:block">
                 <div class="my-1 border-t border-line-soft"></div>
                 @if (message()?.direction === 'incoming' && message()?.folder !== 'inbox') {
