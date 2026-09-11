@@ -50,6 +50,8 @@ engines:
       - "README.md"
       - "run.sh"
       - "**/*.html"
+      - "**/*.css"
+      - "**/*.scss"
       - "**/__init__.py"
       - "**/eslint.config.js"
       - "coverage/**"

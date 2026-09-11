@@ -9,6 +9,7 @@ import { MessageService } from '../../services/message';
 import { MessageDetailResponse } from '../../shared/model/message.model';
 import { SearchService } from '../../services/search';
 import { formatMailDate } from '../../shared/utils/date-utils';
+import { filterMessagesByTerm } from '../../shared/utils/message-filter';
 import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 @Component({
@@ -27,13 +28,7 @@ export class LabelMessages implements OnInit {
   searchTerm;
   formatMailDate = formatMailDate;
   readonly labelColorClass = labelColorClass;
-  filteredMessages = computed(() => {
-    const term = this.searchTerm().trim().toLowerCase();
-    if (!term) {
-      return this.messages();
-    }
-    return this.messages().filter((message) => [message.sender_address, message.receiver_address, message.subject, message.body].some((value) => value.toLowerCase().includes(term)));
-  });
+  filteredMessages = computed(() => filterMessagesByTerm(this.messages(), this.searchTerm()));
 
   constructor(private readonly route: ActivatedRoute, private readonly router: Router, private readonly labelService: LabelService, private readonly messageService: MessageService, private readonly searchService: SearchService) {
     this.searchTerm = this.searchService.searchTerm;

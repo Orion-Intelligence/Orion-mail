@@ -1,10 +1,8 @@
 import re
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
-from odmantic.query import and_, eq
-
 from orion.api.interactive.address_book_manager.address_book_constants import ADDRESS_BOOK_LIMITS
+from orion.api.interactive.mailbox_lookup import resolve_active_mailbox
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_address_book_entry_model import db_address_book_entry_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
@@ -28,10 +26,7 @@ class address_book_manager:
         self._engine = mongo_controller.get_instance().get_engine()
 
     async def get_active_user_mailbox(self, current_user: db_user_model) -> db_mailbox_model:
-        mailbox = await self._engine.find_one(db_mailbox_model, and_(eq(db_mailbox_model.user_id, current_user.id), eq(db_mailbox_model.is_active, True)))
-        if mailbox is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mailbox not found")
-        return mailbox
+        return await resolve_active_mailbox(self._engine, current_user)
 
     @staticmethod
     def normalized_addresses(addresses: list[str]) -> list[str]:

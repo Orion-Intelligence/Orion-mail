@@ -18,6 +18,7 @@ from orion.api.interactive.address_book_manager.address_book_manager import addr
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.incoming_mail_manager.incoming_mail_manager import incoming_mail_manager
 from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
+from orion.api.interactive.mailbox_lookup import resolve_active_mailbox
 from orion.api.interactive.message_manager.models.message_param_model import BULK_MESSAGE_ACTION, MESSAGE_SEARCH_SCOPE
 from orion.api.interactive.sender_safety_manager.sender_safety_manager import sender_safety_manager
 from orion.api.interactive.translation_manager.translation_manager import translation_manager
@@ -66,12 +67,7 @@ class message_manager:
         self._engine = mongo_controller.get_instance().get_engine()
 
     async def get_active_user_mailbox(self, current_user: db_user_model) -> db_mailbox_model:
-        mailbox = await self._engine.find_one(db_mailbox_model, and_(eq(db_mailbox_model.user_id, current_user.id), eq(db_mailbox_model.is_active, True)))
-
-        if mailbox is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mailbox not found")
-
-        return mailbox
+        return await resolve_active_mailbox(self._engine, current_user)
 
     async def get_owned_message(self, mailbox: db_mailbox_model, message_id: str) -> db_message_model:
         try:
@@ -87,6 +83,32 @@ class message_manager:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
 
         return message
+
+    async def owned_message_for(self, current_user: db_user_model, message_id: str) -> db_message_model:
+        mailbox = await self.get_active_user_mailbox(current_user)
+        return await self.get_owned_message(mailbox, message_id)
+
+    async def incoming_message_for(self, current_user: db_user_model, message_id: str, action: str) -> db_message_model:
+        message = await self.owned_message_for(current_user, message_id)
+        if message.direction != MESSAGE_DIRECTION.INCOMING:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Only incoming {action}")
+        return message
+
+    async def decrypt_and_serialize(self, messages: list[db_message_model]) -> list[dict]:
+        await message_crypto_manager.get_instance().decrypt_messages(messages)
+        return [{**self.serialize_message(message), **self.message_state(message)} for message in messages]
+
+    async def move_to_spam_if_needed(self, message: db_message_model) -> bool:
+        if message.folder == MESSAGE_FOLDER.SPAM:
+            return False
+        self.relocate_message(message, MESSAGE_FOLDER.SPAM)
+        await message_crypto_manager.get_instance().save_message(message)
+        return True
+
+    async def raw_source_response_content(self, current_user: db_user_model, message_id: str) -> tuple[db_message_model, bytes]:
+        message = await self.owned_message_for(current_user, message_id)
+        content = await attachment_manager.get_instance().read_raw_source(message, self.get_original_source_path(message))
+        return message, content
 
     @staticmethod
     async def mark_delivery_failed(message: db_message_model) -> None:
@@ -268,8 +290,7 @@ class message_manager:
         query = and_(*conditions)
         order = db_message_model.created_at if oldest_first else desc(db_message_model.created_at)
         messages = await self._engine.find(db_message_model, query, sort=order, skip=max(offset, 0), limit=limit)
-        await message_crypto_manager.get_instance().decrypt_messages(messages)
-        return [{**self.serialize_message(message), **self.message_state(message)} for message in messages]
+        return await self.decrypt_and_serialize(messages)
 
     async def set_message_labels(self, current_user: db_user_model, message_id: str, label_ids: list[str]) -> dict:
         mailbox = await self.get_active_user_mailbox(current_user)
@@ -723,8 +744,7 @@ class message_manager:
         mailbox = await self.get_active_user_mailbox(current_user)
         query = and_(eq(db_message_model.owner_mailbox_id, mailbox.id), in_(db_message_model.folder, self.VISIBLE_FOLDERS), *conditions)
         messages = await self._engine.find(db_message_model, query, sort=desc(db_message_model.created_at), skip=max(offset, 0), limit=limit)
-        await message_crypto_manager.get_instance().decrypt_messages(messages)
-        return [{**self.serialize_message(message), **self.message_state(message)} for message in messages]
+        return await self.decrypt_and_serialize(messages)
 
     async def get_starred_messages(self, current_user: db_user_model, limit: int | None = None, offset: int = 0) -> list[dict]:
         return await self.get_matching_messages(current_user, eq(db_message_model.is_starred, True), limit=limit, offset=offset)
@@ -817,10 +837,7 @@ class message_manager:
         return await self.message_response(current_user, message)
 
     async def mark_message_unread(self, current_user: db_user_model, message_id: str) -> dict:
-        mailbox = await self.get_active_user_mailbox(current_user)
-        message = await self.get_owned_message(mailbox, message_id)
-        if message.direction != MESSAGE_DIRECTION.INCOMING:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only incoming messages can be marked unread")
+        message = await self.incoming_message_for(current_user, message_id, "messages can be marked unread")
 
         message.is_read = False
         message.updated_at = datetime.now(UTC)
@@ -843,46 +860,32 @@ class message_manager:
         return await self.message_response(current_user, message)
 
     async def report_sender(self, current_user: db_user_model, message_id: str, report_type: REPORT_TYPE) -> dict:
-        mailbox = await self.get_active_user_mailbox(current_user)
-        message = await self.get_owned_message(mailbox, message_id)
-        if message.direction != MESSAGE_DIRECTION.INCOMING:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only incoming senders can be reported")
+        message = await self.incoming_message_for(current_user, message_id, "senders can be reported")
 
         try:
             report = await sender_safety_manager.get_instance().report_domain(current_user, message, report_type)
         except ValueError as error:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
-        if message.folder != MESSAGE_FOLDER.SPAM:
-            self.relocate_message(message, MESSAGE_FOLDER.SPAM)
-            await message_crypto_manager.get_instance().save_message(message)
-
+        await self.move_to_spam_if_needed(message)
         await self.learn_message_class(message, True)
         return {**await self.message_response(current_user, message), "report": report}
 
     async def block_sender(self, current_user: db_user_model, message_id: str) -> dict:
-        mailbox = await self.get_active_user_mailbox(current_user)
-        message = await self.get_owned_message(mailbox, message_id)
-        if message.direction != MESSAGE_DIRECTION.INCOMING:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only incoming senders can be blocked")
+        message = await self.incoming_message_for(current_user, message_id, "senders can be blocked")
 
         try:
             block = await sender_safety_manager.get_instance().block_domain(current_user, message)
         except ValueError as error:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
-        if message.folder != MESSAGE_FOLDER.SPAM:
-            self.relocate_message(message, MESSAGE_FOLDER.SPAM)
-            await message_crypto_manager.get_instance().save_message(message)
+        if await self.move_to_spam_if_needed(message):
             await self.learn_message_class(message, True)
 
         return {**await self.message_response(current_user, message), "block": block}
 
     async def unblock_sender(self, current_user: db_user_model, message_id: str) -> dict:
-        mailbox = await self.get_active_user_mailbox(current_user)
-        message = await self.get_owned_message(mailbox, message_id)
-        if message.direction != MESSAGE_DIRECTION.INCOMING:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only incoming senders can be unblocked")
+        message = await self.incoming_message_for(current_user, message_id, "senders can be unblocked")
 
         try:
             block = await sender_safety_manager.get_instance().unblock_domain(current_user, message.sender_address)
@@ -1058,19 +1061,17 @@ class message_manager:
         return "message.eml"
 
     async def get_message_source(self, current_user: db_user_model, message_id: str) -> Response:
-        mailbox = await self.get_active_user_mailbox(current_user)
-        message = await self.get_owned_message(mailbox, message_id)
+        _, content = await self.raw_source_response_content(current_user, message_id)
         return Response(
-            content=await attachment_manager.get_instance().read_raw_source(message, self.get_original_source_path(message)),
+            content=content,
             media_type="text/plain",
             headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
         )
 
     async def download_message(self, current_user: db_user_model, message_id: str) -> Response:
-        mailbox = await self.get_active_user_mailbox(current_user)
-        message = await self.get_owned_message(mailbox, message_id)
+        message, content = await self.raw_source_response_content(current_user, message_id)
         return Response(
-            content=await attachment_manager.get_instance().read_raw_source(message, self.get_original_source_path(message)),
+            content=content,
             media_type="message/rfc822",
             headers={
                 "Cache-Control": "private, no-store",

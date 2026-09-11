@@ -12,6 +12,7 @@ import { BulkMessageAction, MessageDetailResponse } from '../../shared/model/mes
 import { SearchService, normalizeSearchScope, searchScopeParameters } from '../../services/search';
 import { SearchScope } from '../../shared/model/search.model';
 import { formatMailDate } from '../../shared/utils/date-utils';
+import { filterMessagesByTerm } from '../../shared/utils/message-filter';
 import { extractErrorMessage } from '../../shared/utils/http-error';
 import { FOLDER_VIEWS } from '../../shared/constants/folder-messages.constants';
 import { SystemFolder } from '../../shared/model/folder-messages.model';
@@ -46,11 +47,7 @@ export class FolderMessages implements OnInit {
     if (this.folder() === 'search') {
       return this.messages();
     }
-    const term = this.searchTerm().trim().toLowerCase();
-    if (!term) {
-      return this.messages();
-    }
-    return this.messages().filter((message) => [message.sender_address, message.receiver_address, message.subject, message.body].some((value) => value.toLowerCase().includes(term)));
+    return filterMessagesByTerm(this.messages(), this.searchTerm());
   });
 
   constructor(private readonly route: ActivatedRoute, private readonly router: Router, private readonly messageService: MessageService, private readonly labelService: LabelService, private readonly searchService: SearchService, private readonly composeService: ComposeService) {
