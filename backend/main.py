@@ -22,6 +22,9 @@ from routes.testing_auth_routes import test_auth_routes
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await service_manager.get_instance().init_services()
+    if os.getenv("ORION_TESTING", "false").lower() == "true":
+        from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manager
+        await mailbox_manager.get_instance().seed_local_test_mailboxes()
     yield
     await service_manager.get_instance().close_services()
 
