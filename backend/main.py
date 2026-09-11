@@ -16,7 +16,7 @@ from routes.incoming_mail_routes import incoming_mail_routes
 from routes.label_routes import label_routes
 from routes.mailbox_routes import mailbox_routes
 from routes.message_routes import message_routes
-from routes.test_auth_routes import test_auth_routes
+from routes.testing_auth_routes import test_auth_routes
 
 
 @asynccontextmanager
