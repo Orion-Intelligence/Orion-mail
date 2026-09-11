@@ -436,9 +436,13 @@ if [ "$COMMAND" = "production" ] || { [ "$COMMAND" = "build" ] && [ "$FLAG" = "-
 elif [ "$COMMAND" = "build" ] && { [ "$FLAG" = "-d" ] || [ "$FLAG" = "-t" ]; }; then
     COMPOSE_FILE="docker-compose.yml"
     stop_docker
-    install_client_dependencies
     if [ "$FLAG" = "-t" ]; then
-        client_build instrumented
+      export ORION_TESTING=true
+      install_client_dependencies
+      client_build instrumented
+    else
+      export ORION_TESTING=false
+
     fi
     compose build --pull web postfix
     compose up -d --pull missing

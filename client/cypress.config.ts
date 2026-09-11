@@ -80,6 +80,7 @@ export default defineConfig({
             return config;
         },
         baseUrl: process.env["ORION_E2E_BASE_URL"] || "http://127.0.0.1:4300",
+      // baseUrl: process.env["ORION_E2E_BASE_URL"] || "http://mail.localhost:4300",
         viewportWidth: 1920,
         viewportHeight: 1080,
         defaultCommandTimeout: 60000,
