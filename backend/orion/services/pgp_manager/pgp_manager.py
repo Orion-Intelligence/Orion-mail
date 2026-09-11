@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 
 from orion.constants.constant import CONSTANTS
 from orion.services.encryption_manager.key_manager import key_manager
+from orion.services.log_manager.log_controller import log
 
 
 class pgp_manager:
@@ -41,8 +42,10 @@ class pgp_manager:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await process.communicate(input_data)
+        stdout, stderr = await process.communicate(input_data)
         if process.returncode != 0:
+            safe_args = " ".join(argument for argument in args if not argument.startswith("/"))
+            log.g().e(f"gpg {safe_args} exited {process.returncode}: {stderr.decode(errors='replace').strip()}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="PGP operation failed",
