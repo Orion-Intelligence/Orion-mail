@@ -1,6 +1,7 @@
 services:
   web:
     container_name: orion-mail-web
+    restart: always
     build:
       context: .
       dockerfile: dockerFiles/api_docker

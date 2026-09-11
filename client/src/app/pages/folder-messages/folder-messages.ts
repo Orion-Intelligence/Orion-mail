@@ -15,10 +15,11 @@ import { formatMailDate } from '../../shared/utils/date-utils';
 import { extractErrorMessage } from '../../shared/utils/http-error';
 import { FOLDER_VIEWS } from '../../shared/constants/folder-messages.constants';
 import { SystemFolder } from '../../shared/model/folder-messages.model';
+import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 @Component({
   selector: 'app-folder-messages',
-  imports: [Icon],
+  imports: [Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './folder-messages.html',
 })

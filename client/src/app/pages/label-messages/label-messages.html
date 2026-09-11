@@ -23,7 +23,9 @@
     </div>
   }
 
-  @if (!loading() && !errorMessage() && filteredMessages().length === 0) {
+  @if (loading() && filteredMessages().length === 0) {
+    <app-message-list-skeleton variant="compact" />
+  } @else if (!loading() && !errorMessage() && filteredMessages().length === 0) {
     <div class="flex flex-1 flex-col items-center justify-center px-5 py-16 text-center">
       <span class="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-primary"><app-icon [name]="searchTerm() ? 'search' : 'label'" class="h-6 w-6" /></span>
       <h2 class="text-sm font-medium text-ink-soft">{{ searchTerm() ? 'No messages match your search' : 'No messages use this label' }}</h2>
