@@ -1,25 +1,25 @@
-<main class="mail-configure-page flex min-h-dvh w-full items-center justify-center px-5 py-8 text-ink max-[520px]:px-4 max-[520px]:py-5">
-  <section class="mail-soft-white w-full max-w-[30rem] overflow-hidden rounded-[26px] border border-line bg-surface shadow-auth" aria-labelledby="configure-email-title">
+<main class="mail-configure-page flex min-h-dvh w-full items-center justify-center px-5 py-8 text-ink max-[520px]:px-4 max-[520px]:py-5" data-testid="mail-configure-page">
+  <section class="mail-soft-white w-full max-w-[30rem] overflow-hidden rounded-[26px] border border-line bg-surface shadow-auth" aria-labelledby="configure-email-title" data-testid="configure-email-section">
     <div class="px-10 pt-9 pb-8 max-[520px]:px-6 max-[520px]:pt-7 max-[520px]:pb-6">
-      <header class="text-center">
+      <header class="text-center" data-testid="configure-email-header">
         <div class="mb-6 flex justify-center">
-          <img src="assets/images/logo-wide.svg" alt="Orion Intelligence" class="h-8 w-auto" />
+          <img src="assets/images/logo-wide.svg" alt="Orion Intelligence" class="h-8 w-auto" data-testid="orion-logo" />
         </div>
-        <h1 id="configure-email-title" class="text-[26px] leading-8 font-normal tracking-[-0.01em] text-ink">Create your Orion Mail address</h1>
-        <p class="mx-auto mt-2 max-w-sm text-sm leading-5 text-ink-soft">Your Orion Intelligence username will be used for your permanent mail address.</p>
+        <h1 id="configure-email-title" class="text-[26px] leading-8 font-normal tracking-[-0.01em] text-ink" data-testid="configure-email-title">Create your Orion Mail address</h1>
+        <p class="mx-auto mt-2 max-w-sm text-sm leading-5 text-ink-soft" data-testid="configure-email-description">Your Orion Intelligence username will be used for your permanent mail address.</p>
       </header>
 
       @if (user()) {
-        <div class="mt-7 flex min-w-0 items-center gap-3 rounded-2xl border border-line-soft bg-surface-muted px-4 py-3.5">
-          <span class="orion-brand-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold">{{ accountInitial() }}</span>
+        <div class="mt-7 flex min-w-0 items-center gap-3 rounded-2xl border border-line-soft bg-surface-muted px-4 py-3.5" data-testid="account-info">
+          <span class="orion-brand-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold" data-testid="account-initial">{{ accountInitial() }}</span>
           <div class="min-w-0 flex-1">
             <p class="text-[11px] leading-4 font-medium tracking-[0.04em] text-muted uppercase">Orion Intelligence account</p>
-            <p class="truncate text-sm font-medium text-ink">{{ accountName() }}</p>
+            <p class="truncate text-sm font-medium text-ink" data-testid="account-name">{{ accountName() }}</p>
             @if (accountDetail()) {
-              <p class="mt-0.5 truncate text-xs text-muted">{{ accountDetail() }}</p>
+              <p class="mt-0.5 truncate text-xs text-muted" data-testid="account-detail">{{ accountDetail() }}</p>
             }
           </div>
-          <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-[#e1eee6] bg-[#f0f7f3] px-2.5 py-1 text-[11px] font-medium text-[#5f7467] max-[420px]:hidden">
+          <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-[#e1eee6] bg-[#f0f7f3] px-2.5 py-1 text-[11px] font-medium text-[#5f7467] max-[420px]:hidden" data-testid="connection-status">
             <span class="h-1.5 w-1.5 rounded-full bg-[#79a98d]"></span>
             Connected
           </span>
@@ -28,15 +28,15 @@
 
       <div class="mt-6">
         @if (errorMessage()) {
-          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-[13px] text-danger" role="alert">{{ errorMessage() }}</div>
+          <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-[13px] text-danger" role="alert" data-testid="error-message">{{ errorMessage() }}</div>
         }
 
-        <div class="rounded-xl border border-line-soft bg-surface-muted px-4 py-3.5">
+        <div class="rounded-xl border border-line-soft bg-surface-muted px-4 py-3.5" data-testid="mailbox-address-container">
           <p class="text-[11px] leading-4 font-medium tracking-[0.04em] text-muted uppercase">Your Orion Mail address</p>
-          <p class="mt-1 truncate text-base font-medium text-ink" [title]="mailboxAddress()">{{ mailboxAddress() }}</p>
+          <p class="mt-1 truncate text-base font-medium text-ink" [title]="mailboxAddress()" data-testid="mailbox-address">{{ mailboxAddress() }}</p>
         </div>
 
-        <button type="button" (click)="submit()" [disabled]="loading() || !mailboxUsername()" class="mt-6 flex h-11 w-full items-center justify-center rounded-full border-none bg-primary-solid px-6 text-sm font-medium text-on-primary transition-colors hover:enabled:cursor-pointer hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55">{{ loading() ? 'Creating your address…' : 'Create email address' }}</button>
+        <button type="button" (click)="submit()" [disabled]="loading() || !mailboxUsername()" class="mt-6 flex h-11 w-full items-center justify-center rounded-full border-none bg-primary-solid px-6 text-sm font-medium text-on-primary transition-colors hover:enabled:cursor-pointer hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55" data-testid="create-email-button">{{ loading() ? 'Creating your address…' : 'Create email address' }}</button>
         <p class="mt-3 text-center text-xs leading-4 text-muted">The address matches your Orion Intelligence username and cannot be changed here.</p>
       </div>
     </div>
