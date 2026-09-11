@@ -55,6 +55,18 @@ export class FolderMessages implements OnInit {
 
   constructor(private readonly route: ActivatedRoute, private readonly router: Router, private readonly messageService: MessageService, private readonly labelService: LabelService, private readonly searchService: SearchService, private readonly composeService: ComposeService) {
     this.searchTerm = this.searchService.searchTerm;
+    effect(() => {
+      this.messageService.mailboxRevision();
+      if (!this.revisionSeen) {
+        this.revisionSeen = true;
+        return;
+      }
+      untracked(() => {
+        if (this.folder() !== 'search') {
+          this.loadMessages();
+        }
+      });
+    });
   }
 
   ngOnInit(): void {
