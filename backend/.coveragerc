@@ -1,15 +1,17 @@
 [run]
-source =
-    orion
-    routes
-    configs
-    main.py
-    cronjobs.py
-    cleanup_attachments.py
-    postfix_incoming_handler.py
+source = .
 relative_files = true
 sigterm = true
 parallel = true
+omit =
+    tests/*
+    */tests/*
+    conftest.py
+    */fake_model/*
+    fake_model/*
+    .venv/*
+    */site-packages/*
+    */__pycache__/*
 
 [report]
 ignore_errors = true

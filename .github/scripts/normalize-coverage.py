@@ -70,6 +70,10 @@ def main() -> int:
     client_files = normalize_lcov(ROOT / "client" / "coverage" / "lcov.info")
     backend_files = normalize_cobertura(ROOT / "backend" / "coverage.xml")
     print(f"Normalized {client_files} client file(s) and {backend_files} backend file(s)")
+    e2e_report = ROOT / "backend" / "e2e-coverage.xml"
+    if e2e_report.is_file():
+        e2e_files = normalize_cobertura(e2e_report)
+        print(f"Normalized {e2e_files} backend e2e file(s)")
     return 0
 
 
