@@ -96,6 +96,7 @@ jobs:
           export NODE_OPTIONS=--no-deprecation
           chmod +x ./run.sh
           ./run.sh build -t
+          sudo chmod -R a+rwX backend/static/resource/attachments
 
       - name: Verify the instrumented client build
         run: |

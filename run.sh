@@ -185,7 +185,9 @@ ensure_runtime_dirs() {
     local app_uid app_gid
     app_uid="$(sed -n 's/^APP_UID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
     app_gid="$(sed -n 's/^APP_GID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
-    chown -R "${app_uid:-1000}:${app_gid:-1000}" backend/static/resource/attachments 2>/dev/null || true
+    chown -R "${app_uid:-1000}:${app_gid:-1000}" backend/static/resource/attachments 2>/dev/null \
+        || chmod -R a+rwX backend/static/resource/attachments 2>/dev/null \
+        || true
 }
 
 stop_docker() {
