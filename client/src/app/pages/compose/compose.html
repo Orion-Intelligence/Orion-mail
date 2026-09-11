@@ -6,8 +6,8 @@
   </div>
   } @else {
   <div class="flex h-10 shrink-0 items-center justify-between bg-titlebar px-4 text-titlebar-ink select-none max-[720px]:h-12">
-    <span class="truncate text-sm font-medium">{{ composeTitle() }}</span>
-    <button type="button" (click)="close()" title="Save & close" aria-label="Save draft and close composer" class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-titlebar-muted transition-colors hover:bg-titlebar-hover hover:text-titlebar-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-titlebar-ink">
+    <span class="truncate text-sm font-medium" data-testid="compose-title">{{ composeTitle() }}</span>
+    <button type="button" (click)="close()" title="Save & close" aria-label="Save draft and close composer" data-testid="close-button" class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-titlebar-muted transition-colors hover:bg-titlebar-hover hover:text-titlebar-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-titlebar-ink">
       <app-icon [name]="'close'" class="h-4 w-4" />
     </button>
   </div>
@@ -46,7 +46,7 @@
     }
   </div>
   @if (form.controls.receiver_address.touched && form.controls.receiver_address.invalid) {
-  <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger">Enter a valid recipient email address.</div>
+  <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger" data-testid="receiver-error">Enter a valid recipient email address.</div>
   }
 
   <div class="relative z-10 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25" data-testid="cc-field">
@@ -75,10 +75,10 @@
 
   @if (!inline()) {
   <div class="flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
-    <input [id]="'subject-' + uid()" type="text" formControlName="subject" placeholder="Subject" aria-label="Subject" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
+    <input [id]="'subject-' + uid()" type="text" formControlName="subject" placeholder="Subject" aria-label="Subject" data-testid="subject-input" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
   </div>
   @if (form.controls.subject.touched && form.controls.subject.invalid) {
-  <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger">Add a subject.</div>
+  <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger" data-testid="subject-error">Add a subject.</div>
   }
   }
 

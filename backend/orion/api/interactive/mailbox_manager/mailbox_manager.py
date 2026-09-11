@@ -3,7 +3,6 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, status
 from odmantic.exceptions import DuplicateKeyError
 from pydantic import ValidationError
-from pymongo.errors import DuplicateKeyError as MongoDuplicateKeyError
 
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.mailbox_manager.models.mailbox_param_model import MailboxCreateRequest
@@ -100,11 +99,13 @@ class mailbox_manager:
             if await mailbox_collection.find_one({"user_id": user_id}) is not None:
                 continue
 
-            now = datetime.now(UTC)
+            user_model = await self._engine.find_one(db_user_model, db_user_model.id == user_id)
+            if user_model is None:
+                continue
             try:
-                await mailbox_collection.insert_one({"user_id": user_id, "mailbox_address": mailbox_address, "is_active": True, "created_at": now, "updated_at": now})
+                await self.create_mailbox(user_model)
                 created_count += 1
-            except MongoDuplicateKeyError:
+            except HTTPException:
                 continue
 
         return created_count

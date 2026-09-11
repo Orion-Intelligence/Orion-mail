@@ -8,6 +8,7 @@ from odmantic.query import and_, asc, eq
 
 from orion.api.interactive.label_manager.models.label_param_model import LabelCreateRequest, LabelUpdateRequest
 from orion.api.interactive.message_manager.message_manager import message_manager
+from orion.services.encryption_manager.message_crypto_manager import message_crypto_manager
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_label_model import db_label_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
@@ -133,6 +134,7 @@ class label_manager:
 
         cursor = self._engine.get_collection(db_message_model).find({"owner_mailbox_id": mailbox.id, "folder": {"$nin": [MESSAGE_FOLDER.TRASH.value, MESSAGE_FOLDER.SPAM.value]}, "label_ids": label.id}).sort("created_at", -1)
         messages = [db_message_model.model_validate_doc(document) async for document in cursor]
+        await message_crypto_manager.get_instance().decrypt_messages(messages)
         serialized_messages = []
         for message in messages:
             state = {"is_read": message.is_read} if message.direction == MESSAGE_DIRECTION.INCOMING else {"delivery_status": message.delivery_status}

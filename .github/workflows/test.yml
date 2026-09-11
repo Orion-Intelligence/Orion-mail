@@ -142,7 +142,7 @@ jobs:
           cd client
           export npm_config_loglevel=error
           export NODE_OPTIONS=--no-deprecation
-          mkdir -p coverage cypress/downloads cypress/error cypress/screenshots cypress/videos
+          mkdir -p coverage cypress/downloads cypress/videos
           rm -rf .nyc_output
           npx cypress verify
           ORION_COVERAGE=true npx cypress run --e2e --browser chrome
@@ -171,7 +171,7 @@ jobs:
           has_cypress=false
           has_coverage=false
 
-          if find client/cypress/diagnostics client/cypress/downloads client/cypress/error client/cypress/screenshots client/cypress/videos -type f 2>/dev/null | grep -q .; then
+          if find client/cypress/diagnostics client/cypress/downloads client/cypress/videos -type f 2>/dev/null | grep -q .; then
             has_cypress=true
           fi
 
@@ -191,8 +191,6 @@ jobs:
           path: |
             client/cypress/diagnostics/
             client/cypress/downloads/
-            client/cypress/error/
-            client/cypress/screenshots/
             client/cypress/videos/
           if-no-files-found: ignore
           retention-days: 7

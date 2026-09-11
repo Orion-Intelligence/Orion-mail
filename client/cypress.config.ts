@@ -1,7 +1,5 @@
 import { defineConfig } from "cypress";
 import registerCodeCoverageTasks from "@cypress/code-coverage/task";
-import fs from "node:fs";
-import path from "node:path";
 
 const isCi =
     process.env["CI"] === "true" ||
@@ -12,8 +10,7 @@ const coverageEnabled = isCi || process.env["ORION_COVERAGE"] === "true";
 export default defineConfig({
     allowCypressEnv: false,
     video: false,
-    screenshotsFolder: "cypress/error",
-    screenshotOnRunFailure: true,
+    screenshotOnRunFailure: false,
     numTestsKeptInMemory: 0,
     watchForFileChanges: false,
     trashAssetsBeforeRuns: false,
@@ -25,7 +22,6 @@ export default defineConfig({
         codeCoverage: {
             enabled: coverageEnabled,
         },
-        takeScreenshots: false,
     },
     expose: {
         coverage: coverageEnabled,
@@ -35,29 +31,6 @@ export default defineConfig({
         supportFile: "cypress/support/e2e.ts",
         testIsolation: true,
         setupNodeEvents(on, config) {
-            const takeScreenshots = config.env["takeScreenshots"];
-            if (takeScreenshots === true || takeScreenshots === "true") {
-                config.screenshotsFolder = "../docs/screenshots";
-            }
-            on("after:screenshot", (details) => {
-                if (!details.testFailure) {
-                    return;
-                }
-                const screenshotsFolder =
-                    typeof config.screenshotsFolder === "string" ? config.screenshotsFolder : "cypress/error";
-                const screenshotRoot = path.resolve(config.projectRoot, screenshotsFolder);
-                const relativePath = path.relative(screenshotRoot, details.path);
-                const targetPath = path.resolve(config.projectRoot, "cypress", "error", relativePath);
-
-                if (details.path === targetPath) {
-                    return;
-                }
-
-                fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-                fs.renameSync(details.path, targetPath);
-
-                return { path: targetPath };
-            });
             if (coverageEnabled) {
                 registerCodeCoverageTasks(on, config);
             }

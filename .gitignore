@@ -40,10 +40,7 @@ backend/static/resource/attachments/*/*
 
 # Cypress
 client/cypress/downloads/*
-client/cypress/screenshots/*
 client/cypress/videos/*
-client/cypress/error/*
-!client/cypress/error/.gitkeep
 client/.nyc_output/
 client/coverage/
 

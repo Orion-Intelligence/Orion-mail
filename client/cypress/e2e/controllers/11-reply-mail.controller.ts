@@ -15,11 +15,10 @@ export function clickReply() {
   void cy.get('[data-testid="reply-button"]')
     .filter(':visible')
     .first()
-    .should('be.visible')
     .click();
 
   void cy.get('[data-testid="inline-compose"]')
-    .should('be.visible');
+    .scrollIntoView();
 
   void cy.get('[data-testid="inline-compose"]')
     .find('[data-testid="compose-form"]')

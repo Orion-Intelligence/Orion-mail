@@ -9,6 +9,7 @@ export function createTestMail(
     method: 'POST',
     url: '/messages/send',
     form: true,
+    failOnStatusCode: false,
     headers: {
       'x-requested-with': 'XMLHttpRequest',
     },
@@ -18,7 +19,10 @@ export function createTestMail(
       body,
     },
   }).then((response) => {
-    expect(response.status).to.eq(200);
+    expect(
+      response.status,
+      `POST /messages/send -> ${response.status}: ${JSON.stringify(response.body)}`
+    ).to.eq(200);
   });
 }
 

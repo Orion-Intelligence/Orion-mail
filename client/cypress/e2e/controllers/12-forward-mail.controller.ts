@@ -13,12 +13,19 @@ export function openMessage(subject: string) {
 
 export function clickForward() {
   void cy.get('[data-testid="forward-button"]')
-    .filter(':visible')
+    .first()
+    .scrollIntoView();
+
+  void cy.get('[data-testid="forward-button"]')
     .first()
     .should('be.visible')
     .click();
 
   void cy.get('[data-testid="inline-compose"]')
+    .scrollIntoView();
+
+  void cy.get('[data-testid="inline-compose"]')
+    .find('[data-testid="compose-form"]')
     .should('be.visible');
 }
 
