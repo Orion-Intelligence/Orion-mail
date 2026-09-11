@@ -51,8 +51,6 @@ class message_manager:
         db_message_model.receiver_address,
         db_message_model.to_addresses,
         db_message_model.cc_addresses,
-        db_message_model.subject,
-        db_message_model.body,
     )
 
     @staticmethod

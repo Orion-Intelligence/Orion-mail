@@ -47,6 +47,7 @@ export class ComposeService {
       next: (response) => {
         this.sending.update((count) => Math.max(0, count - 1));
         this.messageService.refreshFolderCounts();
+        this.messageService.notifyMailboxChanged();
         this.showNotice(response.message);
       },
 

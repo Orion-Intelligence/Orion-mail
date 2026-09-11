@@ -54,7 +54,7 @@ async def test_search_is_mailbox_scoped_filters_folder_and_matches_every_term():
     assert any(dict(condition).get("owner_mailbox_id") == {"$eq": mailbox.id} for condition in conditions)
     assert any(dict(condition).get("folder") == {"$eq": MESSAGE_FOLDER.INBOX.value} for condition in conditions)
     term_conditions = [dict(condition)["$or"] for condition in conditions if "$or" in dict(condition)]
-    assert [[next(iter(dict(field_condition).values())).pattern for field_condition in term] for term in term_conditions] == [["Quarterly"] * 6, ["Alice"] * 6]
+    assert [[next(iter(dict(field_condition).values())).pattern for field_condition in term] for term in term_conditions] == [["Quarterly"] * 4, ["Alice"] * 4]
 
 
 @pytest.mark.anyio

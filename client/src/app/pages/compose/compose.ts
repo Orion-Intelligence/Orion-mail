@@ -258,6 +258,7 @@ export class Compose implements AfterViewInit, OnDestroy {
         this.savingDraft = false;
         if (generation !== this.generation) {
           this.messageService.refreshFolderCounts();
+          this.messageService.notifyMailboxChanged();
           return;
         }
         if (this.pendingDiscard) {
@@ -265,6 +266,7 @@ export class Compose implements AfterViewInit, OnDestroy {
           this.messageService.permanentlyDeleteMessage(draft.id).subscribe({
             next: () => {
               this.messageService.refreshFolderCounts();
+              this.messageService.notifyMailboxChanged();
             }, error: () => undefined
           });
           return;
@@ -273,6 +275,7 @@ export class Compose implements AfterViewInit, OnDestroy {
         this.lastSavedDraft = snapshot;
         this.draftStatus.set('Draft saved');
         this.messageService.refreshFolderCounts();
+        this.messageService.notifyMailboxChanged();
         if (this.draftChangedWhileSaving) {
           this.saveDraft();
         }
@@ -296,6 +299,7 @@ export class Compose implements AfterViewInit, OnDestroy {
       this.messageService.permanentlyDeleteMessage(draftId).subscribe({
         next: () => {
           this.messageService.refreshFolderCounts();
+          this.messageService.notifyMailboxChanged();
         }, error: () => undefined
       });
     }

@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, of } from 'rxjs';
@@ -25,6 +25,7 @@ import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton
 })
 export class FolderMessages implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+  private revisionSeen = false;
 
   folder = signal<SystemFolder>('archive');
   messages = signal<MessageDetailResponse[]>([]);

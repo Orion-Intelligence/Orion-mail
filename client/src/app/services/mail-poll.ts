@@ -19,7 +19,6 @@ export class MailPollService {
       return;
     }
 
-    this.knownUnread = this.messageService.folderCounts().unread.inbox;
     this.timer = setInterval(() => {
       this.poll();
     }, POLL_INTERVAL_MS);

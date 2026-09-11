@@ -15,6 +15,7 @@ export class MessageService {
 
   readonly folderCounts = signal<FolderCounts>({ ...EMPTY_FOLDER_COUNTS, unread: { ...EMPTY_FOLDER_COUNTS } });
   readonly storageExceeded = signal(false);
+  readonly mailboxRevision = signal(0);
 
   constructor(private readonly http: HttpClient) { }
 
@@ -132,6 +133,10 @@ export class MessageService {
 
   refreshFolderCounts(): void {
     this.loadFolderCounts().subscribe({ error: () => undefined });
+  }
+
+  notifyMailboxChanged(): void {
+    this.mailboxRevision.update((revision) => revision + 1);
   }
 
   refreshStorageStatus(): void {
