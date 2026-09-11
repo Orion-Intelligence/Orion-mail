@@ -1,13 +1,13 @@
-<section aria-labelledby="settings-title" class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface">
-  <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-3">
-    <button data-mail-action="back" type="button" (click)="backToInbox()" title="Back to Inbox" aria-label="Back to Inbox" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+<section aria-labelledby="settings-title" class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface" data-testid="settings-section">
+  <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-3" data-testid="settings-header">
+    <button data-mail-action="back" type="button" (click)="backToInbox()" title="Back to Inbox" aria-label="Back to Inbox" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="back-button">
       <app-icon [name]="'back'" class="h-5 w-5" />
     </button>
-    <h1 id="settings-title" class="text-base font-medium text-ink">Settings</h1>
-    @if (mailboxAddress()) { <span class="ml-auto pr-2 truncate text-xs text-muted">{{ mailboxAddress() }}</span> }
+    <h1 id="settings-title" class="text-base font-medium text-ink" data-testid="settings-title">Settings</h1>
+    @if (mailboxAddress()) { <span class="ml-auto pr-2 truncate text-xs text-muted" data-testid="mailbox-address">{{ mailboxAddress() }}</span> }
   </header>
 
-  <div class="min-h-0 flex-1 overflow-y-auto px-6 py-7 max-[720px]:px-4 max-[720px]:py-5">
+  <div class="min-h-0 flex-1 overflow-y-auto px-6 py-7 max-[720px]:px-4 max-[720px]:py-5" data-testid="settings-content">
     <div class="mx-auto w-full max-w-220">
       @if (errorMessage()) {
       <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
@@ -103,8 +103,8 @@
         </div>
       </form>
 
-      <form [formGroup]="configForm" (ngSubmit)="saveSystemConfig()" class="mt-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
-        <h2 class="text-lg font-medium text-ink">Attachment limits</h2>
+      <form [formGroup]="configForm" (ngSubmit)="saveSystemConfig()" class="mt-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4" data-testid="attachment-config-form">
+        <h2 class="text-lg font-medium text-ink" data-testid="attachment-limits-title">Attachment limits</h2>
         <p class="mt-1 text-sm text-muted">These limits apply to every mailbox on this server.</p>
 
         @if (configErrorMessage()) {

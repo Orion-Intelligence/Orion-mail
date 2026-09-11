@@ -34,7 +34,7 @@
     "@angular-eslint/eslint-plugin": "22.1.0",
     "@angular-eslint/eslint-plugin-template": "22.1.0",
     "@angular-eslint/template-parser": "22.1.0",
-    "@angular/build": "^22.1.2",
+    "@angular/build": "^22.1.6",
     "@angular/cli": "^22.1.2",
     "@angular/compiler-cli": "^22.1.0",
     "@cypress/code-coverage": "4.0.3",
@@ -54,7 +54,7 @@
     "stylelint-config-standard": "40.0.0",
     "stylelint-scss": "^7.1.1",
     "tailwindcss": "^4.3.3",
-    "typescript": "~6.0.2",
+    "typescript": "~7.0.2",
     "typescript-eslint": "^8.67.0"
   },
   "nyc": {
