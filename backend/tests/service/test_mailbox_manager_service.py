@@ -1,28 +1,18 @@
 import pytest
 from fastapi import HTTPException
 
+from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager import disposable_mailbox_manager
 from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manager
 from orion.constants.constant import CONSTANTS
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-
-
-class FakeMailboxEngine:
-    def __init__(self):
-        self.saved_mailbox = None
-
-    @staticmethod
-    async def find_one(*_args, **_kwargs):
-        return None
-
-    async def save(self, mailbox):
-        self.saved_mailbox = mailbox
-        return mailbox
+from tests.fake_model.fakes import FakeDisposablePgp, FakeMailboxEngine
 
 
 @pytest.mark.anyio
 async def test_create_mailbox_uses_orion_account_username(monkeypatch):
     monkeypatch.setattr(CONSTANTS, "S_MAIL_DOMAIN", "mail.orionintelligence.org")
+    monkeypatch.setattr(disposable_mailbox_manager, "get_instance", staticmethod(lambda: FakeDisposablePgp()))
     engine = FakeMailboxEngine()
     manager = object.__new__(mailbox_manager)
     manager._engine = engine

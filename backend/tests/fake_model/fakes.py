@@ -57,6 +57,31 @@ class FakeKeyEngine:
         return document
 
 
+class FakeMailboxEngine:
+    def __init__(self):
+        self.saved_mailbox = None
+
+    @staticmethod
+    async def find_one(*_args, **_kwargs):
+        return None
+
+    async def save(self, mailbox):
+        self.saved_mailbox = mailbox
+        return mailbox
+
+
+class FakePgpKey:
+    def __init__(self):
+        self.id = "pgpkey"
+        self.fingerprint = "FINGERPRINT"
+
+
+class FakeDisposablePgp:
+    @staticmethod
+    async def get_or_create_original_pgp(_current_user, _mailbox):
+        return FakePgpKey()
+
+
 def build_encryption_stack(mailbox=None, message=None):
     from cryptography.fernet import Fernet
 
