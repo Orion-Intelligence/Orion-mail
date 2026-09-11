@@ -21,6 +21,8 @@ export class SplashService {
     }
 
     splash.classList.add('is-hidden');
-    setTimeout(() => splash.remove(), FADE_OUT_MS);
+    setTimeout(() => {
+      splash.remove();
+    }, FADE_OUT_MS);
   }
 }

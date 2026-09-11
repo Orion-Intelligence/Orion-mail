@@ -25,7 +25,9 @@ export class App {
 
   constructor(public readonly router: Router, themeService: ThemeService, splashService: SplashService) {
     themeService.initialize();
-    setTimeout(() => splashService.hide(), SPLASH_FALLBACK_MS);
+    setTimeout(() => {
+      splashService.hide();
+    }, SPLASH_FALLBACK_MS);
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
       .subscribe((event) => {
         this.configureEmailRoute.set(event.urlAfterRedirects.startsWith('/configure-email'));

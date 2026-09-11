@@ -1,5 +1,5 @@
 import asyncio
-import os
+import contextlib
 import shutil
 import tempfile
 from pathlib import Path
@@ -24,6 +24,15 @@ class pgp_manager:
             raise Exception("This class is a singleton!")
         pgp_manager.__instance = self
 
+    @staticmethod
+    @contextlib.contextmanager
+    def _workspace(prefix: str):
+        temp_dir = Path(tempfile.mkdtemp(prefix=prefix))
+        try:
+            yield temp_dir
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
     async def _run_gpg(self, args: list[str], input_data: bytes | None = None) -> bytes:
         process = await asyncio.create_subprocess_exec(
             "gpg",
@@ -32,7 +41,7 @@ class pgp_manager:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await process.communicate(input_data)
+        stdout, _ = await process.communicate(input_data)
         if process.returncode != 0:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -41,10 +50,7 @@ class pgp_manager:
         return stdout
 
     async def generate_key_pair(self) -> tuple[str, str, str]:
-        temp_dir = Path(tempfile.mkdtemp(prefix="orion-pgp-"))
-        os.chmod(temp_dir, 0o700)
-
-        try:
+        with self._workspace("orion-pgp-") as temp_dir:
             batch = f"""
 Key-Type: RSA
 Key-Length: {CONSTANTS.S_PGP_KEY_BITS}
@@ -76,16 +82,11 @@ Expire-Date: 0
 
             return public_key.decode(), private_key.decode(), fingerprint
 
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
     async def sign_bytes(self, raw_data: bytes, wrapped_private_key: str) -> str:
-        temp_dir = Path(tempfile.mkdtemp(prefix="orion-sign-"))
-        data_path = temp_dir / "message.txt"
-        sig_path = temp_dir / "signature.asc"
-        os.chmod(temp_dir, 0o700)
+        with self._workspace("orion-sign-") as temp_dir:
+            data_path = temp_dir / "message.txt"
+            sig_path = temp_dir / "signature.asc"
 
-        try:
             private_key = key_manager.get_instance().unwrap(wrapped_private_key)
             await self._run_gpg(["--homedir", str(temp_dir), "--batch", "--import"], private_key.encode())
 
@@ -103,6 +104,3 @@ Expire-Date: 0
             ])
 
             return sig_path.read_text()
-
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)

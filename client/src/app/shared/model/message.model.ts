@@ -46,7 +46,7 @@ export interface Mailbox {
   fingerprint?: string;
 }
 
-export interface InboxMessage {
+export interface MessageBase {
   id: string;
   sender_address: string;
   receiver_address: string;
@@ -57,7 +57,6 @@ export interface InboxMessage {
   body: string;
   attachments: Attachment[];
   label_ids: string[];
-  is_read: boolean;
   is_starred: boolean;
   is_important: boolean;
   direction: string;
@@ -73,31 +72,12 @@ export interface InboxMessage {
   created_at: string;
 }
 
-export interface SentMessage {
-  id: string;
-  sender_address: string;
-  receiver_address: string;
-  to_addresses: string[];
-  cc_addresses: string[];
-  reply_to_address?: string | null;
-  subject: string;
-  body: string;
-  attachments: Attachment[];
-  label_ids: string[];
-  direction: string;
-  folder: string;
-  is_starred: boolean;
-  is_important: boolean;
-  thread_id: string;
-  has_original_source: boolean;
-  body_html?: string | null;
-  bcc_addresses?: string[];
-  failed_recipients?: string[];
-  bounce_status?: string | null;
-  bounce_recipient?: string | null;
-  authentication?: { spf: string | null; dkim: string | null; dmarc: string | null };
+export interface InboxMessage extends MessageBase {
+  is_read: boolean;
+}
+
+export interface SentMessage extends MessageBase {
   delivery_status: string;
-  created_at: string;
 }
 
 export interface Attachment {
@@ -111,33 +91,10 @@ export interface Attachment {
   status: string;
 }
 
-export interface MessageDetailResponse {
-  id: string;
-  sender_address: string;
-  receiver_address: string;
-  to_addresses: string[];
-  cc_addresses: string[];
-  reply_to_address?: string | null;
-  subject: string;
-  body: string;
-  attachments: Attachment[];
-  label_ids: string[];
-  direction: string;
-  folder: string;
+export interface MessageDetailResponse extends MessageBase {
   is_read?: boolean;
   delivery_status?: string;
-  is_starred: boolean;
-  is_important: boolean;
-  thread_id: string;
-  has_original_source: boolean;
-  body_html?: string | null;
-  bcc_addresses?: string[];
-  failed_recipients?: string[];
-  bounce_status?: string | null;
-  bounce_recipient?: string | null;
-  authentication?: { spf: string | null; dkim: string | null; dmarc: string | null };
   safety?: MessageSafetyState;
-  created_at: string;
 }
 
 export type ReportType = 'spam' | 'phishing';
