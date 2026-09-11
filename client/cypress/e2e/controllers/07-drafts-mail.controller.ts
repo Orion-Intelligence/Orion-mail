@@ -97,7 +97,11 @@ export function openDraft(subject: string) {
 
   void cy.get('[data-testid="compose-form"]')
     .filter(':visible')
-    .should('have.length', 1);
+    .should('have.length', 1)
+    .within(() => {
+      cy.get('[data-testid="subject-input"]')
+        .should('have.value', subject);
+    });
 }
 
 export function assertDraftContent(
