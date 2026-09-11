@@ -91,6 +91,9 @@ class message_manager:
     @staticmethod
     async def mark_delivery_failed(message: db_message_model) -> None:
         message.delivery_status = DELIVERY_STATUS.FAILED
+        if message.folder == MESSAGE_FOLDER.SENT:
+            message.previous_folder = MESSAGE_FOLDER.SENT
+            message.folder = MESSAGE_FOLDER.INBOX
         message.updated_at = datetime.now(UTC)
         await message_crypto_manager.get_instance().save_message(message)
 

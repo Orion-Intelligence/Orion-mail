@@ -34,7 +34,7 @@ class pgp_manager:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
     async def _run_gpg(self, args: list[str], input_data: bytes | None = None) -> bytes:
-        process = await asyncio.create_subprocess_exec(
+        process = await asyncio.create_subprocess_exec(  # nosec - no shell; static "gpg" binary with a fixed argument list  # nosemgrep
             "gpg",
             *args,
             stdin=asyncio.subprocess.PIPE if input_data is not None else None,

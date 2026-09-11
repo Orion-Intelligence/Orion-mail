@@ -57,6 +57,9 @@
     "typescript": "6.0.3",
     "typescript-eslint": "^8.67.0"
   },
+  "overrides": {
+    "fast-uri": "4.1.4"
+  },
   "nyc": {
     "all": false,
     "include": [

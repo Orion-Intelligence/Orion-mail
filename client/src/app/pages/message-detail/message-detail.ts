@@ -1,9 +1,10 @@
 import { Component, ElementRef, HostListener, OnInit, SecurityContext, ViewChild, computed, inject, signal } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Observable } from 'rxjs';
 
 import { MessageService } from '../../services/message';
-import { MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType } from '../../shared/model/message.model';
+import { BulkMessageAction, MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType } from '../../shared/model/message.model';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { formatFullMailDate } from '../../shared/utils/date-utils';
@@ -317,13 +318,12 @@ export class MessageDetail implements OnInit {
     this.moreMenuOpen.set(false);
   }
 
-  toggleStar(): void {
+  private applyBulkUpdate(action: BulkMessageAction, notice: string, errorText: string): void {
     const currentMessage = this.message();
     if (!currentMessage || this.actionLoading()) {
       return;
     }
 
-    const action = currentMessage.is_starred ? 'unstar' : 'star';
     this.actionLoading.set(true);
     this.errorMessage.set('');
     this.closeActionMenus();
@@ -333,40 +333,49 @@ export class MessageDetail implements OnInit {
         if (updatedMessage) {
           this.message.set(updatedMessage);
         }
-        this.actionNotice.set(action === 'star' ? 'Message starred.' : 'Star removed.');
+        this.actionNotice.set(notice);
         this.actionLoading.set(false);
       },
       error: () => {
-        this.errorMessage.set('Could not update the message star.');
+        this.errorMessage.set(errorText);
         this.actionLoading.set(false);
       },
     });
   }
 
-  toggleImportant(): void {
-    const currentMessage = this.message();
-    if (!currentMessage || this.actionLoading()) {
-      return;
-    }
-
-    const action = currentMessage.is_important ? 'mark_not_important' : 'mark_important';
+  private dismissAfter(request: Observable<unknown>, errorText: string, onSuccess?: () => void): void {
     this.actionLoading.set(true);
     this.errorMessage.set('');
-    this.closeActionMenus();
-    this.messageService.bulkUpdateMessages([currentMessage.id], action).subscribe({
-      next: (response) => {
-        const updatedMessage = response.messages.at(0);
-        if (updatedMessage) {
-          this.message.set(updatedMessage);
-        }
-        this.actionNotice.set(action === 'mark_important' ? 'Marked as important.' : 'Importance marker removed.');
+    request.subscribe({
+      next: () => {
+        onSuccess?.();
+        this.messageService.refreshFolderCounts();
         this.actionLoading.set(false);
+        this.goBack();
       },
       error: () => {
-        this.errorMessage.set('Could not update the importance marker.');
+        this.errorMessage.set(errorText);
         this.actionLoading.set(false);
       },
     });
+  }
+
+  toggleStar(): void {
+    const currentMessage = this.message();
+    if (!currentMessage) {
+      return;
+    }
+    const action = currentMessage.is_starred ? 'unstar' : 'star';
+    this.applyBulkUpdate(action, action === 'star' ? 'Message starred.' : 'Star removed.', 'Could not update the message star.');
+  }
+
+  toggleImportant(): void {
+    const currentMessage = this.message();
+    if (!currentMessage) {
+      return;
+    }
+    const action = currentMessage.is_important ? 'mark_not_important' : 'mark_important';
+    this.applyBulkUpdate(action, action === 'mark_important' ? 'Marked as important.' : 'Importance marker removed.', 'Could not update the importance marker.');
   }
 
   moveMessage(destination: MessageFolder): void {
@@ -376,25 +385,14 @@ export class MessageDetail implements OnInit {
       return;
     }
 
-    this.actionLoading.set(true);
-    this.errorMessage.set('');
     this.closeActionMenus();
-    this.messageService.moveMessage(currentMessage.id, destination).subscribe({
-      next: () => {
-        if (this.isRemovedFolder(currentMessage.folder) && !this.isRemovedFolder(destination)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids, 1);
-        }
-        else if (!this.isRemovedFolder(currentMessage.folder) && this.isRemovedFolder(destination)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
-        }
-        this.messageService.refreshFolderCounts();
-        this.actionLoading.set(false);
-        this.goBack();
-      },
-      error: () => {
-        this.errorMessage.set('Could not move the email.');
-        this.actionLoading.set(false);
-      },
+    this.dismissAfter(this.messageService.moveMessage(currentMessage.id, destination), 'Could not move the email.', () => {
+      if (this.isRemovedFolder(currentMessage.folder) && !this.isRemovedFolder(destination)) {
+        this.labelService.adjustMessageCount(currentMessage.label_ids, 1);
+      }
+      else if (!this.isRemovedFolder(currentMessage.folder) && this.isRemovedFolder(destination)) {
+        this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
+      }
     });
   }
 
@@ -403,19 +401,7 @@ export class MessageDetail implements OnInit {
     if (!currentMessage || this.actionLoading()) {
       return;
     }
-    this.actionLoading.set(true);
-    this.errorMessage.set('');
-    this.messageService.archiveMessage(currentMessage.id).subscribe({
-      next: () => {
-        this.messageService.refreshFolderCounts();
-        this.actionLoading.set(false);
-        this.goBack();
-      },
-      error: () => {
-        this.errorMessage.set('Could not archive the email.');
-        this.actionLoading.set(false);
-      },
-    });
+    this.dismissAfter(this.messageService.archiveMessage(currentMessage.id), 'Could not archive the email.');
   }
 
   moveToTrash(): void {
@@ -423,19 +409,8 @@ export class MessageDetail implements OnInit {
     if (!currentMessage || this.actionLoading()) {
       return;
     }
-    this.actionLoading.set(true);
-    this.errorMessage.set('');
-    this.messageService.moveToTrash(currentMessage.id).subscribe({
-      next: () => {
-        this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
-        this.messageService.refreshFolderCounts();
-        this.actionLoading.set(false);
-        this.goBack();
-      },
-      error: () => {
-        this.errorMessage.set('Could not move the email to Trash.');
-        this.actionLoading.set(false);
-      },
+    this.dismissAfter(this.messageService.moveToTrash(currentMessage.id), 'Could not move the email to Trash.', () => {
+      this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
     });
   }
 
@@ -444,21 +419,10 @@ export class MessageDetail implements OnInit {
     if (!currentMessage || this.actionLoading()) {
       return;
     }
-    this.actionLoading.set(true);
-    this.errorMessage.set('');
-    this.messageService.restoreMessage(currentMessage.id).subscribe({
-      next: () => {
-        if (this.isRemovedFolder(currentMessage.folder)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids, 1);
-        }
-        this.messageService.refreshFolderCounts();
-        this.actionLoading.set(false);
-        this.goBack();
-      },
-      error: () => {
-        this.errorMessage.set('Could not restore the email.');
-        this.actionLoading.set(false);
-      },
+    this.dismissAfter(this.messageService.restoreMessage(currentMessage.id), 'Could not restore the email.', () => {
+      if (this.isRemovedFolder(currentMessage.folder)) {
+        this.labelService.adjustMessageCount(currentMessage.label_ids, 1);
+      }
     });
   }
 
@@ -467,19 +431,7 @@ export class MessageDetail implements OnInit {
     if (!currentMessage || this.actionLoading() || !window.confirm('Permanently delete this message? This cannot be undone.')) {
       return;
     }
-    this.actionLoading.set(true);
-    this.errorMessage.set('');
-    this.messageService.permanentlyDeleteMessage(currentMessage.id).subscribe({
-      next: () => {
-        this.messageService.refreshFolderCounts();
-        this.actionLoading.set(false);
-        this.goBack();
-      },
-      error: () => {
-        this.errorMessage.set('Could not permanently delete the email.');
-        this.actionLoading.set(false);
-      },
-    });
+    this.dismissAfter(this.messageService.permanentlyDeleteMessage(currentMessage.id), 'Could not permanently delete the email.');
   }
 
   @HostListener('document:click', ['$event'])
@@ -617,22 +569,11 @@ export class MessageDetail implements OnInit {
       return;
     }
 
-    this.actionLoading.set(true);
-    this.errorMessage.set('');
     this.closeActionMenus();
-    this.messageService.reportSender(currentMessage.id, reportType).subscribe({
-      next: () => {
-        if (!this.isRemovedFolder(currentMessage.folder)) {
-          this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
-        }
-        this.messageService.refreshFolderCounts();
-        this.actionLoading.set(false);
-        this.goBack();
-      },
-      error: () => {
-        this.errorMessage.set(`Could not report the sender as ${label}.`);
-        this.actionLoading.set(false);
-      },
+    this.dismissAfter(this.messageService.reportSender(currentMessage.id, reportType), `Could not report the sender as ${label}.`, () => {
+      if (!this.isRemovedFolder(currentMessage.folder)) {
+        this.labelService.adjustMessageCount(currentMessage.label_ids, -1);
+      }
     });
   }
 
