@@ -151,6 +151,32 @@ export function replyAllFromDetail() {
     .should('be.visible');
 }
 
+export function moveToTrashFromDetail() {
+  void cy.intercept({ method: 'PUT', pathname: '**/messages/*/trash' }).as('trashRequest');
+
+  openMoreMenu();
+
+  void cy.get('[data-testid="delete-menu-button"]')
+    .should('be.visible')
+    .click();
+
+  void cy.wait('@trashRequest').its('response.statusCode').should('eq', 200);
+  void cy.url().should('include', '/inbox');
+}
+
+export function blockSenderFromDetail() {
+  void cy.intercept({ method: 'PUT', pathname: '**/messages/*/block-sender' }).as('blockRequest');
+
+  openMoreMenu();
+
+  void cy.get('[data-testid="block-sender-button"]')
+    .should('be.visible')
+    .and('not.be.disabled')
+    .click();
+
+  void cy.wait('@blockRequest').its('response.statusCode').should('eq', 200);
+}
+
 export function assertMessageGone(subject: string) {
   void cy.get('[data-testid="inbox-section"]', { timeout: 15000 })
     .should('be.visible')

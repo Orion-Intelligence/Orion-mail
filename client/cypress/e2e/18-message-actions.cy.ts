@@ -1,8 +1,10 @@
 import {
   archiveFromDetail,
   assertMessageGone,
+  blockSenderFromDetail,
   markImportantFromDetail,
   markUnreadFromDetail,
+  moveToTrashFromDetail,
   openMessage,
   replyAllFromDetail,
   reportSpamFromDetail,
@@ -80,6 +82,20 @@ describe('Orion Mail - Message Detail Actions', () => {
     reportSpamFromDetail();
 
     assertMessageGone(subject);
+  });
+
+  it('moves a message to trash from the detail view', () => {
+    openMessage(subject);
+
+    moveToTrashFromDetail();
+
+    assertMessageGone(subject);
+  });
+
+  it('blocks the sender from the detail view', () => {
+    openMessage(subject);
+
+    blockSenderFromDetail();
   });
 
 });
