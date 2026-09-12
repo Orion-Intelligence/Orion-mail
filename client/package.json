@@ -44,7 +44,7 @@
     "@typescript-eslint/eslint-plugin": "^8.67.0",
     "@typescript-eslint/parser": "^8.67.0",
     "babel-plugin-istanbul": "^8.0.0",
-    "cypress": "^15.20.1",
+    "cypress": "^16.0.0",
     "cypress-axe": "1.7.0",
     "eslint": "^10.8.1",
     "istanbul-lib-instrument": "^6.0.3",
