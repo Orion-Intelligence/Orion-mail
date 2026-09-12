@@ -164,17 +164,43 @@ export function moveToTrashFromDetail() {
   void cy.url().should('include', '/inbox');
 }
 
-export function blockSenderFromDetail() {
+export function blockSenderFromDetail(subject: string) {
   void cy.intercept({ method: 'PUT', pathname: '**/messages/*/block-sender' }).as('blockRequest');
+  void cy.intercept({ method: 'DELETE', pathname: '**/messages/*/block-sender' }).as('unblockRequest');
 
   openMoreMenu();
 
   void cy.get('[data-testid="block-sender-button"]')
     .should('be.visible')
     .and('not.be.disabled')
+    .and('not.contain.text', 'Unblock')
     .click();
 
   void cy.wait('@blockRequest').its('response.statusCode').should('eq', 200);
+
+  // Blocking moves the message to Spam and navigates back to the inbox. Reopen
+  // it from Spam and unblock, so the per-user sender block does not route later
+  // test mail from the same domain into Spam and break subsequent specs.
+  void cy.url().should('include', '/inbox');
+
+  void cy.visit('/spam');
+
+  void cy.contains('[data-testid="message-subject"]', subject, { timeout: 15000 })
+    .should('be.visible')
+    .click();
+
+  void cy.get('[data-testid="message-detail"]')
+    .should('be.visible');
+
+  openMoreMenu();
+
+  void cy.get('[data-testid="block-sender-button"]')
+    .should('be.visible')
+    .and('not.be.disabled')
+    .and('contain.text', 'Unblock')
+    .click();
+
+  void cy.wait('@unblockRequest').its('response.statusCode').should('eq', 200);
 }
 
 export function assertMessageGone(subject: string) {

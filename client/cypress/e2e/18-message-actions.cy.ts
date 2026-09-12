@@ -95,7 +95,7 @@ describe('Orion Mail - Message Detail Actions', () => {
   it('blocks the sender from the detail view', () => {
     openMessage(subject);
 
-    blockSenderFromDetail();
+    blockSenderFromDetail(subject);
   });
 
 });
