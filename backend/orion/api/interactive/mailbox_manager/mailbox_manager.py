@@ -20,6 +20,7 @@ from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager
 class mailbox_manager:
     __instance = None
     LOCAL_TEST_USERNAMES = ("test1", "test2", "test3")
+    LOCAL_UNCONFIGURED_USERNAME = "test4"
 
     @staticmethod
     def get_instance():
@@ -108,7 +109,19 @@ class mailbox_manager:
             except HTTPException:
                 continue
 
+        await self.seed_unconfigured_test_user()
         return created_count
+
+    async def seed_unconfigured_test_user(self) -> None:
+        username = self.LOCAL_UNCONFIGURED_USERNAME
+        user_collection = self._engine.get_collection(db_user_model)
+        email = f"{username}@{CONSTANTS.S_MAIL_DOMAIN}"
+        now = datetime.now(UTC)
+        await user_collection.update_one(
+            {"email": email},
+            {"$setOnInsert": {"full_name": f"Test {username.removeprefix('test')}", "email": email, "username": username, "created_at": now, "updated_at": now}},
+            upsert=True,
+        )
 
     async def get_user_mailbox(self, current_user: db_user_model) -> dict:
         mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == current_user.id)

@@ -54,7 +54,7 @@ async def get_current_user(request: Request) -> db_user_model:
     if os.getenv("ORION_TESTING", "false").lower() == "true":
         test_username = request.cookies.get(TEST_SESSION_COOKIE)
 
-        if test_username in {"test1", "test2", "test3"}:
+        if test_username in {"test1", "test2", "test3", "test4"}:
             enforce_csrf(request)
 
             test_user = await mongo_controller.get_instance().get_engine().find_one(
