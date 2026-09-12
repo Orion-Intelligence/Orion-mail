@@ -2,58 +2,11 @@ from __future__ import annotations
 
 import pytest
 from bson import ObjectId
+
 from orion.api.interactive.sender_safety_manager.sender_safety_manager import sender_safety_manager
 from orion.services.mongo_manager.shared_model.db_domain_safety_model import REPORT_TYPE, db_domain_report_model, db_domain_reputation_model, db_sender_block_model
-from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
-from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-
-
-USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
-
-
-class FakeCollection:
-    def __init__(self, find_one_result=None, update_result=None, deleted=0):
-        self._find_one = find_one_result
-        self._update = update_result
-        self._deleted = deleted
-
-    async def find_one(self, *_args, **_kwargs):
-        return self._find_one
-
-    async def find_one_and_update(self, *_args, **_kwargs):
-        return self._update
-
-    async def delete_one(self, *_args, **_kwargs):
-        class Result:
-            deleted_count = self._deleted
-
-        return Result()
-
-
-class FakeEngine:
-    def __init__(self, by_model):
-        self.by_model = by_model
-
-    def get_collection(self, model):
-        return self.by_model.get(model, FakeCollection())
-
-
-def make_manager(by_model):
-    manager = object.__new__(sender_safety_manager)
-    manager._engine = FakeEngine(by_model)
-    return manager
-
-
-def message_from(sender: str):
-    return db_message_model(
-        owner_mailbox_id=ObjectId(),
-        sender_address=sender,
-        receiver_address="test1@mail.orionintelligence.org",
-        subject="s",
-        body="b",
-        direction=MESSAGE_DIRECTION.INCOMING,
-        folder=MESSAGE_FOLDER.INBOX,
-    )
+from tests.scripts.sender_safety_manager.fakes import FakeCollection
+from tests.scripts.sender_safety_manager.helpers import USER, make_manager, message_from
 
 
 def test_sender_domain_extracts_and_lowercases():

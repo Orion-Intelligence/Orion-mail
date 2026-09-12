@@ -1,215 +1,30 @@
 from __future__ import annotations
 
-import pytest
 from datetime import UTC, datetime, timedelta
+
+import pytest
 from bson import ObjectId
 from fastapi import HTTPException
 from fastapi.responses import Response
-from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
-from orion.api.interactive.message_manager.message_manager import message_manager
+
 from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
+from orion.api.interactive.message_manager.message_manager import message_manager
 from orion.api.interactive.message_manager.models.message_param_model import BULK_MESSAGE_ACTION, MESSAGE_SEARCH_SCOPE
-from orion.api.interactive.sender_safety_manager.sender_safety_manager import sender_safety_manager
 from orion.api.interactive.translation_manager.translation_manager import translation_manager
 from orion.constants.constant import CONSTANTS
-from orion.services.encryption_manager import message_crypto_manager as crypto_module
+from orion.services.encryption_manager.message_crypto_manager import message_crypto_manager
 from orion.services.mail_manager.mail_manager import mail_manager
 from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
 from orion.services.mongo_manager.shared_model.db_domain_safety_model import REPORT_TYPE
 from orion.services.mongo_manager.shared_model.db_label_model import db_label_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
-from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_STATUS, PGP_KEY_TYPE, db_pgp_key_model
+from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-from orion.services.spam_manager.spam_manager import spam_manager
 from tests.model.fakes import RecordingEngine
-from orion.services.encryption_manager.message_crypto_manager import message_crypto_manager
-
-
-USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
-
-
-class FakeCrypto:
-    async def save_message(self, message):
-        return message
-
-    async def decrypt_message(self, message):
-        return message
-
-    async def decrypt_messages(self, messages):
-        return messages
-
-
-class FakeSafety:
-    def __init__(self, domain_state=None, report=None, block=None, unblock=None, report_error=None, block_error=None, unblock_error=None):
-        self._domain_state = domain_state if domain_state is not None else {"reported_as": None, "globally_blocked": False, "sender_blocked": False}
-        self._report = report if report is not None else {"report_type": "spam"}
-        self._block = block if block is not None else {"sender_blocked": True}
-        self._unblock = unblock if unblock is not None else {"sender_blocked": False}
-        self._report_error = report_error
-        self._block_error = block_error
-        self._unblock_error = unblock_error
-
-    async def get_domain_state(self, _user, _sender):
-        return self._domain_state
-
-    async def report_domain(self, _user, _message, _report_type):
-        if self._report_error is not None:
-            raise self._report_error
-        return self._report
-
-    async def block_domain(self, _user, _message):
-        if self._block_error is not None:
-            raise self._block_error
-        return self._block
-
-    async def unblock_domain(self, _user, _sender):
-        if self._unblock_error is not None:
-            raise self._unblock_error
-        return self._unblock
-
-
-class FakePath:
-    def __init__(self, is_file=True):
-        self._is_file = is_file
-
-    def is_file(self):
-        return self._is_file
-
-
-class FakeAttachments:
-    def __init__(self, path=None, raw=b"raw-source", raise_path=False, raise_read=False):
-        self._path = path if path is not None else FakePath(is_file=True)
-        self._raw = raw
-        self._raise_path = raise_path
-        self._raise_read = raise_read
-        self.deleted_attachments: list = []
-        self.deleted_sources: list = []
-
-    def get_raw_source_path(self, _filename):
-        if self._raise_path:
-            raise ValueError("bad path")
-        return self._path
-
-    async def read_raw_source(self, _message, _path):
-        if self._raise_read:
-            raise RuntimeError("read failed")
-        return self._raw
-
-    async def delete_message_attachments(self, message_id):
-        self.deleted_attachments.append(message_id)
-
-    async def delete_raw_source(self, filename):
-        self.deleted_sources.append(filename)
-
-
-class FakeSpam:
-    def __init__(self):
-        self.spam: list = []
-        self.ham: list = []
-
-    async def learn_spam(self, raw):
-        self.spam.append(raw)
-
-    async def learn_ham(self, raw):
-        self.ham.append(raw)
-
-
-class FakeAggCursor:
-    def __init__(self, rows):
-        self._rows = rows
-
-    async def to_list(self, length=None):
-        return self._rows
-
-
-class FakeAggCollection:
-    def __init__(self, rows):
-        self._rows = rows
-
-    def aggregate(self, _pipeline):
-        return FakeAggCursor(self._rows)
-
-
-class FakeAggEngine:
-    def __init__(self, rows):
-        self._rows = rows
-
-    def get_collection(self, _model):
-        return FakeAggCollection(self._rows)
-
-
-class FakeUpdateCollection:
-    def __init__(self, modified):
-        self.modified = modified
-        self.update_many_calls: list = []
-
-    async def update_many(self, filter_query, update):
-        self.update_many_calls.append((filter_query, update))
-        return type("R", (), {"modified_count": self.modified})()
-
-
-class FakeUpdateEngine:
-    def __init__(self, modified):
-        self.collection = FakeUpdateCollection(modified)
-
-    def get_collection(self, _model):
-        return self.collection
-
-
-def default_mailbox(signature=""):
-    return db_mailbox_model(user_id=ObjectId(), mailbox_address="test1@mail.orionintelligence.org", signature=signature)
-
-
-def make_message(**overrides):
-    defaults = dict(
-        owner_mailbox_id=ObjectId(),
-        sender_address="sender@example.org",
-        receiver_address="test1@mail.orionintelligence.org",
-        subject="Subject",
-        body="Body",
-        direction=MESSAGE_DIRECTION.INCOMING,
-        folder=MESSAGE_FOLDER.INBOX,
-    )
-    defaults.update(overrides)
-    return db_message_model(**defaults)
-
-
-def make_pgp_key(owner_mailbox_id=None):
-    return db_pgp_key_model(user_id=USER.id, owner_mailbox_id=owner_mailbox_id or ObjectId(), key_type=PGP_KEY_TYPE.ORIGINAL, status=PGP_KEY_STATUS.ACTIVE, fingerprint=ObjectId().binary.hex(), public_key="PUB", wrapped_private_key="WRAP")
-
-
-def make_manager(message=None, mailbox=None, engine=None):
-    manager = object.__new__(message_manager)
-    box = mailbox if mailbox is not None else default_mailbox()
-
-    async def fake_mailbox(_user):
-        return box
-
-    async def fake_owned(_mailbox, _message_id):
-        return message
-
-    manager.get_active_user_mailbox = fake_mailbox
-    manager.get_owned_message = fake_owned
-    manager._engine = engine if engine is not None else RecordingEngine()
-    return manager
-
-
-@pytest.fixture(autouse=True)
-def fake_crypto(monkeypatch):
-    monkeypatch.setattr(crypto_module.message_crypto_manager, "get_instance", staticmethod(lambda: FakeCrypto()))
-
-
-def patch_safety(monkeypatch, safety):
-    monkeypatch.setattr(sender_safety_manager, "get_instance", staticmethod(lambda: safety))
-
-
-def patch_attachments(monkeypatch, attachments):
-    monkeypatch.setattr(attachment_manager, "get_instance", staticmethod(lambda: attachments))
-
-
-def patch_spam(monkeypatch, spam):
-    monkeypatch.setattr(spam_manager, "get_instance", staticmethod(lambda: spam))
+from tests.scripts.message_manager.fakes import FakeAggEngine, FakeAttachments, FakeCryptoManager, FakePath, FakeSafety, FakeSearchEngine, FakeSpam, FakeUpdateEngine
+from tests.scripts.message_manager.fixtures import fake_crypto
+from tests.scripts.message_manager.helpers import USER, build_sent_message, default_mailbox, make_manager, make_message, make_pgp_key, make_scheduling_manager, manager_with_mailboxes, patch_attachments, patch_safety, patch_spam, prepare_deep_send_manager, search_manager
 
 
 @pytest.mark.anyio
@@ -704,25 +519,6 @@ async def test_send_message_rejects_too_many_recipients():
     with pytest.raises(HTTPException) as error:
         await manager.send_message(USER, "r@example.org", "subject", "body", [], cc_addresses=cc)
     assert error.value.status_code == 400
-
-
-def prepare_deep_send_manager(key, owned_message):
-    manager = make_manager(engine=RecordingEngine(find_one={db_pgp_key_model: key}))
-
-    async def no_op_quota(_mailbox):
-        return None
-
-    async def fake_partition(addresses):
-        return ([], list(addresses))
-
-    async def fake_owned(_mailbox, _message_id):
-        return owned_message
-
-    manager.enforce_send_quota = no_op_quota
-    manager.enforce_storage_quota = no_op_quota
-    manager.partition_recipient_addresses = fake_partition
-    manager.get_owned_message = fake_owned
-    return manager
 
 
 @pytest.mark.anyio
@@ -1502,21 +1298,6 @@ async def test_dispatch_scheduled_messages_marks_failure():
     assert draft.scheduled_at is None
 
 
-def make_scheduling_manager(message):
-    manager = object.__new__(message_manager)
-    mailbox = db_mailbox_model(user_id=ObjectId(), mailbox_address="test1@mail.orionintelligence.org")
-
-    async def fake_mailbox(_user):
-        return mailbox
-
-    async def fake_owned(_mailbox, _message_id):
-        return message
-
-    manager.get_active_user_mailbox = fake_mailbox
-    manager.get_owned_message = fake_owned
-    return manager
-
-
 @pytest.mark.anyio
 async def test_snooze_rejects_outgoing_message():
     manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.SENT))
@@ -1580,35 +1361,6 @@ async def test_schedule_sets_send_time_on_valid_draft():
     assert result["scheduled_at"] is not None
 
 
-class FakeSearchEngine:
-    def __init__(self, mailbox, messages=None, label=None):
-        self.mailbox = mailbox
-        self.messages = list(messages or [])
-        self.label = label
-        self.search_query = None
-        self.search_limit = None
-
-    async def find_one(self, model, *_args, **_kwargs):
-        if model is db_mailbox_model:
-            return self.mailbox
-        if model is db_label_model:
-            return self.label
-        return None
-
-    async def find(self, model, query, *, sort=None, limit=None, **_kwargs):
-        assert model is db_message_model
-        assert sort is not None
-        self.search_query = query
-        self.search_limit = limit
-        return self.messages[:limit] if limit is not None else self.messages
-
-
-def search_manager(engine):
-    manager = object.__new__(message_manager)
-    manager._engine = engine
-    return manager
-
-
 @pytest.mark.anyio
 async def test_search_is_mailbox_scoped_filters_folder_and_matches_every_term():
     user = db_user_model(full_name="Admin", email="admin@orion.test", username="admin")
@@ -1646,20 +1398,6 @@ async def test_label_search_requires_an_owned_label_and_escapes_regex_input():
     assert missing_label.value.status_code == 404
 
 
-class FakeMailboxEngine:
-    def __init__(self, addresses: list[str]):
-        self.mailboxes = [db_mailbox_model(user_id=ObjectId(), mailbox_address=address) for address in addresses]
-
-    async def find(self, *_args, **_kwargs):
-        return self.mailboxes
-
-
-def manager_with_mailboxes(addresses: list[str]) -> message_manager:
-    manager = object.__new__(message_manager)
-    manager._engine = FakeMailboxEngine(addresses)
-    return manager
-
-
 @pytest.mark.anyio
 async def test_partition_recipient_addresses_routes_active_mailboxes_internally(monkeypatch):
     monkeypatch.setattr(CONSTANTS, "S_MAIL_DOMAIN", "mail.orionintelligence.org")
@@ -1685,19 +1423,6 @@ async def test_partition_recipient_addresses_rejects_unknown_local_mailbox(monke
 
     assert error.value.status_code == 404
     assert error.value.detail == "One or more local recipient mailboxes were not found"
-
-
-class FakeCryptoManager:
-    def __init__(self):
-        self.saved = []
-
-    async def save_message(self, message):
-        self.saved.append(message)
-        return message
-
-
-def build_sent_message():
-    return db_message_model(owner_mailbox_id=ObjectId(), sender_address="me@mail.orionintelligence.org", receiver_address="them@example.com", subject="s", body="b", direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.SENT, delivery_status=DELIVERY_STATUS.QUEUED)
 
 
 @pytest.mark.anyio

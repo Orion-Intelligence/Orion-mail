@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from bson import ObjectId
 from fastapi import HTTPException
 from odmantic.exceptions import DuplicateKeyError
 
@@ -12,7 +11,9 @@ from orion.constants.constant import CONSTANTS
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-from tests.model.fakes import FakeDisposablePgp, FakeMailboxEngine, RecordingEngine
+from tests.model.fakes import FakeMailboxEngine, RecordingEngine
+from tests.scripts.mailbox_manager.fakes import FakeDisposablePgp
+from tests.scripts.mailbox_manager.helpers import USER, make_manager, make_mailbox
 
 
 @pytest.mark.anyio
@@ -41,21 +42,6 @@ async def test_create_mailbox_rejects_invalid_orion_username():
         await manager.create_mailbox(current_user=user)
 
     assert error.value.status_code == 422
-
-
-USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
-
-
-def make_manager(engine):
-    manager = object.__new__(mailbox_manager)
-    manager._engine = engine
-    return manager
-
-
-def make_mailbox(signature=""):
-    mailbox = db_mailbox_model(user_id=USER.id, mailbox_address="test1@mail.orionintelligence.org")
-    mailbox.signature = signature
-    return mailbox
 
 
 @pytest.mark.anyio

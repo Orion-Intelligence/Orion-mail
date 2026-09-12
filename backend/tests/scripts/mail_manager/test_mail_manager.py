@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from orion.services.mail_manager.mail_manager import mail_manager
-from tests.model.fakes import FakeMailTransport
+from tests.scripts.mail_manager.fakes import FakeMailTransport
 
 
 @pytest.mark.anyio

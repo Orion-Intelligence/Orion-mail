@@ -5,26 +5,7 @@ from pydantic import ValidationError
 
 from orion.api.interactive.preference_manager.models.preference_param_model import UserPreferencesRequest
 from orion.api.interactive.preference_manager.preference_manager import preference_manager
-from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-
-
-class FakeUserEngine:
-    def __init__(self):
-        self.saved = []
-
-    async def save(self, user):
-        self.saved.append(user)
-        return user
-
-
-def build_manager():
-    manager = object.__new__(preference_manager)
-    manager._engine = FakeUserEngine()
-    return manager
-
-
-def build_user():
-    return db_user_model(full_name="Administrator", email="admin@orionintelligence.org", username="Admin")
+from tests.scripts.preference_manager.helpers import build_manager, build_user
 
 
 def test_preferences_default_to_an_empty_isolated_mapping():

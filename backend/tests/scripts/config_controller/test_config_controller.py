@@ -3,32 +3,11 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException
 from odmantic.exceptions import DuplicateKeyError
-from orion.api.server.config_manager.config_controller import config_controller
+
 from orion.api.server.config_manager.config_enums import CONFIG_DEFAULTS, CONFIG_KEYS
 from orion.services.mongo_manager.shared_model.db_system_config_model import db_system_config_model
-
-
-class FakeConfigEngine:
-    def __init__(self, documents=None, save_error=None):
-        self.documents = documents or {}
-        self.save_error = save_error
-        self.saved = []
-
-    async def find_one(self, _model, query):
-        return self.documents.get(dict(query)["key"]["$eq"])
-
-    async def save(self, config):
-        if self.save_error is not None:
-            raise self.save_error
-        self.documents[config.key] = config
-        self.saved.append(config)
-        return config
-
-
-def build_controller(engine):
-    controller = object.__new__(config_controller)
-    controller._engine = engine
-    return controller
+from tests.scripts.config_controller.fakes import FakeConfigEngine
+from tests.scripts.config_controller.helpers import build_controller, build_system_config_controller
 
 
 @pytest.mark.anyio
@@ -97,26 +76,6 @@ async def test_set_config_int_raises_when_config_missing():
     with pytest.raises(HTTPException) as error:
         await controller.set_config_int(CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB, 1)
     assert error.value.status_code == 500
-
-
-class FakeSystemConfigEngine:
-    def __init__(self):
-        self.documents = {config["key"]: db_system_config_model(**config) for config in CONFIG_DEFAULTS.VALUES}
-        self.saved = []
-
-    async def find_one(self, _model, query):
-        return self.documents.get(dict(query)["key"]["$eq"])
-
-    async def save(self, config):
-        self.documents[config.key] = config
-        self.saved.append(config)
-        return config
-
-
-def build_system_config_controller():
-    controller = object.__new__(config_controller)
-    controller._engine = FakeSystemConfigEngine()
-    return controller
 
 
 @pytest.mark.anyio

@@ -1,21 +1,13 @@
 from __future__ import annotations
 
-from email import message_from_bytes, policy
-
 import pytest
 
 import postfix_incoming_handler as handler
 from orion.api.interactive.incoming_mail_manager.incoming_mail_manager import incoming_mail_manager
 from orion.constants.constant import CONSTANTS
 from orion.services.spam_manager import spam_manager as spam_module
-from tests.model.fakes import FakeRspamdClient
-
-SCANNED_SPAM = b"From: promo@spammy-example.com\r\nTo: test1@mail.orionintelligence.org\r\nSubject: Free prize\r\nX-Spam: Yes\r\nX-Spamd-Result: default: False [9.30 / 15.00];\r\n\tBAYES_SPAM(4.00)[99.99%];\r\n\tDMARC_POLICY_REJECT(2.00)[]\r\nAuthentication-Results: mail.orionintelligence.org;\r\n\tdkim=fail;\r\n\tspf=softfail;\r\n\tdmarc=fail\r\n\r\nClaim your prize today\r\n"
-SCANNED_HAM = b"From: colleague@orionintelligence.org\r\nTo: test1@mail.orionintelligence.org\r\nSubject: Deployment window\r\nX-Spamd-Result: default: False [-1.20 / 15.00];\r\n\tMIME_GOOD(-0.10)[text/plain]\r\n\r\nCertificate is issued\r\n"
-
-
-def parse(raw_source: bytes):
-    return message_from_bytes(raw_source, policy=policy.default)
+from tests.scripts.spam_manager.fakes import FakeRspamdClient
+from tests.scripts.spam_manager.helpers import SCANNED_HAM, SCANNED_SPAM, parse
 
 
 def test_extract_spam_verdict_reads_the_score_and_flag_added_by_rspamd():

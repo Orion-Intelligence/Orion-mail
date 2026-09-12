@@ -3,12 +3,7 @@ from __future__ import annotations
 import pytest
 from fastapi import HTTPException, status
 
-from orion.services.antivirus_manager.antivirus_manager import antivirus_manager
-
-
-@pytest.fixture
-def manager():
-    return antivirus_manager.get_instance()
+from tests.scripts.antivirus_manager.fixtures import manager
 
 
 @pytest.mark.anyio

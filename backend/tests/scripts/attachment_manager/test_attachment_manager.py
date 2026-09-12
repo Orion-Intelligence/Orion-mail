@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import pytest
 from io import BytesIO
+
+import pytest
 from bson import ObjectId
 from fastapi import HTTPException, UploadFile
+
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
 from orion.services.mongo_manager.shared_model.db_attachment_model import STORAGE_TYPE
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
-from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
-from tests.model.fakes import build_encryption_stack
-from starlette.datastructures import Headers
-from orion.api.server.config_manager.config_controller import config_controller
-from orion.services.antivirus_manager.antivirus_manager import antivirus_manager
+from tests.scripts.attachment_manager.helpers import ONE_MB, RAW_EML, build_manager, build_stack, build_upload
 
 
 def test_sanitize_strips_path_traversal():
@@ -78,19 +76,6 @@ async def test_save_attachments_returns_empty_for_no_files():
     assert await manager.save_attachments(ObjectId(), [], STORAGE_TYPE.INCOMING, "key", "err", "err") == []
 
 
-RAW_EML = b"From: a@mail.orionintelligence.org\r\nSubject: Secret\r\n\r\nConfidential body\r\n"
-
-
-def build_stack():
-    mailbox = db_mailbox_model(user_id=ObjectId(), mailbox_address="admin@mail.orionintelligence.org")
-    message = db_message_model(owner_mailbox_id=mailbox.id, sender_address="a@x.org", receiver_address="b@x.org", subject="s", body="b", direction=MESSAGE_DIRECTION.INCOMING, folder=MESSAGE_FOLDER.INBOX)
-    _crypto, engine = build_encryption_stack(mailbox=mailbox, message=message)
-
-    manager = object.__new__(attachment_manager)
-    manager._engine = engine
-    return manager, engine, mailbox, message
-
-
 @pytest.mark.anyio
 async def test_owner_cipher_round_trips_file_bytes():
     manager, _engine, mailbox, _message = build_stack()
@@ -145,36 +130,6 @@ async def test_a_different_users_key_cannot_read_the_file():
 
     with pytest.raises(Exception):
         other_cipher.decrypt_bytes(sealed)
-
-
-ONE_MB = 1024 * 1024
-
-
-class FakeConfigController:
-    async def get_config_int(self, _key):
-        return 1
-
-
-class FakeAntivirusManager:
-    def __init__(self):
-        self.scanned = []
-
-    async def assert_clean(self, content, filename):
-        self.scanned.append(filename)
-
-
-def build_upload(name, size):
-    payload = b"x" * size
-    return UploadFile(file=BytesIO(payload), size=size, filename=name, headers=Headers({"content-type": "application/octet-stream"}))
-
-
-def build_manager(tmp_path, monkeypatch):
-    manager = object.__new__(attachment_manager)
-    scanner = FakeAntivirusManager()
-    monkeypatch.setattr(config_controller, "get_instance", staticmethod(lambda: FakeConfigController()))
-    monkeypatch.setattr(antivirus_manager, "get_instance", staticmethod(lambda: scanner))
-    monkeypatch.setattr(attachment_manager, "staging_directory", staticmethod(lambda: tmp_path))
-    return manager, scanner
 
 
 @pytest.mark.anyio

@@ -7,23 +7,8 @@ import pytest
 from orion.services.encryption_manager.key_manager import key_manager
 from orion.services.pgp_manager import pgp_manager as pgp_module
 from orion.services.pgp_manager.pgp_manager import pgp_manager
-
-
-class FakeProcess:
-    def __init__(self, stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
-        self._stdout = stdout
-        self._stderr = stderr
-        self.returncode = returncode
-
-    async def communicate(self, _input_data=None):
-        return self._stdout, self._stderr
-
-
-def patch_subprocess(monkeypatch, process: FakeProcess):
-    async def fake_exec(_program, *_args, **_kwargs):
-        return process
-
-    monkeypatch.setattr(pgp_module.asyncio, "create_subprocess_exec", fake_exec)
+from tests.scripts.pgp_manager.fakes import FakeProcess
+from tests.scripts.pgp_manager.helpers import patch_subprocess
 
 
 @pytest.mark.anyio

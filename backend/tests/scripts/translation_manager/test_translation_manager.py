@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 
 import httpx
@@ -9,49 +8,8 @@ import pytest
 from orion.api.interactive.translation_manager import translation_manager as translation_module
 from orion.api.interactive.translation_manager.translation_manager import translation_manager
 from orion.constants.constant import CONSTANTS
-
-
-def build_manager():
-    manager = object.__new__(translation_manager)
-    manager._request_semaphore = asyncio.Semaphore(4)
-    return manager
-
-
-class FakeStreamResponse:
-    def __init__(self, body: bytes = b"", raise_error: Exception | None = None):
-        self._body = body
-        self._raise_error = raise_error
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_args):
-        return False
-
-    def raise_for_status(self):
-        if self._raise_error is not None:
-            raise self._raise_error
-
-    def iter_bytes(self):
-        yield self._body
-
-
-class FakeHttpxClient:
-    def __init__(self, response: FakeStreamResponse):
-        self._response = response
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_args):
-        return False
-
-    def stream(self, _method, _url, *, content, headers):
-        return self._response
-
-
-def patch_httpx(monkeypatch, response: FakeStreamResponse):
-    monkeypatch.setattr(translation_module.httpx, "Client", lambda *args, **kwargs: FakeHttpxClient(response))
+from tests.scripts.translation_manager.fakes import FakeStreamResponse
+from tests.scripts.translation_manager.helpers import build_manager, patch_httpx
 
 
 def test_split_text_empty_returns_empty():

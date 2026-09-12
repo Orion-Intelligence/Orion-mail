@@ -3,55 +3,17 @@ from __future__ import annotations
 import pytest
 from bson import ObjectId
 from fastapi import HTTPException
+
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.incoming_mail_manager.incoming_mail_manager import incoming_mail_manager
-from orion.api.interactive.sender_safety_manager.sender_safety_manager import sender_safety_manager
-from orion.services.encryption_manager.message_crypto_manager import message_crypto_manager
+from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
 from orion.services.mongo_manager.shared_model.db_attachment_model import STORAGE_TYPE
 from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
 from tests.model.fakes import RecordingEngine
-from datetime import UTC, datetime, timedelta
-from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
-
-
-def make_manager(engine):
-    manager = object.__new__(incoming_mail_manager)
-    manager._engine = engine
-    return manager
-
-
-def make_mailbox():
-    return db_mailbox_model(user_id=ObjectId(), mailbox_address="test1@mail.orionintelligence.org")
-
-
-class FakeCrypto:
-    def __init__(self):
-        self.saved = []
-
-    async def save_message(self, message):
-        self.saved.append(message)
-        return message
-
-
-class FakeRawMessage:
-    async def read(self):
-        return b"raw-bytes"
-
-
-def patch_crypto(monkeypatch):
-    crypto = FakeCrypto()
-    monkeypatch.setattr(message_crypto_manager, "get_instance", staticmethod(lambda: crypto))
-    return crypto
-
-
-def patch_sender_safety(monkeypatch, blocked: bool):
-    class FakeSenderSafety:
-        async def is_domain_blocked_for_user(self, _user_id, _sender):
-            return blocked
-
-    monkeypatch.setattr(sender_safety_manager, "get_instance", staticmethod(lambda: FakeSenderSafety()))
+from tests.scripts.incoming_mail_manager.fakes import FakeRawMessage
+from tests.scripts.incoming_mail_manager.helpers import build_manager, build_message, make_mailbox, make_manager, patch_crypto, patch_sender_safety
 
 
 def test_normalize_addresses_dedupes_lowercases_and_skips_invalid():
@@ -227,59 +189,6 @@ async def test_apply_delivery_report_marks_failure_as_bounced(monkeypatch):
     assert result == str(original.id)
     assert original.delivery_status == DELIVERY_STATUS.BOUNCED
     assert original.bounce_status == "5.1.1"
-
-
-class FakeCollection:
-    def __init__(self, stored_count):
-        self.stored_count = stored_count
-        self.queries = []
-
-    async def count_documents(self, query):
-        self.queries.append(query)
-        return self.stored_count
-
-
-class FakeCapEngine:
-    def __init__(self, stored_count, evictable):
-        self.collection = FakeCollection(stored_count)
-        self.evictable = evictable
-        self.deleted = []
-
-    def get_collection(self, _model):
-        return self.collection
-
-    async def find(self, _model, _query, sort=None, limit=None):
-        return self.evictable[:limit] if limit is not None else self.evictable
-
-    async def delete(self, instance):
-        self.deleted.append(instance)
-
-
-class FakeAttachmentManager:
-    def __init__(self):
-        self.purged_messages = []
-        self.purged_raw_sources = []
-
-    async def delete_message_attachments(self, message_id):
-        self.purged_messages.append(message_id)
-
-    async def delete_raw_source(self, stored_filename):
-        self.purged_raw_sources.append(stored_filename)
-
-
-def build_message(mailbox_id, age_days, raw_source_filename="old.eml"):
-    message = db_message_model(owner_mailbox_id=mailbox_id, sender_address="a@x.org", receiver_address="b@x.org", subject="s", body="b", direction=MESSAGE_DIRECTION.INCOMING, folder=MESSAGE_FOLDER.INBOX, raw_source_filename=raw_source_filename)
-    message.created_at = datetime.now(UTC) - timedelta(days=age_days)
-    return message
-
-
-def build_manager(stored_count, evictable, monkeypatch):
-    mailbox = db_mailbox_model(user_id=ObjectId(), mailbox_address="admin@mail.orionintelligence.org")
-    manager = object.__new__(incoming_mail_manager)
-    manager._engine = FakeCapEngine(stored_count, evictable)
-    attachments = FakeAttachmentManager()
-    monkeypatch.setattr(attachment_manager, "get_instance", staticmethod(lambda: attachments))
-    return manager, mailbox, attachments
 
 
 @pytest.mark.anyio

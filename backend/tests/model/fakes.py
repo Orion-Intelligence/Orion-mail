@@ -3,33 +3,6 @@ from __future__ import annotations
 from typing import Any
 
 
-class FakeMailTransport:
-    def __init__(self, errors: dict[str, Any] | None = None):
-        self.sent: list[dict[str, Any]] = []
-        self.errors = errors or {}
-
-    async def send(self, message, *, sender, recipients, hostname, port, username, password, start_tls, timeout):
-        self.sent.append({"message": message, "sender": sender, "recipients": recipients, "hostname": hostname, "port": port, "username": username, "password": password, "start_tls": start_tls, "timeout": timeout})
-        return self.errors, "250 Ok"
-
-
-class FakeRspamdClient:
-    calls: list[dict[str, Any]] = []
-
-    def __init__(self, status_code: int = 200, **_kwargs):
-        self.status_code = status_code
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *_args):
-        return False
-
-    async def post(self, url, *, content, headers):
-        FakeRspamdClient.calls.append({"url": url, "content": content, "headers": headers})
-        return type("FakeRspamdResponse", (), {"status_code": self.status_code})()
-
-
 class FakeKeyEngine:
     def __init__(self, mailbox=None, message=None):
         self.mailbox = mailbox
@@ -129,12 +102,6 @@ class FakePgpKey:
     def __init__(self):
         self.id = "pgpkey"
         self.fingerprint = "FINGERPRINT"
-
-
-class FakeDisposablePgp:
-    @staticmethod
-    async def get_or_create_original_pgp(_current_user, _mailbox):
-        return FakePgpKey()
 
 
 def build_encryption_stack(mailbox=None, message=None):
