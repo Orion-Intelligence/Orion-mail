@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-
 import pytest
+from datetime import UTC, datetime, timedelta
 from bson import ObjectId
 from fastapi import HTTPException
 from fastapi.responses import Response
-
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.api.interactive.message_manager.message_manager import message_manager
 from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
@@ -24,7 +22,9 @@ from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_STATUS, PGP_KEY_TYPE, db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 from orion.services.spam_manager.spam_manager import spam_manager
-from tests.fake_model.fakes import RecordingEngine
+from tests.model.fakes import RecordingEngine
+from orion.services.encryption_manager.message_crypto_manager import message_crypto_manager
+
 
 USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
 
@@ -1500,3 +1500,226 @@ async def test_dispatch_scheduled_messages_marks_failure():
     result = await manager.dispatch_scheduled_messages()
     assert result == {"sent": 0, "failed": 1}
     assert draft.scheduled_at is None
+
+
+def make_scheduling_manager(message):
+    manager = object.__new__(message_manager)
+    mailbox = db_mailbox_model(user_id=ObjectId(), mailbox_address="test1@mail.orionintelligence.org")
+
+    async def fake_mailbox(_user):
+        return mailbox
+
+    async def fake_owned(_mailbox, _message_id):
+        return message
+
+    manager.get_active_user_mailbox = fake_mailbox
+    manager.get_owned_message = fake_owned
+    return manager
+
+
+@pytest.mark.anyio
+async def test_snooze_rejects_outgoing_message():
+    manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.SENT))
+    with pytest.raises(HTTPException) as error:
+        await manager.snooze_message(USER, "id", datetime.now(UTC) + timedelta(hours=1))
+    assert error.value.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_snooze_rejects_past_time():
+    manager = make_scheduling_manager(make_message())
+    with pytest.raises(HTTPException) as error:
+        await manager.snooze_message(USER, "id", datetime.now(UTC) - timedelta(hours=1))
+    assert error.value.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_snooze_sets_wake_time_and_moves_to_inbox():
+    manager = make_scheduling_manager(make_message(folder=MESSAGE_FOLDER.ARCHIVE))
+    result = await manager.snooze_message(USER, "id", datetime.now(UTC) + timedelta(hours=2))
+    assert result["snoozed_until"] is not None
+    assert result["folder"] == MESSAGE_FOLDER.INBOX
+
+
+@pytest.mark.anyio
+async def test_schedule_rejects_non_draft():
+    manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.SENT))
+    with pytest.raises(HTTPException) as error:
+        await manager.schedule_message(USER, "id", datetime.now(UTC) + timedelta(hours=1))
+    assert error.value.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_schedule_rejects_past_time():
+    manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.DRAFTS))
+    with pytest.raises(HTTPException) as error:
+        await manager.schedule_message(USER, "id", datetime.now(UTC) - timedelta(hours=1))
+    assert error.value.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_schedule_rejects_too_far_ahead():
+    manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.DRAFTS))
+    with pytest.raises(HTTPException) as error:
+        await manager.schedule_message(USER, "id", datetime.now(UTC) + timedelta(days=MESSAGE_LIMITS.MAX_SCHEDULE_DAYS + 5))
+    assert error.value.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_schedule_rejects_missing_receiver():
+    manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.DRAFTS, receiver_address=""))
+    with pytest.raises(HTTPException) as error:
+        await manager.schedule_message(USER, "id", datetime.now(UTC) + timedelta(hours=2))
+    assert error.value.status_code == 400
+
+
+@pytest.mark.anyio
+async def test_schedule_sets_send_time_on_valid_draft():
+    manager = make_scheduling_manager(make_message(direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.DRAFTS))
+    result = await manager.schedule_message(USER, "id", datetime.now(UTC) + timedelta(days=1))
+    assert result["scheduled_at"] is not None
+
+
+class FakeSearchEngine:
+    def __init__(self, mailbox, messages=None, label=None):
+        self.mailbox = mailbox
+        self.messages = list(messages or [])
+        self.label = label
+        self.search_query = None
+        self.search_limit = None
+
+    async def find_one(self, model, *_args, **_kwargs):
+        if model is db_mailbox_model:
+            return self.mailbox
+        if model is db_label_model:
+            return self.label
+        return None
+
+    async def find(self, model, query, *, sort=None, limit=None, **_kwargs):
+        assert model is db_message_model
+        assert sort is not None
+        self.search_query = query
+        self.search_limit = limit
+        return self.messages[:limit] if limit is not None else self.messages
+
+
+def search_manager(engine):
+    manager = object.__new__(message_manager)
+    manager._engine = engine
+    return manager
+
+
+@pytest.mark.anyio
+async def test_search_is_mailbox_scoped_filters_folder_and_matches_every_term():
+    user = db_user_model(full_name="Admin", email="admin@orion.test", username="admin")
+    mailbox = db_mailbox_model(user_id=user.id, mailbox_address="admin@mail.orion.test")
+    message = db_message_model(owner_mailbox_id=mailbox.id, sender_address="alice@example.com", receiver_address=mailbox.mailbox_address, subject="Quarterly invoice", body="Attached report", direction=MESSAGE_DIRECTION.INCOMING, folder=MESSAGE_FOLDER.INBOX)
+    engine = FakeSearchEngine(mailbox, [message])
+
+    results = await search_manager(engine).search_messages(user, "Quarterly Alice", MESSAGE_SEARCH_SCOPE.INBOX, limit=6)
+
+    assert [result["id"] for result in results] == [str(message.id)]
+    assert engine.search_limit == 6
+    conditions = dict(engine.search_query)["$and"]
+    assert any(dict(condition).get("owner_mailbox_id") == {"$eq": mailbox.id} for condition in conditions)
+    assert any(dict(condition).get("folder") == {"$eq": MESSAGE_FOLDER.INBOX.value} for condition in conditions)
+    term_conditions = [dict(condition)["$or"] for condition in conditions if "$or" in dict(condition)]
+    assert [[next(iter(dict(field_condition).values())).pattern for field_condition in term] for term in term_conditions] == [["Quarterly"] * 4, ["Alice"] * 4]
+
+
+@pytest.mark.anyio
+async def test_label_search_requires_an_owned_label_and_escapes_regex_input():
+    user = db_user_model(full_name="Admin", email="admin@orion.test", username="admin")
+    mailbox = db_mailbox_model(user_id=user.id, mailbox_address="admin@mail.orion.test")
+    label = db_label_model(user_id=user.id, name="Clients", normalized_name="clients")
+    engine = FakeSearchEngine(mailbox, label=label)
+
+    await search_manager(engine).search_messages(user, "a+b", MESSAGE_SEARCH_SCOPE.LABEL, label_id=str(label.id))
+
+    conditions = dict(engine.search_query)["$and"]
+    assert any(dict(condition).get("label_ids") == {"$eq": label.id} for condition in conditions)
+    term_condition = next(dict(condition)["$or"] for condition in conditions if "$or" in dict(condition))
+    assert all(next(iter(dict(field_condition).values())).pattern == r"a\+b" for field_condition in term_condition)
+
+    with pytest.raises(HTTPException) as missing_label:
+        await search_manager(FakeSearchEngine(mailbox)).search_messages(user, "invoice", MESSAGE_SEARCH_SCOPE.LABEL, label_id=str(ObjectId()))
+    assert missing_label.value.status_code == 404
+
+
+class FakeMailboxEngine:
+    def __init__(self, addresses: list[str]):
+        self.mailboxes = [db_mailbox_model(user_id=ObjectId(), mailbox_address=address) for address in addresses]
+
+    async def find(self, *_args, **_kwargs):
+        return self.mailboxes
+
+
+def manager_with_mailboxes(addresses: list[str]) -> message_manager:
+    manager = object.__new__(message_manager)
+    manager._engine = FakeMailboxEngine(addresses)
+    return manager
+
+
+@pytest.mark.anyio
+async def test_partition_recipient_addresses_routes_active_mailboxes_internally(monkeypatch):
+    monkeypatch.setattr(CONSTANTS, "S_MAIL_DOMAIN", "mail.orionintelligence.org")
+    manager = manager_with_mailboxes(["test1@mail.orionintelligence.org", "test2@mail.orionintelligence.org"])
+
+    internal, external = await manager.partition_recipient_addresses([
+        "test1@mail.orionintelligence.org",
+        "person@example.org",
+        "test2@mail.orionintelligence.org",
+    ])
+
+    assert internal == ["test1@mail.orionintelligence.org", "test2@mail.orionintelligence.org"]
+    assert external == ["person@example.org"]
+
+
+@pytest.mark.anyio
+async def test_partition_recipient_addresses_rejects_unknown_local_mailbox(monkeypatch):
+    monkeypatch.setattr(CONSTANTS, "S_MAIL_DOMAIN", "mail.orionintelligence.org")
+    manager = manager_with_mailboxes([])
+
+    with pytest.raises(HTTPException) as error:
+        await manager.partition_recipient_addresses(["missing@mail.orionintelligence.org"])
+
+    assert error.value.status_code == 404
+    assert error.value.detail == "One or more local recipient mailboxes were not found"
+
+
+class FakeCryptoManager:
+    def __init__(self):
+        self.saved = []
+
+    async def save_message(self, message):
+        self.saved.append(message)
+        return message
+
+
+def build_sent_message():
+    return db_message_model(owner_mailbox_id=ObjectId(), sender_address="me@mail.orionintelligence.org", receiver_address="them@example.com", subject="s", body="b", direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.SENT, delivery_status=DELIVERY_STATUS.QUEUED)
+
+
+@pytest.mark.anyio
+async def test_a_failed_send_moves_into_the_inbox(monkeypatch):
+    crypto = FakeCryptoManager()
+    monkeypatch.setattr(message_crypto_manager, "get_instance", staticmethod(lambda: crypto))
+    message = build_sent_message()
+
+    await message_manager.mark_delivery_failed(message)
+
+    assert message.folder == MESSAGE_FOLDER.INBOX
+    assert message.delivery_status == DELIVERY_STATUS.FAILED
+    assert crypto.saved == [message]
+
+
+@pytest.mark.anyio
+async def test_a_failed_send_remembers_it_belongs_in_sent(monkeypatch):
+    crypto = FakeCryptoManager()
+    monkeypatch.setattr(message_crypto_manager, "get_instance", staticmethod(lambda: crypto))
+    message = build_sent_message()
+
+    await message_manager.mark_delivery_failed(message)
+
+    assert message.previous_folder == MESSAGE_FOLDER.SENT
+    assert MESSAGE_FOLDER.SENT in message_manager.allowed_destinations(message)

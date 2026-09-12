@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 from bson import ObjectId
 from fastapi import HTTPException
@@ -10,7 +12,7 @@ from orion.constants.constant import CONSTANTS
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-from tests.fake_model.fakes import FakeDisposablePgp, FakeMailboxEngine, RecordingEngine
+from tests.model.fakes import FakeDisposablePgp, FakeMailboxEngine, RecordingEngine
 
 
 @pytest.mark.anyio

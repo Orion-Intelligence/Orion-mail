@@ -14,7 +14,7 @@ from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_D
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_STATUS, PGP_KEY_TYPE, db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 from orion.services.pgp_manager.pgp_manager import pgp_manager
-from tests.fake_model.fakes import RecordingEngine
+from tests.model.fakes import RecordingEngine
 
 USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
 

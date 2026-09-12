@@ -2,20 +2,11 @@ from __future__ import annotations
 
 import pytest
 from bson import ObjectId
-
 from orion.api.interactive.sender_safety_manager.sender_safety_manager import sender_safety_manager
-from orion.services.mongo_manager.shared_model.db_domain_safety_model import (
-    REPORT_TYPE,
-    db_domain_report_model,
-    db_domain_reputation_model,
-    db_sender_block_model,
-)
-from orion.services.mongo_manager.shared_model.db_message_model import (
-    MESSAGE_DIRECTION,
-    MESSAGE_FOLDER,
-    db_message_model,
-)
+from orion.services.mongo_manager.shared_model.db_domain_safety_model import REPORT_TYPE, db_domain_report_model, db_domain_reputation_model, db_sender_block_model
+from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
+
 
 USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
 
@@ -138,3 +129,16 @@ async def test_report_domain_records_spam():
     assert result["report_type"] == REPORT_TYPE.SPAM.value
     assert result["new_report"] is True
     assert result["spam_reports"] == 1
+
+
+@pytest.mark.parametrize(
+    "model, extra",
+    [
+        (db_domain_report_model, {"reporter_user_id": ObjectId(), "report_type": "spam"}),
+        (db_domain_reputation_model, {}),
+        (db_sender_block_model, {"user_id": ObjectId()}),
+    ],
+)
+def test_sender_domain_is_normalized(model, extra):
+    instance = model(sender_domain="  Example.COM.  ", **extra)
+    assert instance.sender_domain == "example.com"

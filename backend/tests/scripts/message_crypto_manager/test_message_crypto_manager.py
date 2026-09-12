@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import pytest
 from bson import ObjectId
 from orion.services.encryption_manager.key_manager import key_manager
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
-from tests.fake_model.fakes import build_encryption_stack
+from tests.model.fakes import build_encryption_stack
 
 PLAIN_SUBJECT = "Quarterly report"
 PLAIN_BODY = "The figures are attached. Treat as confidential."
