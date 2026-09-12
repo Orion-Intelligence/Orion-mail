@@ -82,3 +82,33 @@ export function assertSelectionCleared() {
   void cy.get('[data-testid="selected-count"]')
     .should('not.exist');
 }
+
+export function sortByOldest() {
+  void cy.intercept({ method: 'GET', pathname: '**/messages/inbox' }).as('reloadInbox');
+
+  void cy.get('[data-testid="sort-button"]').should('be.visible').click();
+  void cy.get('[data-testid="sort-oldest-button"]').should('be.visible').click();
+
+  void cy.wait('@reloadInbox').its('response.statusCode').should('eq', 200);
+  void cy.get('[data-testid="inbox-section"]').should('be.visible');
+}
+
+export function selectAllVisible() {
+  void cy.get('[data-testid="select-options-button"]').should('be.visible').click();
+  void cy.get('[data-testid="select-all-button"]').should('be.visible').click();
+  void cy.get('[data-testid="selected-count"]').should('be.visible');
+}
+
+export function bulkMoveToSpam() {
+  void cy.intercept({ method: 'PUT', pathname: '**/messages/bulk' }).as('bulkMoveSpam');
+
+  void cy.get('[data-testid="move-selected-button"]').should('be.visible').click();
+  void cy.get('[data-testid="move-to-spam-button"]').should('be.visible').click();
+
+  void cy.wait('@bulkMoveSpam')
+    .then((interception) => {
+      expect(interception.request.body.action).to.eq('move');
+      expect(interception.request.body.destination).to.eq('spam');
+      expect(interception.response?.statusCode).to.eq(200);
+    });
+}

@@ -4,8 +4,11 @@ import {
   assertSelectionCleared,
   bulkArchive,
   bulkMarkRead,
+  bulkMoveToSpam,
   bulkTrash,
+  selectAllVisible,
   selectMessage,
+  sortByOldest,
 } from './controllers/17-bulk-actions.controller';
 
 import {
@@ -78,6 +81,26 @@ describe('Orion Mail - Bulk Actions', () => {
     bulkMarkRead();
 
     assertSelectionCleared();
+  });
+
+  it('sorts the inbox by oldest first', () => {
+    sortByOldest();
+  });
+
+  it('selects all visible messages', () => {
+    selectAllVisible();
+  });
+
+  it('moves selected messages to spam in bulk', () => {
+    selectMessage(subjectA);
+    selectMessage(subjectB);
+
+    assertSelectedCount(2);
+
+    bulkMoveToSpam();
+
+    assertMessageGone(subjectA);
+    assertMessageGone(subjectB);
   });
 
 });
