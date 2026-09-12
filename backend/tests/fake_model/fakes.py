@@ -70,6 +70,61 @@ class FakeMailboxEngine:
         return mailbox
 
 
+class FakeCountingCollection:
+    def __init__(self, count: int = 0):
+        self._count = count
+        self.delete_many_calls: list[Any] = []
+        self.update_one_calls: list[Any] = []
+
+    async def count_documents(self, _query):
+        return self._count
+
+    async def delete_many(self, query):
+        self.delete_many_calls.append(query)
+        return type("FakeDeleteResult", (), {"deleted_count": len(self.delete_many_calls)})()
+
+    async def update_one(self, filter_query, update, **_kwargs):
+        self.update_one_calls.append((filter_query, update))
+        return type("FakeUpdateResult", (), {"modified_count": 1})()
+
+
+class RecordingEngine:
+    def __init__(self, find_one=None, find=None, counts=None, save_error=None):
+        self._find_one = find_one or {}
+        self._find = find or {}
+        self._counts = counts or {}
+        self._save_error = save_error
+        self.saved: list[Any] = []
+        self.deleted: list[Any] = []
+        self._collections: dict[Any, FakeCountingCollection] = {}
+
+    async def find_one(self, model, *_args, **_kwargs):
+        behavior = self._find_one.get(model)
+        if isinstance(behavior, list):
+            return behavior.pop(0) if behavior else None
+        return behavior
+
+    async def find(self, model, *_args, **kwargs):
+        results = self._find.get(model, [])
+        limit = kwargs.get("limit")
+        return list(results[:limit]) if limit is not None else list(results)
+
+    async def save(self, document):
+        if self._save_error is not None:
+            raise self._save_error
+        self.saved.append(document)
+        return document
+
+    async def delete(self, document):
+        self.deleted.append(document)
+        return document
+
+    def get_collection(self, model):
+        if model not in self._collections:
+            self._collections[model] = FakeCountingCollection(self._counts.get(model, 0))
+        return self._collections[model]
+
+
 class FakePgpKey:
     def __init__(self):
         self.id = "pgpkey"
