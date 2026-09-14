@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import HTTPException, status
@@ -24,9 +25,16 @@ class orion_identity_client:
 
     @staticmethod
     def _headers() -> dict[str, str]:
+        public_host = urlsplit(CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL).netloc
+        if not public_host:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Orion Intelligence authentication is unavailable",
+            )
         return {
             "X-Orion-Mail-Client-Secret": CONSTANTS.S_ORION_MAIL_SSO_CLIENT_SECRET,
             "Content-Type": "application/json",
+            "Host": public_host,
         }
 
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
