@@ -14,4 +14,4 @@ pytest-forked==1.7.5
 python-dotenv==1.2.3
 python-multipart==0.0.32
 starlette==1.6.0
-uvicorn==0.52.4
+uvicorn==0.53.0
