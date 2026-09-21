@@ -1,3 +1,5 @@
+import { E2eMessageInfo } from './e2e.model';
+
 export type SenderIdentityType = 'original' | 'disposable';
 
 export interface SenderIdentity {
@@ -69,6 +71,7 @@ export interface MessageBase {
   bounce_status?: string | null;
   bounce_recipient?: string | null;
   authentication?: { spf: string | null; dkim: string | null; dmarc: string | null };
+  e2e?: E2eMessageInfo;
   created_at: string;
 }
 
@@ -196,6 +199,7 @@ export interface MessengerMessage {
   receiver_user_id: string;
   direction: MessengerMessageDirection;
   body: string;
+  e2e?: E2eMessageInfo;
   created_at: string;
   read_at?: string | null;
 }

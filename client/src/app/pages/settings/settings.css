@@ -1,0 +1,135 @@
+/* Light settings colors; dark colors come from the shared app palette. */
+section.mail-message-surface.mail-settings {
+  --settings-canvas: #f1f5fa;
+  --settings-card-shadow: 0 2px 5px rgb(35 59 88 / 3%);
+  --color-surface: #fff;
+  --color-surface-muted: #f5f8fc;
+  --color-field: #f8fafc;
+  --color-ink: #243247;
+  --color-ink-soft: #394b63;
+  --color-muted: #627187;
+  --color-placeholder: #6b7a90;
+  --color-outline: #e2e8f0;
+  --color-line: #d5dfeb;
+  --color-line-soft: #e0e7f0;
+  --color-row-line: #e9eef5;
+  --color-primary-soft: #edf5ff;
+  --color-success: #067647;
+  --color-success-soft: #ecf8f1;
+
+  min-height: 0;
+  height: 100%;
+  border-color: var(--color-line-soft);
+}
+
+/* The shared dark palette supplies all settings surface and text colors. */
+.dark-theme section.mail-message-surface.mail-settings {
+  --settings-canvas: var(--color-page);
+  --settings-card-shadow: 0 3px 10px rgb(0 0 0 / 14%);
+}
+
+app-settings {
+  min-height: 0;
+  flex: 1;
+}
+
+.mail-settings.mail-message-surface > header:first-child {
+  height: 60px;
+  border-bottom-color: var(--color-line-soft);
+  background: var(--color-surface);
+}
+
+.mail-settings .settings-canvas {
+  background: var(--settings-canvas);
+  scrollbar-gutter: stable;
+}
+
+.mail-settings .settings-card {
+  min-width: 0;
+  box-shadow: var(--settings-card-shadow);
+}
+
+.mail-settings .settings-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mail-settings .settings-section-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line-soft);
+  border-radius: 12px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.mail-settings .settings-count {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--color-line-soft);
+  border-radius: 20px;
+  background: var(--color-surface-muted);
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mail-settings .settings-identity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.mail-settings :is(input, select, textarea) {
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.mail-settings textarea {
+  display: block;
+  resize: vertical;
+}
+
+.mail-settings button:enabled {
+  cursor: pointer;
+}
+
+.mail-settings button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (width < 1200px) {
+  .mail-settings .settings-identity-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (width <= 560px) {
+  .mail-settings .settings-card-heading {
+    gap: 10px;
+  }
+
+  .mail-settings .settings-section-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .mail-settings .settings-actions button {
+    flex-grow: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mail-settings :is(input, select, textarea) {
+    transition: none;
+  }
+}

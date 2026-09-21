@@ -4,12 +4,14 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
 
 import { MessageService } from '../../services/message';
+import { E2eService } from '../../services/e2e';
 import { BulkMessageAction, MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType } from '../../shared/model/message.model';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { formatFullMailDate } from '../../shared/utils/date-utils';
 import { extractErrorMessage } from '../../shared/utils/http-error';
 import { summarizeMessageSource } from '../../shared/utils/message-source';
+import { removeHtmlIdentityFooter, splitTextIdentityFooter } from '../../shared/utils/message-presentation';
 import { Icon } from '../../shared/icons/icon/icon';
 import { ComposeRequest } from '../../shared/model/compose.model';
 import { Compose } from '../compose/compose';
@@ -24,6 +26,7 @@ import { MessageSource, RecipientMenu } from '../../shared/model/message-detail.
 })
 export class MessageDetail implements OnInit {
   private readonly domSanitizer = inject(DomSanitizer);
+  private readonly e2e = inject(E2eService);
 
   showRemoteImages = signal(false);
   threadMessages = signal<MessageDetailResponse[]>([]);
@@ -31,6 +34,8 @@ export class MessageDetail implements OnInit {
   conversation = computed(() => this.threadMessages().filter((item) => item.id !== this.message()?.id));
   renderedHtml = computed(() => this.prepareHtmlBody(/*safe*/ this.message()?.body_html ?? '', /*safe*/ this.showRemoteImages()));
   hasHtmlBody = computed(() => Boolean((this.message()?.body_html ?? '').trim()));
+  renderedText = computed(() => splitTextIdentityFooter(this.message()?.body ?? ''));
+  displayedIdentity = computed(() => this.hasHtmlBody() ? this.renderedHtml().identity : this.renderedText().identity);
   blockedImageCount = computed(() => this.renderedHtml().blocked);
   message = signal<MessageDetailResponse | null>(null);
   loading = signal(false);
@@ -85,7 +90,14 @@ export class MessageDetail implements OnInit {
   @ViewChild('movePicker') movePicker?: ElementRef<HTMLElement>;
   @ViewChild('moreMenu') moreMenu?: ElementRef<HTMLElement>;
 
-  constructor( private readonly route: ActivatedRoute, private readonly router: Router, private readonly messageService: MessageService, public readonly labelService: LabelService, ) {}
+  constructor( private readonly route: ActivatedRoute, private readonly router: Router, private readonly messageService: MessageService, public readonly labelService: LabelService, ) {
+    this.e2e.reloadOnKeyChange(() => {
+      const current = this.message();
+      if (current?.e2e) {
+        this.loadMessage(current.id);
+      }
+    });
+  }
 
   loadImagePreviews(message: MessageDetailResponse): void {
     this.releaseImagePreviews();
@@ -126,28 +138,29 @@ export class MessageDetail implements OnInit {
     void this.router.navigate(['/message', messageId], { queryParams: { from: this.source() } });
   }
 
-  prepareHtmlBody(rawHtml: string, allowRemoteImages: boolean): { html: string; blocked: number } {
+  prepareHtmlBody(rawHtml: string, allowRemoteImages: boolean): { html: string; blocked: number; identity: string } {
     const trimmed = rawHtml.trim();
     if (!trimmed) {
-      return { html: '', blocked: 0 };
+      return { html: '', blocked: 0, identity: '' };
     }
 
     const sanitized = this.domSanitizer.sanitize(/*safe*/ SecurityContext.HTML, /*safe*/ trimmed) ?? '';
-    if (allowRemoteImages) {
-      return { html: /*safe*/ sanitized, blocked: 0 };
-    }
-
     const parsed = new DOMParser().parseFromString(sanitized, 'text/html');
+    const identity = removeHtmlIdentityFooter(parsed);
     let blocked = 0;
     for (const image of Array.from(parsed.querySelectorAll('img'))) {
       const source = image.getAttribute('src') ?? '';
-      if (/^https?:/i.test(source)) {
+      if (!allowRemoteImages && /^https?:/i.test(source)) {
         image.removeAttribute('src');
         image.setAttribute('data-blocked-source', source);
         blocked += 1;
       }
     }
-    return { html: parsed.body.innerHTML, blocked };
+    return { html: parsed.body.innerHTML, blocked, identity };
+  }
+
+  unlockE2e(): void {
+    this.e2e.requestUnlock();
   }
 
   displayRemoteImages(): void {

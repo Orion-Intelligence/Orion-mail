@@ -1,12 +1,7 @@
+import { SOURCE_AUTH_METHODS, SOURCE_FAILING_VERDICTS, SOURCE_MAX_DELIVERY_DELAY_SECONDS } from '../constants/message-source.constants';
 import { MessageDetailResponse } from '../model/message.model';
-import { SourceSummaryRow, SourceVerdictTone } from '../model/message-source.model';
+import { SourceAuthMethod, SourceSummaryRow, SourceVerdictTone } from '../model/message-source.model';
 import { parseUtcDate } from './date-utils';
-
-type AuthMethod = 'spf' | 'dkim' | 'dmarc';
-
-const AUTH_METHODS: [AuthMethod, string][] = [['spf', 'SPF'], ['dkim', 'DKIM'], ['dmarc', 'DMARC']];
-const FAILING_VERDICTS = new Set(['fail', 'softfail', 'permerror', 'reject']);
-const MAX_DELIVERY_DELAY_SECONDS = 30 * 24 * 60 * 60;
 
 export function parseSourceHeaders(source: string): Map<string, string[]> {
   const headerEnd = source.search(/\r?\n\r?\n/);
@@ -29,10 +24,10 @@ function verdictTone(verdict: string): SourceVerdictTone {
   if (verdict === 'pass') {
     return 'pass';
   }
-  return FAILING_VERDICTS.has(verdict) ? 'fail' : 'neutral';
+  return SOURCE_FAILING_VERDICTS.has(verdict) ? 'fail' : 'neutral';
 }
 
-function authClause(headers: Map<string, string[]>, method: AuthMethod, verdict: string): string {
+function authClause(headers: Map<string, string[]>, method: SourceAuthMethod, verdict: string): string {
   const pattern = new RegExp(`(?:^|;)\\s*${method}\\s*=\\s*([a-z]+)([^;]*)`, 'i');
   for (const header of headers.get('authentication-results') ?? []) {
     const match = pattern.exec(header);
@@ -43,7 +38,7 @@ function authClause(headers: Map<string, string[]>, method: AuthMethod, verdict:
   return '';
 }
 
-function authDetail(headers: Map<string, string[]>, method: AuthMethod, verdict: string): string {
+function authDetail(headers: Map<string, string[]>, method: SourceAuthMethod, verdict: string): string {
   const clause = authClause(headers, method, verdict);
 
   if (method === 'spf') {
@@ -82,7 +77,7 @@ function createdAt(headers: Map<string, string[]>, message: MessageDetailRespons
   const formatted = created.toLocaleString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const seconds = storedAt ? Math.round((storedAt.getTime() - created.getTime()) / 1000) : -1;
 
-  if (message.direction !== 'incoming' || seconds < 0 || seconds > MAX_DELIVERY_DELAY_SECONDS) {
+  if (message.direction !== 'incoming' || seconds < 0 || seconds > SOURCE_MAX_DELIVERY_DELAY_SECONDS) {
     return formatted;
   }
   return `${formatted} (Delivered after ${deliveryDelay(seconds)})`;
@@ -93,7 +88,7 @@ function authenticationRows(headers: Map<string, string[]>, message: MessageDeta
     return [];
   }
 
-  const rows = AUTH_METHODS.flatMap(([method, label]): SourceSummaryRow[] => {
+  const rows = SOURCE_AUTH_METHODS.flatMap(([method, label]): SourceSummaryRow[] => {
     const verdict = (message.authentication?.[method] ?? '').trim().toLowerCase();
     return verdict ? [{ label, verdict: verdict.toUpperCase(), tone: verdictTone(verdict), value: authDetail(headers, method, verdict) }] : [];
   });

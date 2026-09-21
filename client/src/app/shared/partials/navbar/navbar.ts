@@ -16,6 +16,8 @@ import { SearchScope } from '../../model/search.model';
 import { ThemeService } from '../../../services/theme';
 import { Icon } from '../../icons/icon/icon';
 import { LabelDialog } from '../label-dialog/label-dialog';
+import { E2eUnlockDialog } from '../e2e-unlock-dialog/e2e-unlock-dialog';
+import { E2eService } from '../../../services/e2e';
 import { GO_TO_ROUTES, MAILBOX_ROUTE_SEGMENTS, MESSAGE_FOLDER_NAMES, MORE_ROUTES, MORE_STORAGE_KEY, SEARCHABLE_ROUTES, SEARCH_SCOPE_OPTIONS } from '../../constants/navbar.constants';
 import { SearchHintRequest } from '../../model/navbar.model';
 
@@ -39,7 +41,7 @@ function writeMoreState(open: boolean): void {
 
 @Component({
   selector: 'app-navbar',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, Icon, LabelDialog, Compose],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, Icon, LabelDialog, Compose, E2eUnlockDialog],
   host: { class: 'block h-dvh bg-transparent text-ink' },
   templateUrl: './navbar.html',
 })
@@ -50,6 +52,7 @@ export class Navbar implements OnInit {
   private pendingGoTo = false;
   private goToTimer?: ReturnType<typeof setTimeout>;
 
+  readonly e2e = inject(E2eService);
   readonly labelSkeletonRows = [0, 1, 2];
   mailbox = signal<Mailbox | null>(null);
   profileMenuOpen = signal(false);
@@ -101,6 +104,7 @@ export class Navbar implements OnInit {
     this.labelService.loadLabels().subscribe({ error: () => undefined });
     this.messageService.refreshFolderCounts();
     this.messageService.refreshStorageStatus();
+    void this.e2e.requirePrompt();
     this.mailPollService.start();
     this.mailPollService.requestNotificationPermission();
     if (MORE_ROUTES.some((route) => this.router.url.startsWith(route))) {

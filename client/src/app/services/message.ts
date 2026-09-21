@@ -1,9 +1,10 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Injectable, effect, inject, signal } from '@angular/core';
+import { Observable, from, map, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { EMPTY_FOLDER_COUNTS } from '../shared/constants/message.constants';
+import { E2eService } from './e2e';
 import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, DeleteMessageResponse, DraftMessageRequest, FolderCounts, InboxMessage, Mailbox, MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType, SavedPgpKey, SendMessageRequest, SendMessageResponse, SenderIdentity, SenderIdentityResponse, SenderReportResponse, SentMessage } from '../shared/model/message.model';
 
 @Injectable({
@@ -12,14 +13,25 @@ import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, DeleteMessa
 export class MessageService {
   private readonly apiBaseUrl = environment.apiBaseUrl;
   private readonly baseUrl = `${this.apiBaseUrl}/messages`;
+  private readonly e2e = inject(E2eService);
 
   readonly folderCounts = signal<FolderCounts>({ ...EMPTY_FOLDER_COUNTS, unread: { ...EMPTY_FOLDER_COUNTS } });
   readonly storageExceeded = signal(false);
   readonly mailboxRevision = signal(0);
 
-  constructor(private readonly http: HttpClient) { }
+  constructor(private readonly http: HttpClient) {
+    effect(() => {
+      if (this.e2e.revision() > 0) {
+        this.notifyMailboxChanged();
+      }
+    });
+  }
 
-  sendMessage(data: SendMessageRequest): Observable<SendMessageResponse> {
+  sendMessage(request: SendMessageRequest): Observable<SendMessageResponse> {
+    return from(this.e2e.sealOutgoing(request)).pipe(switchMap((data) => this.postMessage(data)), this.e2e.open());
+  }
+
+  private postMessage(data: SendMessageRequest): Observable<SendMessageResponse> {
     const formData = new FormData();
     formData.append('receiver_address', data.receiver_address);
     formData.append('subject', data.subject);
@@ -67,11 +79,11 @@ export class MessageService {
   }
 
   saveDraft(draft: DraftMessageRequest, draftId?: string): Observable<MessageDetailResponse> {
-    return draftId ? this.http.put<MessageDetailResponse>(`${this.baseUrl}/drafts/${draftId}`, draft) : this.http.post<MessageDetailResponse>(`${this.baseUrl}/drafts`, draft);
+    return from(this.e2e.sealDraft(draft)).pipe(switchMap((sealed) => draftId ? this.http.put<MessageDetailResponse>(`${this.baseUrl}/drafts/${draftId}`, sealed) : this.http.post<MessageDetailResponse>(`${this.baseUrl}/drafts`, sealed)), this.e2e.open());
   }
 
   getDraftMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/drafts`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/drafts`).pipe(this.e2e.open());
   }
 
   updateMailboxSettings(signature: string): Observable<{ mailbox_address: string; signature: string }> {
@@ -87,19 +99,19 @@ export class MessageService {
   }
 
   getSpamMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/spam`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/spam`).pipe(this.e2e.open());
   }
 
   getStarredMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/starred`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/starred`).pipe(this.e2e.open());
   }
 
   getImportantMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/important`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/important`).pipe(this.e2e.open());
   }
 
   getAllMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/all`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/all`).pipe(this.e2e.open());
   }
 
   searchMessages(query: string, scope = 'all', labelId?: string, limit?: number): Observable<MessageDetailResponse[]> {
@@ -110,19 +122,19 @@ export class MessageService {
     if (limit !== undefined) {
       params = params.set('limit', limit);
     }
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/search`, { params });
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/search`, { params }).pipe(this.e2e.open());
   }
 
   getSentMessages(): Observable<SentMessage[]> {
-    return this.http.get<SentMessage[]>(`${this.baseUrl}/sent`);
+    return this.http.get<SentMessage[]>(`${this.baseUrl}/sent`).pipe(this.e2e.open());
   }
 
   getArchivedMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/archive`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/archive`).pipe(this.e2e.open());
   }
 
   getTrashMessages(): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/trash`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/trash`).pipe(this.e2e.open());
   }
 
   loadFolderCounts(): Observable<FolderCounts> {
@@ -151,23 +163,23 @@ export class MessageService {
   }
 
   archiveMessage(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/archive`, {});
+    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/archive`, {}).pipe(this.e2e.open());
   }
 
   moveToTrash(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/trash`, {});
+    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/trash`, {}).pipe(this.e2e.open());
   }
 
   restoreMessage(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/restore`, {});
+    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/restore`, {}).pipe(this.e2e.open());
   }
 
   moveMessage(messageId: string, destination: MessageFolder): Observable<MessageDetailResponse> {
-    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/move`, { destination });
+    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/move`, { destination }).pipe(this.e2e.open());
   }
 
   markMessageUnread(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/unread`, {});
+    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/unread`, {}).pipe(this.e2e.open());
   }
 
   bulkUpdateMessages(messageIds: string[], action: BulkMessageAction, options: BulkMessageOptions = {}): Observable<BulkMessageResponse> {
@@ -175,19 +187,19 @@ export class MessageService {
       message_ids: messageIds,
       action,
       ...options,
-    });
+    }).pipe(switchMap((response) => of(response.messages).pipe(this.e2e.open(), map((messages) => ({ ...response, messages })))));
   }
 
   reportSender(messageId: string, reportType: ReportType): Observable<SenderReportResponse> {
-    return this.http.put<SenderReportResponse>(`${this.baseUrl}/${messageId}/report`, { report_type: reportType });
+    return this.http.put<SenderReportResponse>(`${this.baseUrl}/${messageId}/report`, { report_type: reportType }).pipe(this.e2e.open());
   }
 
   blockSender(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/block-sender`, {});
+    return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/block-sender`, {}).pipe(this.e2e.open());
   }
 
   unblockSender(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.delete<MessageDetailResponse>(`${this.baseUrl}/${messageId}/block-sender`);
+    return this.http.delete<MessageDetailResponse>(`${this.baseUrl}/${messageId}/block-sender`).pipe(this.e2e.open());
   }
 
   permanentlyDeleteMessage(messageId: string): Observable<DeleteMessageResponse> {
@@ -213,27 +225,27 @@ export class MessageService {
     if (oldestFirst) {
       params = params.set('oldest_first', true);
     }
-    return this.http.get<InboxMessage[]>(`${this.baseUrl}/inbox`, { params });
+    return this.http.get<InboxMessage[]>(`${this.baseUrl}/inbox`, { params }).pipe(this.e2e.open());
   }
 
   getThreadMessages(messageId: string): Observable<MessageDetailResponse[]> {
-    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/${messageId}/thread`);
+    return this.http.get<MessageDetailResponse[]>(`${this.baseUrl}/${messageId}/thread`).pipe(this.e2e.open());
   }
 
   getMessageById(messageId: string): Observable<MessageDetailResponse> {
-    return this.http.get<MessageDetailResponse>(`${this.baseUrl}/${messageId}`);
+    return this.http.get<MessageDetailResponse>(`${this.baseUrl}/${messageId}`).pipe(this.e2e.open());
   }
 
   setMessageLabels(messageId: string, labelIds: string[]): Observable<MessageDetailResponse> {
     return this.http.put<MessageDetailResponse>(`${this.baseUrl}/${messageId}/labels`, {
       label_ids: labelIds,
-    });
+    }).pipe(this.e2e.open());
   }
 
   downloadAttachment(attachmentId: string): Observable<Blob> {
     return this.http.get(`${this.apiBaseUrl}/attachments/${attachmentId}/download`, {
       responseType: 'blob',
-    });
+    }).pipe(switchMap((blob) => from(this.e2e.openAttachment(attachmentId, blob))));
   }
 
   downloadMessage(messageId: string): Observable<Blob> {

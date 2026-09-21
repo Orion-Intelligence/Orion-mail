@@ -6,6 +6,8 @@ from odmantic import ObjectId
 from odmantic.query import and_, or_
 
 from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager import disposable_mailbox_manager
+from orion.api.interactive.e2e_key_manager.e2e_key_manager import e2e_key_manager
+from orion.api.interactive.messenger_manager.messenger_enums import MESSENGER_TEXT
 from orion.api.interactive.messenger_manager.models.messenger_param_model import MessengerSendRequest
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
@@ -13,7 +15,6 @@ from orion.services.mongo_manager.shared_model.db_messenger_conversation_model i
 from orion.services.mongo_manager.shared_model.db_messenger_message_model import db_messenger_message_model
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_TYPE, db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-from orion.services.pgp_manager.pgp_manager import pgp_manager
 
 
 class messenger_manager:
@@ -69,8 +70,7 @@ class messenger_manager:
         return users[offset:offset + limit]
 
     async def list_conversations(self, current_user: db_user_model) -> list[dict]:
-        current_mailbox = await self.get_user_mailbox(current_user)
-        current_pgp_key = await self.get_original_pgp_key(current_user, current_mailbox, ensure_create=True)
+        await self.get_user_mailbox(current_user)
 
         conversations = await self._engine.find(
             db_messenger_conversation_model,
@@ -89,7 +89,6 @@ class messenger_manager:
                 await self.conversation_response(
                     conversation=conversation,
                     current_user=current_user,
-                    current_pgp_key=current_pgp_key,
                 )
             )
 
@@ -97,7 +96,6 @@ class messenger_manager:
 
     async def get_messages(self, current_user: db_user_model, other_user_id: str) -> list[dict]:
         current_mailbox = await self.get_user_mailbox(current_user)
-        current_pgp_key = await self.get_original_pgp_key(current_user, current_mailbox, ensure_create=True)
 
         other_user = await self.get_user_by_id(other_user_id)
         other_mailbox = await self.get_user_mailbox(other_user)
@@ -121,10 +119,9 @@ class messenger_manager:
                 await self._engine.save(message)
 
             results.append(
-                await self.message_response(
+                self.message_response(
                     message=message,
                     current_user=current_user,
-                    current_pgp_key=current_pgp_key,
                 )
             )
 
@@ -139,9 +136,6 @@ class messenger_manager:
         sender_mailbox = await self.get_user_mailbox(current_user)
         receiver_mailbox = await self.get_user_mailbox(receiver_user)
 
-        sender_pgp_key = await self.get_original_pgp_key(current_user, sender_mailbox, ensure_create=True)
-        receiver_pgp_key = await self.get_original_pgp_key(receiver_user, receiver_mailbox, ensure_create=True)
-
         conversation = await self.get_or_create_conversation(
             current_user=current_user,
             receiver_user=receiver_user,
@@ -149,9 +143,15 @@ class messenger_manager:
             receiver_mailbox=receiver_mailbox,
         )
 
-        encrypted_for_sender = await pgp_manager.get_instance().encrypt_bytes(request.body.encode("utf-8"), sender_pgp_key.public_key)
+        sender_e2e_key = await e2e_key_manager.get_instance().get_mailbox_key(sender_mailbox)
+        receiver_e2e_key = await e2e_key_manager.get_instance().get_mailbox_key(receiver_mailbox)
 
-        encrypted_for_receiver = await pgp_manager.get_instance().encrypt_bytes(request.body.encode("utf-8"), receiver_pgp_key.public_key)
+        if sender_e2e_key is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Set up your encryption key before sending chat messages")
+        if receiver_e2e_key is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This person has not set up encrypted mail yet, so they cannot receive chat messages")
+        if not e2e_key_manager.is_e2e_body(request.body):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chat messages must be end-to-end encrypted")
 
         message = await self._engine.save(
             db_messenger_message_model(
@@ -160,10 +160,10 @@ class messenger_manager:
                 receiver_user_id=receiver_user.id,
                 sender_mailbox_id=sender_mailbox.id,
                 receiver_mailbox_id=receiver_mailbox.id,
-                encrypted_for_sender=encrypted_for_sender,
-                encrypted_for_receiver=encrypted_for_receiver,
-                sender_key_fingerprint=sender_pgp_key.fingerprint,
-                receiver_key_fingerprint=receiver_pgp_key.fingerprint,
+                encrypted_for_sender=request.body,
+                encrypted_for_receiver=request.body,
+                sender_key_fingerprint=sender_e2e_key.fingerprint,
+                receiver_key_fingerprint=receiver_e2e_key.fingerprint,
             )
         )
 
@@ -172,7 +172,7 @@ class messenger_manager:
         conversation.updated_at = datetime.now(UTC)
         await self._engine.save(conversation)
 
-        return await self.message_response(message=message, current_user=current_user, current_pgp_key=sender_pgp_key)
+        return self.message_response(message=message, current_user=current_user)
 
     async def get_user_by_id(self, user_id: str) -> db_user_model:
         try:
@@ -250,7 +250,7 @@ class messenger_manager:
             )
         )
 
-    async def conversation_response(self, conversation: db_messenger_conversation_model, current_user: db_user_model, current_pgp_key: db_pgp_key_model) -> dict:
+    async def conversation_response(self, conversation: db_messenger_conversation_model, current_user: db_user_model) -> dict:
         other_user_id = conversation.user_b_id if conversation.user_a_id == current_user.id else conversation.user_a_id
 
         other_user = await self._engine.find_one(db_user_model, db_user_model.id == other_user_id)
@@ -267,10 +267,9 @@ class messenger_manager:
         latest_body = ""
 
         if latest_message is not None:
-            latest_body = await self.decrypt_message_for_user(
+            latest_body = self.stored_body_for_user(
                 message=latest_message,
                 current_user=current_user,
-                current_pgp_key=current_pgp_key,
             )
 
         unread_count = len([
@@ -286,8 +285,8 @@ class messenger_manager:
             "unread_count": unread_count,
         }
 
-    async def message_response(self, message: db_messenger_message_model, current_user: db_user_model, current_pgp_key: db_pgp_key_model) -> dict:
-        body = await self.decrypt_message_for_user(message=message, current_user=current_user, current_pgp_key=current_pgp_key)
+    def message_response(self, message: db_messenger_message_model, current_user: db_user_model) -> dict:
+        body = self.stored_body_for_user(message=message, current_user=current_user)
 
         return {
             "id": str(message.id),
@@ -300,7 +299,8 @@ class messenger_manager:
             "read_at": message.read_at.isoformat() if message.read_at else None,
         }
 
-    async def decrypt_message_for_user(self, message: db_messenger_message_model, current_user: db_user_model, current_pgp_key: db_pgp_key_model) -> str:
+    @staticmethod
+    def stored_body_for_user(message: db_messenger_message_model, current_user: db_user_model) -> str:
         if message.sender_user_id == current_user.id:
             encrypted_text = message.encrypted_for_sender
         elif message.receiver_user_id == current_user.id:
@@ -308,7 +308,7 @@ class messenger_manager:
         else:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You cannot access this chat message")
 
-        return await pgp_manager.get_instance().decrypt_text(encrypted_text=encrypted_text, wrapped_private_key=current_pgp_key.wrapped_private_key)
+        return encrypted_text if e2e_key_manager.is_e2e_body(encrypted_text) else MESSENGER_TEXT.LEGACY_CHAT
 
     @staticmethod
     def build_conversation_key(mailbox_a_id: ObjectId, mailbox_b_id: ObjectId) -> str:

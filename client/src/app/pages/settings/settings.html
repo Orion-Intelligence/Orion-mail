@@ -1,14 +1,19 @@
-<section aria-labelledby="settings-title" class="mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface" data-testid="settings-section">
+<section aria-labelledby="settings-title" class="mail-settings mail-message-surface mail-motion-page flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-2xl border border-line-soft bg-surface" data-testid="settings-section">
   <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-3" data-testid="settings-header">
     <button data-mail-action="back" type="button" (click)="backToInbox()" title="Back to Inbox" aria-label="Back to Inbox" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="back-button">
       <app-icon [name]="'back'" class="h-5 w-5" />
     </button>
     <h1 id="settings-title" class="text-base font-medium text-ink" data-testid="settings-title">Settings</h1>
-    @if (mailboxAddress()) { <span class="ml-auto pr-2 truncate text-xs text-muted" data-testid="mailbox-address">{{ mailboxAddress() }}</span> }
+    @if (mailboxAddress()) { <span class="ml-auto min-w-0 truncate rounded-full bg-surface-muted px-3 py-1.5 text-xs text-muted" [title]="mailboxAddress()" data-testid="mailbox-address">{{ mailboxAddress() }}</span> }
   </header>
 
-  <div class="min-h-0 flex-1 overflow-y-auto px-6 py-7 max-[720px]:px-4 max-[720px]:py-5" data-testid="settings-content">
-    <div class="mx-auto w-full max-w-220">
+  <div class="settings-canvas min-h-0 flex-1 overflow-y-auto px-8 py-8 max-[720px]:px-4 max-[720px]:py-5" data-testid="settings-content">
+    <div class="mx-auto w-full max-w-240">
+      <div class="mb-7">
+        <p class="mb-2 text-xs font-semibold tracking-widest text-primary uppercase">Your workspace</p>
+        <h2 class="text-2xl font-semibold tracking-tight text-ink">Mailbox preferences</h2>
+        <p class="mt-2 text-sm leading-6 text-muted">Manage your security, email identities, and the details that make your mail yours.</p>
+      </div>
       @if (errorMessage()) {
       <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>
       }
@@ -16,85 +21,126 @@
       <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mb-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{ statusMessage() }}</div>
       }
 
-      <section class="mb-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
-        <h2 class="text-lg font-medium text-ink">Disposable emails</h2>
-        <p class="mt-1 text-sm text-muted">You can keep up to 5 active disposable emails.</p>
+      <app-e2e-settings />
 
-        @if (identityErrorMessage()) {
-        <div class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ identityErrorMessage()
-          }}</div>
-        }
+      <div class="settings-identity-grid">
+        <section class="settings-card rounded-2xl border border-line-soft bg-surface p-6 max-[560px]:p-4" aria-labelledby="disposable-title">
+          <div class="settings-card-heading">
+            <span class="settings-section-icon"><app-icon name="mail" class="h-5 w-5" /></span>
+            <div class="min-w-0 flex-1">
+              <h2 id="disposable-title" class="text-base font-semibold text-ink">Disposable emails</h2>
+              <p class="mt-1 text-sm leading-5 text-muted">Extra addresses for a little more privacy.</p>
+            </div>
+            <span class="settings-count" aria-label="Active disposable emails">{{ disposableEmails().length }} / 5</span>
+          </div>
 
-        @if (identityStatusMessage()) {
-        <div class="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{
-          identityStatusMessage() }}</div>
-        }
+          @if (identityErrorMessage()) {
+          <div class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ identityErrorMessage()
+            }}</div>
+          }
 
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <select class="h-10 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none" [value]="selectedPgpKeyId()" (change)="selectedPgpKeyId.set($any($event.target).value)">
-            <option value="">Generate new PGP</option>
-            @for (key of savedPgpKeys(); track key.id) {
-            <option [value]="key.id">Use saved PGP — {{ key.fingerprint }}</option>
+          @if (identityStatusMessage()) {
+          <div class="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success" role="status">{{
+            identityStatusMessage() }}</div>
+          }
+
+          <div class="mt-5 grid gap-4">
+            <div>
+            <label for="disposable-pgp" class="mb-2 block text-sm font-medium text-ink-soft">Encryption key</label>
+            <select id="disposable-pgp" class="h-11 w-full min-w-0 rounded-lg border border-outline bg-field px-3 text-sm text-ink outline-none focus:border-primary focus:ring-1 focus:ring-primary" [value]="selectedPgpKeyId()" (change)="selectedPgpKeyId.set($any($event.target).value)">
+              <option value="">Generate new PGP</option>
+              @for (key of savedPgpKeys(); track key.id) {
+              <option [value]="key.id">Use saved PGP — {{ key.fingerprint }}</option>
+              }
+            </select>
+            </div>
+
+            <div>
+            <label for="disposable-signature" class="mb-2 block text-sm font-medium text-ink-soft">Identity signature <span class="font-normal text-muted">(required)</span></label>
+            <textarea id="disposable-signature" aria-describedby="disposable-signature-help" [value]="newDisposableSignature()" (input)="newDisposableSignature.set($any($event.target).value)" rows="3" placeholder="e.g. Newsletter subscriptions" data-testid="disposable-signature-input" class="w-full rounded-lg border border-outline bg-field px-3 py-2 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
+            <p id="disposable-signature-help" class="mt-1 text-xs leading-5 text-muted">Add a signature to enable address creation. You can keep up to 5 active addresses.</p>
+            </div>
+
+            <button type="button" (click)="generateDisposableEmail()" [disabled]="identitySaving() || disposableEmails().length >= 5 || !newDisposableSignature().trim()" data-testid="generate-disposable-button" class="flex min-h-11 items-center justify-center gap-2 rounded-full border-none bg-primary-solid px-5 py-2 text-sm font-medium text-on-primary hover:enabled:bg-primary-solid-hover disabled:cursor-not-allowed disabled:opacity-55">
+              <app-icon name="plus" class="h-4 w-4" />
+              {{ identitySaving() ? 'Generating…' : 'Generate disposable email' }}
+            </button>
+            @if (disposableEmails().length >= 5) {
+            <p class="text-xs leading-5 text-muted">All 5 addresses are in use. Delete an address to create another.</p>
             }
-          </select>
+          </div>
 
-          <textarea [value]="newDisposableSignature()" (input)="newDisposableSignature.set($any($event.target).value)" rows="3" placeholder="Enter disposable identity signature" data-testid="disposable-signature-input" class="w-full rounded-lg border border-outline bg-field px-3 py-2 text-sm text-ink outline-none">
-</textarea>
+          <div class="mt-4 space-y-2">
+            @for (identity of disposableEmails(); track identity.id) {
+            <div class="rounded-lg border border-line-soft bg-surface px-3 py-3" data-testid="disposable-email-item">
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium text-ink">{{ identity.mailbox_address }}</p>
+                  <p class="truncate text-xs text-muted">PGP: {{ identity.fingerprint }}</p>
+                  <p class="mt-2 whitespace-pre-wrap text-xs text-muted">Signature: {{ identity.identity_signature }}</p>
+                </div>
 
-          <button type="button" (click)="generateDisposableEmail()" [disabled]="identitySaving() || disposableEmails().length >= 5 || !newDisposableSignature().trim()" data-testid="generate-disposable-button" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary disabled:cursor-wait disabled:opacity-55">
-            {{ identitySaving() ? 'Generating…' : 'Generate disposable email' }}
-          </button>
-        </div>
+                <button type="button" (click)="requestDeleteDisposableEmail(identity)" data-testid="delete-disposable-button" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+                  Delete
+                </button>
+              </div>
+            </div>
+            }
+            @empty {
+            <p class="rounded-xl border border-dashed border-line bg-surface-muted px-4 py-3 text-xs leading-5 text-muted">{{ identityLoading() ? 'Loading disposable emails…' : 'No disposable addresses yet. Create your first one above.' }}</p>
+            }
+          </div>
+        </section>
 
-        <div class="mt-4 space-y-2">
-          @for (identity of disposableEmails(); track identity.id) {
-          <div class="rounded-lg border border-line-soft bg-surface px-3 py-3" data-testid="disposable-email-item">
-            <div class="flex items-start justify-between gap-3">
+        <section class="settings-card rounded-2xl border border-line-soft bg-surface p-6 max-[560px]:p-4" aria-labelledby="saved-keys-title">
+          <div class="settings-card-heading">
+            <span class="settings-section-icon"><app-icon name="lock" class="h-5 w-5" /></span>
+            <div class="min-w-0 flex-1">
+              <h2 id="saved-keys-title" class="text-base font-semibold text-ink">Saved PGP keys</h2>
+              <p class="mt-1 text-sm leading-5 text-muted">Reuse keys across disposable addresses.</p>
+            </div>
+            <span class="settings-count" aria-label="Saved PGP keys">{{ savedPgpKeys().length }} / 5</span>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            @for (key of savedPgpKeys(); track key.id) {
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface px-3 py-2">
               <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-ink">{{ identity.mailbox_address }}</p>
-                <p class="truncate text-xs text-muted">PGP: {{ identity.fingerprint }}</p>
-                <p class="mt-2 whitespace-pre-wrap text-xs text-muted">Signature: {{ identity.identity_signature }}</p>
+                <p class="font-mono text-xs leading-5 text-ink [overflow-wrap:anywhere]">{{ key.fingerprint }}</p>
+                <p class="text-xs text-muted">{{ key.created_at }}</p>
               </div>
 
-              <button type="button" (click)="requestDeleteDisposableEmail(identity)" data-testid="delete-disposable-button" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
-                Delete
+              <button type="button" (click)="requestDeleteSavedPgpKey(key)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
+                Delete PGP
               </button>
             </div>
-          </div>
-          }
-        </div>
-      </section>
-
-      <section class="mb-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
-        <h2 class="text-lg font-medium text-ink">Saved PGP keys</h2>
-        <p class="mt-1 text-sm text-muted">You can keep up to 5 saved disposable PGP keys.</p>
-
-        <div class="mt-4 space-y-2">
-          @for (key of savedPgpKeys(); track key.id) {
-          <div class="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-surface px-3 py-2">
-            <div class="min-w-0">
-              <p class="truncate text-sm font-medium text-ink">{{ key.fingerprint }}</p>
-              <p class="text-xs text-muted">{{ key.created_at }}</p>
+            }
+            @empty {
+            <div class="mt-5 rounded-xl border border-dashed border-line bg-surface-muted px-5 py-8 text-center">
+              <span class="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-line-soft bg-surface text-icon"><app-icon name="lock" class="h-5 w-5" /></span>
+              <p class="text-sm font-medium text-ink-soft">No saved keys yet</p>
+              <p class="mx-auto mt-2 max-w-64 text-xs leading-5 text-muted">When you delete a disposable email, choose “Delete + keep PGP” to save its key here. You can keep up to 5.</p>
             </div>
-
-            <button type="button" (click)="requestDeleteSavedPgpKey(key)" class="h-8 cursor-pointer rounded-full border-none bg-danger-soft px-3 text-xs font-medium text-danger">
-              Delete PGP
-            </button>
+            }
           </div>
-          }
-        </div>
-      </section>
+        </section>
+      </div>
 
-      <form [formGroup]="form" (ngSubmit)="saveSettings()" class="rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4">
-        <h2 class="text-lg font-medium text-ink">Signature</h2>
-        <p class="mt-1 text-sm text-muted">Used as your main mailbox identity signature. If empty, your username will be
-          used.</p>
-        <textarea formControlName="signature" rows="6" maxlength="10000" aria-label="Email signature" placeholder="Your name&#10;Orion Intelligence" data-testid="signature-input" class="mt-4 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
+      <form [formGroup]="form" (ngSubmit)="saveSettings()" class="settings-card rounded-2xl border border-line-soft bg-surface p-6 max-[560px]:p-4" aria-labelledby="signature-title">
+        <div class="settings-card-heading">
+          <span class="settings-section-icon"><app-icon name="edit" class="h-5 w-5" /></span>
+          <div>
+            <h2 id="signature-title" class="text-base font-semibold text-ink">Signature</h2>
+            <p id="signature-help" class="mt-1 text-sm leading-5 text-muted">Your main mailbox identity. Leave it empty to use your username.</p>
+          </div>
+        </div>
+        <label for="mailbox-signature" class="mt-5 block text-sm font-medium text-ink-soft">Email signature</label>
+        <textarea id="mailbox-signature" formControlName="signature" rows="4" maxlength="10000" aria-label="Email signature" aria-describedby="signature-help" placeholder="Your name&#10;Orion Intelligence" data-testid="signature-input" class="mt-2 w-full rounded-lg border border-outline bg-field px-3.5 py-3 text-sm leading-6 text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary"></textarea>
         @if (form.controls.signature.touched && form.controls.signature.invalid) {
         <p animate.enter="mail-motion-notice-enter" class="mt-2 text-xs text-danger">A signature cannot exceed 10000
           characters.</p>
         }
-        <div class="mt-4 flex items-center justify-end gap-2">
+        <div class="settings-actions mt-5 flex flex-wrap items-center justify-end gap-2 border-t border-row-line pt-4">
           <button type="button" (click)="requestResetMainSignature()" [disabled]="loading() || saving()" data-testid="reset-signature-button" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-primary transition-colors hover:enabled:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55">
             Reset to username
           </button>
@@ -103,9 +149,16 @@
         </div>
       </form>
 
-      <form [formGroup]="configForm" (ngSubmit)="saveSystemConfig()" class="mt-5 rounded-2xl border border-line-soft bg-surface-muted p-5 max-[560px]:p-4" data-testid="attachment-config-form">
-        <h2 class="text-lg font-medium text-ink" data-testid="attachment-limits-title">Attachment limits</h2>
-        <p class="mt-1 text-sm text-muted">These limits apply to every mailbox on this server.</p>
+      <form [formGroup]="configForm" (ngSubmit)="saveSystemConfig()" class="settings-card mt-5 rounded-2xl border border-line-soft bg-surface p-6 max-[560px]:p-4" data-testid="attachment-config-form" aria-labelledby="attachment-title">
+        <div class="settings-card-heading flex-wrap">
+          <span class="settings-section-icon"><app-icon name="attach" class="h-5 w-5" /></span>
+          <div class="min-w-0 flex-1">
+            <h2 id="attachment-title" class="text-base font-semibold text-ink" data-testid="attachment-limits-title">Attachment limits</h2>
+            <p class="mt-1 text-sm leading-5 text-muted">Control file sizes and how long attachments are stored.</p>
+          </div>
+          <span class="settings-count">Server-wide</span>
+        </div>
+        <p class="mt-4 rounded-lg bg-primary-soft px-3 py-2.5 text-xs leading-5 text-primary">These limits apply to every mailbox on this server.</p>
 
         @if (configErrorMessage()) {
         <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ configErrorMessage() }}
@@ -117,7 +170,7 @@
         }
 
         @for (field of configFields; track field.key) {
-        <div class="mt-4 flex items-start justify-between gap-5 max-[560px]:flex-col max-[560px]:gap-2">
+        <div class="mt-4 flex items-center justify-between gap-5 border-b border-row-line pb-4 max-[560px]:items-start max-[560px]:flex-col max-[560px]:gap-3">
           <label [attr.for]="'config-' + field.key" class="min-w-0 flex-1">
             <span class="block text-sm font-medium text-ink">{{ field.label }}</span>
             <span class="mt-0.5 block text-xs text-muted">{{ field.description }}</span>

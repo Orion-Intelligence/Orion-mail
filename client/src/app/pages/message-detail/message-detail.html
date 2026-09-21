@@ -104,7 +104,9 @@
               }
 
               <div class="my-1 border-t border-line-soft"></div>
-              <button data-mail-action="translate" data-testid="translate-menu-button" role="menuitem" type="button" (click)="translateMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'translate'" class="h-4.5 w-4.5 text-icon" />Translate</button>
+              @if (!message()?.e2e) {
+                <button data-mail-action="translate" data-testid="translate-menu-button" role="menuitem" type="button" (click)="translateMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'translate'" class="h-4.5 w-4.5 text-icon" />Translate</button>
+              }
               <button data-mail-action="print" data-testid="print-button" role="menuitem" type="button" (click)="printMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'print'" class="h-4.5 w-4.5 text-icon" />Print</button>
               @if (message()?.has_original_source) {
               <button data-mail-action="download" data-testid="download-message-button" role="menuitem" type="button" (click)="downloadMessage()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'download'" class="h-4.5 w-4.5 text-icon" />Download message</button>
@@ -143,16 +145,25 @@
 
   @if (message()) {
     <div data-print-scroll animate.enter="mail-motion-content-enter" class="min-h-0 flex-1 overflow-y-auto">
-      <div data-testid="message-card" class="mail-message-card mail-soft-white mx-auto my-5 w-[calc(100%-2.5rem)] max-w-5xl rounded-2xl border border-line-soft bg-surface px-10 pt-8 pb-14 max-[820px]:px-5 max-[720px]:my-2 max-[720px]:w-[calc(100%-1rem)] max-[720px]:rounded-xl max-[720px]:pt-5">
-        <div class="mb-7 flex flex-wrap items-center gap-3 max-[720px]:mb-5">
+      <div data-testid="message-card" class="mail-message-card mail-soft-white mx-auto my-5 w-[calc(100%-2.5rem)] max-w-5xl rounded-2xl border border-line-soft bg-surface px-8 pt-7 pb-7 max-[820px]:px-5 max-[720px]:my-2 max-[720px]:w-[calc(100%-1rem)] max-[720px]:rounded-xl max-[720px]:pt-5">
+        <div class="mb-6 flex flex-wrap items-center gap-2.5 max-[720px]:mb-5">
           <h1 data-testid="message-subject" class="min-w-0 text-2xl leading-8 font-semibold tracking-[-0.025em] break-words text-ink max-[720px]:text-xl max-[720px]:leading-7">{{ message()?.subject || '(no subject)' }}</h1>
           <span class="inline-flex h-6 items-center rounded-lg bg-primary-soft px-2 text-[11px] font-semibold text-primary">{{ sourceName() }}</span>
+          @if (message()?.e2e; as e2eInfo) {
+            <span data-testid="e2e-badge" class="inline-flex h-6 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold" [class.bg-success-soft]="e2eInfo.state === 'decrypted' && e2eInfo.verified" [class.text-success]="e2eInfo.state === 'decrypted' && e2eInfo.verified" [class.bg-amber-soft]="e2eInfo.state !== 'decrypted' || !e2eInfo.verified" [class.text-warning]="e2eInfo.state !== 'decrypted' || !e2eInfo.verified" [title]="e2eInfo.warning || 'Encrypted in the sender\u2019s browser. Orion Mail cannot read it.'"><app-icon [name]="'lock'" class="h-3.5 w-3.5" />{{ e2eInfo.state === 'decrypted' ? (e2eInfo.verified ? 'End-to-end encrypted · verified sender' : 'End-to-end encrypted') : e2eInfo.state === 'locked' ? 'Encrypted · locked' : 'Encrypted · cannot decrypt' }}</span>
+            @if (e2eInfo.state === 'locked') {
+              <button type="button" (click)="unlockE2e()" data-testid="e2e-detail-unlock" class="h-7 cursor-pointer rounded-full border-none bg-primary-solid px-3 text-xs font-medium text-on-primary hover:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Unlock to read</button>
+            }
+          }
           @for (label of appliedLabels(); track label.id) {
             <span animate.enter="mail-motion-chip-enter" animate.leave="mail-motion-chip-leave" class="inline-flex h-6 items-center gap-1.5 rounded-lg bg-hover-soft px-2 text-[11px] font-medium text-ink-soft"><span class="h-2 w-2 rounded-sm" [class]="labelColorClass(label.color)"></span>{{ label.name }}</span>
           }
         </div>
+        @if (message()?.e2e?.warning; as e2eWarning) {
+          <div data-testid="e2e-warning" class="mb-5 rounded-lg bg-amber-soft px-4 py-3 text-sm text-warning" role="alert">{{ e2eWarning }}</div>
+        }
 
-        <div class="flex items-start gap-3 border-b border-line-soft pb-6">
+        <div class="mail-message-sender flex items-start gap-3 border-b border-line-soft pb-5">
           <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-bold uppercase text-primary">{{ message()?.sender_address?.charAt(0) }}</span>
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-5 max-[640px]:flex-col max-[640px]:gap-1">
@@ -216,13 +227,17 @@
               <button type="button" (click)="displayRemoteImages()" class="cursor-pointer rounded-full border-none bg-transparent px-3 py-1 text-xs font-semibold text-warning underline hover:bg-white/40 focus-visible:outline-2 focus-visible:outline-warning">Display images</button>
             </div>
           }
-          <div class="orion-html-body min-h-48 pt-7 text-[15px] leading-7 break-words text-ink-soft max-[720px]:pt-5" [innerHTML]="renderedHtml().html"></div>
+          <div class="mail-message-body orion-html-body pt-6 text-[15px] leading-7 break-words text-ink-soft max-[720px]:pt-5" [innerHTML]="renderedHtml().html"></div>
         } @else {
-          <div class="min-h-48 pt-7 text-[15px] leading-7 break-words whitespace-pre-wrap text-ink-soft max-[720px]:pt-5">{{ message()?.body }}</div>
+          <div class="mail-message-body pt-6 text-[15px] leading-7 break-words whitespace-pre-wrap text-ink-soft max-[720px]:pt-5">{{ renderedText().body }}</div>
+        }
+
+        @if (displayedIdentity()) {
+          <div class="mail-message-signature mt-5 border-t border-line-soft pt-4 text-sm leading-6 whitespace-pre-wrap text-muted">{{ displayedIdentity() }}</div>
         }
 
         @if (message()?.attachments && message()!.attachments.length > 0) {
-          <section data-testid="attachments-section" class="mt-9 border-t border-line-soft pt-6" aria-labelledby="attachments-heading">
+          <section data-testid="attachments-section" class="mt-6 border-t border-line-soft pt-5" aria-labelledby="attachments-heading">
             <div class="mb-3 flex items-center gap-2">
               <app-icon [name]="'attach'" class="h-4 w-4 text-muted" />
               <h2 id="attachments-heading" class="text-sm font-semibold text-ink">{{ message()!.attachments.length }} {{ message()!.attachments.length === 1 ? 'attachment' : 'attachments' }}</h2>
@@ -230,7 +245,7 @@
 
             <div class="grid grid-cols-2 gap-3 max-[760px]:grid-cols-1">
               @for (attachment of message()!.attachments; track attachment.id) {
-                <div animate.enter="mail-motion-chip-enter" class="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+                <div animate.enter="mail-motion-chip-enter" class="mail-message-attachment flex min-w-0 items-center gap-3 rounded-xl border border-line-soft bg-surface-muted p-3">
                   @if (imagePreviews()[attachment.id]; as previewUrl) {
                     <img [src]="previewUrl" alt="Attachment preview" [alt]="attachment.original_filename" class="h-11 w-11 shrink-0 rounded-xl object-cover" />
                   } @else {
@@ -272,7 +287,7 @@
         @if (replyRequest(); as request) {
           <app-compose data-print-hidden data-testid="inline-compose" [inline]="true" [request]="request" (closed)="replyRequest.set(null)" (sent)="onReplySent($event)" />
         } @else if (canReply()) {
-          <div data-print-hidden class="mt-6 flex flex-wrap items-center gap-2">
+          <div data-print-hidden class="mail-message-reply-actions mt-6 flex flex-wrap items-center gap-2 border-t border-line-soft pt-5">
             <button data-mail-action="reply" data-testid="reply-button" type="button" (click)="reply()" class="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'reply'" class="h-4.5 w-4.5" />Reply</button>
             @if (message()?.direction === 'incoming') {
               <button type="button" (click)="replyAll()" class="flex h-9 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'replyAll'" class="h-4.5 w-4.5" />Reply all</button>

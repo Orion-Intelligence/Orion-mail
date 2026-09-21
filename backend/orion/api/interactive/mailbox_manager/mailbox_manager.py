@@ -13,6 +13,7 @@ from orion.services.mongo_manager.shared_model.db_domain_safety_model import db_
 from orion.services.mongo_manager.shared_model.db_label_model import db_label_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_message_model import db_message_model
+from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_TYPE, db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager import disposable_mailbox_manager
 
@@ -157,6 +158,7 @@ class mailbox_manager:
         await self._engine.get_collection(db_address_book_entry_model).delete_many({"owner_mailbox_id": mailbox.id})
         await self._engine.get_collection(db_label_model).delete_many({"user_id": current_user.id})
         await self._engine.get_collection(db_sender_block_model).delete_many({"user_id": current_user.id})
+        await self._engine.get_collection(db_pgp_key_model).delete_many({"owner_mailbox_id": mailbox.id, "key_type": PGP_KEY_TYPE.E2E.value})
         await self._engine.delete(mailbox)
         return {"message": "Mailbox and all stored mail deleted"}
 

@@ -3,7 +3,7 @@
     <div class="px-10 pt-9 pb-8 max-[520px]:px-6 max-[520px]:pt-7 max-[520px]:pb-6">
       <header class="text-center" data-testid="configure-email-header">
         <div class="mb-6 flex justify-center">
-          <img src="assets/images/logo-wide.svg" alt="Orion Intelligence" class="h-8 w-auto" data-testid="orion-logo" />
+          <img src="assets/images/logo-wide.svg" alt="Orion Intelligence" class="mail-configure-logo h-8 w-auto" data-testid="orion-logo" />
         </div>
         <h1 id="configure-email-title" class="text-[26px] leading-8 font-normal tracking-[-0.01em] text-ink" data-testid="configure-email-title">Create your Orion Mail address</h1>
         <p class="mx-auto mt-2 max-w-sm text-sm leading-5 text-ink-soft" data-testid="configure-email-description">Your Orion Intelligence username will be used for your permanent mail address.</p>
@@ -19,7 +19,7 @@
               <p class="mt-0.5 truncate text-xs text-muted" data-testid="account-detail">{{ accountDetail() }}</p>
             }
           </div>
-          <span class="flex shrink-0 items-center gap-1.5 rounded-full border border-[#e1eee6] bg-[#f0f7f3] px-2.5 py-1 text-[11px] font-medium text-[#5f7467] max-[420px]:hidden" data-testid="connection-status">
+          <span class="mail-connection-status flex shrink-0 items-center gap-1.5 rounded-full border border-[#e1eee6] bg-[#f0f7f3] px-2.5 py-1 text-[11px] font-medium text-[#5f7467] max-[420px]:hidden" data-testid="connection-status">
             <span class="h-1.5 w-1.5 rounded-full bg-[#79a98d]"></span>
             Connected
           </span>

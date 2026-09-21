@@ -85,3 +85,8 @@ class orion_identity_client:
         await self._post(
             "/api/sso/mail/revoke", {"session_token": session_token}
         )
+
+    async def set_mail_passphrase(self, session_token: str, verifier: str | None) -> None:
+        await self._post(
+            "/api/sso/mail/passphrase", {"session_token": session_token, "verifier": verifier}
+        )

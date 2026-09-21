@@ -1,7 +1,8 @@
-import { Component, computed, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { MessageService } from '../../services/message';
+import { E2eService } from '../../services/e2e';
 import { SentMessage } from '../../shared/model/message.model';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
@@ -40,6 +41,9 @@ export class Sent implements OnInit {
   });
 
   constructor( private readonly messageService: MessageService, private readonly router: Router, private readonly searchService: SearchService, private readonly labelService: LabelService, ) {
+    inject(E2eService).reloadOnKeyChange(() => {
+      this.loadSentMessages();
+    });
     this.searchTerm = this.searchService.searchTerm;
   }
 

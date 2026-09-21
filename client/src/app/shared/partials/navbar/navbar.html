@@ -16,7 +16,7 @@
     <div data-testid="mail-search" class="flex min-w-0 flex-1 items-center" role="search">
       @if (showSearch()) {
       <div #searchWrapper class="relative w-full max-w-180">
-        <div class="mail-soft-white flex h-12 w-full items-center rounded-3xl border border-outline/25 bg-search px-1 transition-[background-color,border-color] focus-within:border-primary/40 focus-within:bg-field max-[720px]:h-10">
+        <div class="mail-search-field mail-soft-white flex h-12 w-full items-center rounded-3xl border border-outline/25 bg-search px-1 transition-[background-color,border-color] focus-within:border-primary/40 focus-within:bg-field max-[720px]:h-10">
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-icon">
             <app-icon [name]="'search'" class="h-5 w-5" />
           </span>
@@ -39,24 +39,24 @@
 
         @if (searchScopeMenuOpen()) {
         <div data-testid="search-scope-menu" role="menu" aria-label="Search in" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-[calc(100%+6px)] right-0 z-[130] max-h-[min(32rem,calc(100vh-5.5rem))] w-68 overflow-y-auto rounded-xl border py-2">
-          <p class="px-4 pt-1 pb-2 text-xs font-medium text-[#5f6368]">Search in</p>
+          <p class="px-4 pt-1 pb-2 text-xs font-medium text-muted">Search in</p>
           @for (option of searchScopeOptions; track option.value) {
           <button [attr.data-testid]="'search-scope-option-' + option.value" type="button" role="menuitemradio" [attr.aria-checked]="searchScopeSelected(option.value)" (mousedown)="$event.preventDefault()" (click)="selectSearchScope(option.value)" class="mail-google-dropdown-option flex h-10 w-full cursor-pointer items-center gap-3 border-none px-4 text-left text-sm focus-visible:outline-none">
-            <app-icon [name]="option.icon" class="h-4.5 w-4.5 shrink-0 text-[#5f6368]" />
+            <app-icon [name]="option.icon" class="h-4.5 w-4.5 shrink-0 text-muted" />
             <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
             @if (searchScopeSelected(option.value)) { <app-icon [name]="'check'"
-              class="h-4.5 w-4.5 shrink-0 text-[#1967d2]" /> }
+              class="h-4.5 w-4.5 shrink-0 text-primary" /> }
           </button>
           }
           @if (labelService.labels().length > 0) {
-          <div class="my-2 border-t border-[#e8eaed]"></div>
-          <p class="px-4 pt-1 pb-2 text-xs font-medium text-[#5f6368]">Labels</p>
+          <div class="my-2 border-t border-line-soft"></div>
+          <p class="px-4 pt-1 pb-2 text-xs font-medium text-muted">Labels</p>
           @for (label of labelService.labels(); track label.id) {
           <button [attr.data-testid]="'search-label-option-' + label.id" type="button" role="menuitemradio" [attr.aria-checked]="searchScopeSelected('label:' + label.id)" (mousedown)="$event.preventDefault()" (click)="selectSearchScope('label:' + label.id)" class="mail-google-dropdown-option flex h-10 w-full cursor-pointer items-center gap-3 border-none px-4 text-left text-sm focus-visible:outline-none">
             <span class="h-2.5 w-2.5 shrink-0 rounded-full" [class]="labelColorClass(label.color)"></span>
             <span class="min-w-0 flex-1 truncate">{{ label.name }}</span>
             @if (searchScopeSelected('label:' + label.id)) { <app-icon [name]="'check'"
-              class="h-4.5 w-4.5 shrink-0 text-[#1967d2]" /> }
+              class="h-4.5 w-4.5 shrink-0 text-primary" /> }
           </button>
           }
           }
@@ -64,15 +64,15 @@
         } @else if (searchSuggestionsOpen() && searchTerm().trim()) {
         <div data-testid="search-suggestions" id="mail-search-suggestions" role="listbox" aria-label="Search suggestions" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-[calc(100%+6px)] right-0 left-0 z-[130] max-h-[min(26rem,calc(100vh-5.5rem))] overflow-y-auto rounded-xl border py-2">
           <button data-testid="search-submit-option" [id]="searchOptionId(0)" type="button" role="option" [attr.aria-selected]="activeSearchOption() === 0" (mouseenter)="activateSearchOption(0)" (mousedown)="$event.preventDefault()" (click)="submitSearch()" class="mail-google-dropdown-option flex min-h-12 w-full cursor-pointer items-center gap-3 border-none px-4 text-left focus-visible:outline-none">
-            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#e8f0fe] text-[#1967d2]"><app-icon
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary"><app-icon
                 [name]="'search'" class="h-4.5 w-4.5" /></span>
             <span class="min-w-0 flex-1 truncate text-sm">Search for <span class="font-medium">“{{ searchTerm().trim()
                 }}”</span></span>
-            <span class="max-w-28 shrink-0 truncate text-xs text-[#5f6368]">{{ searchScopeLabel() }}</span>
+            <span class="max-w-28 shrink-0 truncate text-xs text-muted">{{ searchScopeLabel() }}</span>
           </button>
           @if (searchHintsLoading()) {
-          <div class="mx-4 my-1 h-0.5 overflow-hidden rounded-full bg-[#e8eaed]">
-            <div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-[#1967d2]"></div>
+          <div class="mx-4 my-1 h-0.5 overflow-hidden rounded-full bg-line-soft">
+            <div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div>
           </div>
           }
           @for (hint of searchHints(); track hint.id; let i = $index) {
@@ -81,14 +81,14 @@
               searchHintCorrespondent(hint).charAt(0) }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm font-medium">{{ hint.subject || '(no subject)' }}</span>
-              <span class="mt-0.5 block truncate text-xs text-[#5f6368]">{{ searchHintCorrespondent(hint) }} · {{
+              <span class="mt-0.5 block truncate text-xs text-muted">{{ searchHintCorrespondent(hint) }} · {{
                 hint.body }}</span>
             </span>
-            <span class="shrink-0 rounded-full bg-[#f1f3f4] px-2 py-1 text-[11px] text-[#5f6368]">{{
+            <span class="shrink-0 rounded-full bg-chip px-2 py-1 text-[11px] text-muted">{{
               searchHintFolder(hint) }}</span>
           </button>
           } @empty {
-          @if (!searchHintsLoading()) { <p class="px-4 py-3 text-sm text-[#5f6368]">No quick matches. Press Enter to
+          @if (!searchHintsLoading()) { <p class="px-4 py-3 text-sm text-muted">No quick matches. Press Enter to
             search all matching mail.</p> }
           }
         </div>
@@ -292,6 +292,10 @@
 
   @if (labelService.createDialogOpen()) {
   <app-label-dialog data-testid="label-dialog" class="mail-paper-surface mail-soft-white" />
+  }
+
+  @if (e2e.prompt() !== 'none') {
+  <app-e2e-unlock-dialog data-testid="e2e-unlock-dialog" class="mail-paper-surface mail-soft-white" />
   }
 
   @if (composeService.notice()) {

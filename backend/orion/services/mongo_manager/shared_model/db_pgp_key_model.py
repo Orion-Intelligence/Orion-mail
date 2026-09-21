@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Optional
 
 from odmantic import Field, Model, ObjectId
 
@@ -11,6 +12,7 @@ from orion.services.mongo_manager.mongo_enums import MONGO_COLLECTIONS
 class PGP_KEY_TYPE(str, Enum):
     ORIGINAL = "original"
     DISPOSABLE = "disposable"
+    E2E = "e2e"
 
 
 class PGP_KEY_STATUS(str, Enum):
@@ -32,6 +34,15 @@ class db_pgp_key_model(Model):
     fingerprint: str = Field(unique=True)
     public_key: str
     wrapped_private_key: str
+    recovery_private_key: Optional[str] = Field(default=None)
+    kdf_salt: Optional[str] = Field(default=None)
+    verifier_hash: Optional[str] = Field(default=None)
+    recovery_verifier_hash: Optional[str] = Field(default=None)
+    failed_unlocks: int = Field(default=0, ge=0)
+    unlock_blocked_until: Optional[datetime] = Field(default=None)
+    tab_secret: Optional[str] = Field(default=None)
+    tab_secret_binding: Optional[str] = Field(default=None)
+    tab_secret_expires_at: Optional[datetime] = Field(default=None)
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

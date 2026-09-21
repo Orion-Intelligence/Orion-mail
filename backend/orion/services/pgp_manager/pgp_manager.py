@@ -49,6 +49,29 @@ class pgp_manager:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PGP operation failed")
         return stdout
 
+    async def key_fingerprint(self, armored_key: str) -> str | None:
+        with self._workspace("orion-pgp-inspect-") as temp_dir:
+            try:
+                listing = await self._run_gpg(["--homedir", str(temp_dir), "--batch", "--with-colons", "--show-keys"], armored_key.encode("utf-8"))
+            except HTTPException:
+                return None
+
+        for line in listing.decode(errors="replace").splitlines():
+            parts = line.split(":")
+            if parts[0] == "fpr" and len(parts) > 9:
+                return parts[9].upper()
+        return None
+
+    async def private_key_is_locked(self, armored_key: str) -> bool:
+        with self._workspace("orion-pgp-inspect-") as temp_dir:
+            try:
+                packets = await self._run_gpg(["--homedir", str(temp_dir), "--batch", "--list-packets"], armored_key.encode("utf-8"))
+            except HTTPException:
+                return False
+
+        secret_packets = [section.split("\n:", 1)[0] for section in packets.decode(errors="replace").split(":secret ")[1:]]
+        return bool(secret_packets) and all("protected" in section for section in secret_packets)
+
     async def generate_key_pair(self) -> tuple[str, str, str]:
         with self._workspace("orion-pgp-") as temp_dir:
             batch = f"""
@@ -101,71 +124,3 @@ Expire-Date: 0
             ])
 
             return sig_path.read_text()
-
-    async def encrypt_bytes(self, raw_data: bytes, public_key: str) -> str:
-        with self._workspace("orion-pgp-encrypt-") as temp_dir:
-            data_path = temp_dir / "message.txt"
-            encrypted_path = temp_dir / "message.asc"
-
-            await self._run_gpg(
-                ["--homedir", str(temp_dir), "--batch", "--import"],
-                public_key.encode(),
-            )
-
-            keys = await self._run_gpg([
-                "--homedir", str(temp_dir),
-                "--batch",
-                "--with-colons",
-                "--fingerprint",
-                "--list-keys",
-            ])
-
-            fingerprint = ""
-
-            for line in keys.decode().splitlines():
-                parts = line.split(":")
-                if parts[0] == "fpr":
-                    fingerprint = parts[9]
-                    break
-
-            if not fingerprint:
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="PGP public key import failed")
-
-            data_path.write_bytes(raw_data)
-
-            await self._run_gpg([
-                "--homedir", str(temp_dir),
-                "--batch",
-                "--yes",
-                "--trust-model", "always",
-                "--armor",
-                "--encrypt",
-                "--recipient", fingerprint,
-                "--output", str(encrypted_path),
-                str(data_path),
-            ])
-
-            return encrypted_path.read_text()
-
-    async def decrypt_text(self, encrypted_text: str, wrapped_private_key: str) -> str:
-        with self._workspace("orion-pgp-decrypt-") as temp_dir:
-            encrypted_path = temp_dir / "message.asc"
-
-            private_key = key_manager.get_instance().unwrap(wrapped_private_key)
-
-            await self._run_gpg(
-                ["--homedir", str(temp_dir), "--batch", "--import"],
-                private_key.encode(),
-            )
-
-            encrypted_path.write_text(encrypted_text)
-
-            decrypted = await self._run_gpg([
-                "--homedir", str(temp_dir),
-                "--batch",
-                "--yes",
-                "--decrypt",
-                str(encrypted_path),
-            ])
-
-            return decrypted.decode(errors="replace")

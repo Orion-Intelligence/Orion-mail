@@ -1,12 +1,14 @@
-import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild, computed, effect, input, output, signal, untracked } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subscription, catchError, debounceTime, distinctUntilChanged, map, of, switchMap } from 'rxjs';
+import { Subscription, catchError, debounceTime, distinctUntilChanged, from, map, of, switchMap } from 'rxjs';
 
 import { Icon } from '../../shared/icons/icon/icon';
 import { IconName } from '../../shared/model/icon.model';
 import { AddressBookService } from '../../services/address-book';
 import { AddressHint } from '../../shared/model/address-book.model';
 import { ComposeService } from '../../services/compose';
+import { E2eService } from '../../services/e2e';
+import { E2eKeyChange, E2eSendMode, E2eSendPlan } from '../../shared/model/e2e.model';
 import { ComposeRequest } from '../../shared/model/compose.model';
 import { MessageService } from '../../services/message';
 import { Attachment, DraftMessageRequest, SenderIdentity } from '../../shared/model/message.model';
@@ -29,6 +31,8 @@ export class Compose implements AfterViewInit, OnDestroy {
   private savingDraft = false;
   private draftChangedWhileSaving = false;
   private pendingDiscard = false;
+  private lockedDraftId = '';
+  private readonly e2e = inject(E2eService);
 
   request = input<ComposeRequest | null>(null);
   inline = input(false);
@@ -55,6 +59,8 @@ export class Compose implements AfterViewInit, OnDestroy {
   forwardMessageId?: string;
   form;
   senderIdentities = signal<SenderIdentity[]>([]);
+  e2eMode = signal<E2eSendMode>('plain');
+  e2eChanges = signal<E2eKeyChange[]>([]);
   @ViewChild('bodyArea') bodyArea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('richEditor') richEditor?: ElementRef<HTMLDivElement>;
   @ViewChild('receiverInput') receiverInput?: ElementRef<HTMLInputElement>;
@@ -74,6 +80,14 @@ export class Compose implements AfterViewInit, OnDestroy {
       this.saveDraft();
     });
     this.bindRecipientHints();
+    this.bindE2ePlan();
+    effect(() => {
+      if (this.e2e.status() === 'unlocked' && this.lockedDraftId) {
+        untracked(() => {
+          this.loadDraft(this.lockedDraftId);
+        });
+      }
+    });
     effect(() => {
       const request = this.request();
       untracked(() => {
@@ -114,6 +128,40 @@ export class Compose implements AfterViewInit, OnDestroy {
         this.activeHintIndex.set(-1);
       }
     }));
+  }
+
+  private recipientRequest(): { receiver_address: string; cc_addresses: string[]; bcc_addresses: string[]; sender_identity_type: string } {
+    const value = this.form.getRawValue();
+    const split = (addresses: string) => addresses.split(/[;,]/).map((address) => address.trim()).filter(Boolean);
+    return { receiver_address: value.receiver_address.trim(), cc_addresses: split(value.cc_addresses), bcc_addresses: split(value.bcc_addresses), sender_identity_type: value.sender_identity_type };
+  }
+
+  private applyPlan(plan: E2eSendPlan | null): void {
+    this.e2eMode.set(plan?.mode ?? 'plain');
+    this.e2eChanges.set(plan?.changes ?? []);
+  }
+
+  private bindE2ePlan(): void {
+    this.hintSubscriptions.add(this.form.valueChanges.pipe(map(() => JSON.stringify(this.recipientRequest())),
+      debounceTime(400),
+      distinctUntilChanged(),
+      switchMap(() => from(this.e2e.planSend(this.recipientRequest())).pipe(catchError(() => of(null)))),).subscribe((plan) => {
+      this.applyPlan(plan);
+    }));
+  }
+
+  unlockE2e(): void {
+    this.e2e.requestUnlock();
+  }
+
+  trustChangedKeys(): void {
+    this.e2e.acceptKeyChanges(this.e2eChanges());
+    this.errorMessage.set('');
+    void this.e2e.planSend(this.recipientRequest()).then((plan) => {
+      this.applyPlan(plan);
+    }, () => {
+      this.applyPlan(null);
+    });
   }
 
   private currentCcQuery(value: string): string {
@@ -489,6 +537,14 @@ export class Compose implements AfterViewInit, OnDestroy {
           this.errorMessage.set('This message is no longer a draft.');
           return;
         }
+        if (draft.e2e && draft.e2e.state !== 'decrypted') {
+          this.lockedDraftId = draft.e2e.state === 'locked' ? draftId : '';
+          this.errorMessage.set(draft.e2e.state === 'locked' ? 'This draft is end-to-end encrypted. Unlock your encryption key to open it.' : 'This draft could not be decrypted with your key.');
+          this.e2e.requestUnlock();
+          return;
+        }
+        this.lockedDraftId = '';
+        this.errorMessage.set('');
         this.form.patchValue({ receiver_address: draft.receiver_address, cc_addresses: draft.cc_addresses.join(', '), bcc_addresses: (draft.bcc_addresses ?? []).join(', '), subject: draft.subject, body: draft.body });
         this.draftId.set(draft.id);
         this.lastSavedDraft = this.snapshot();
@@ -566,6 +622,9 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.activeHintField.set(null);
     this.activeHintIndex.set(0);
     this.draftId.set(null);
+    this.lockedDraftId = '';
+    this.e2eMode.set('plain');
+    this.e2eChanges.set([]);
     this.lastSavedDraft = '';
     this.draftStatus.set('');
   }
@@ -597,7 +656,7 @@ export class Compose implements AfterViewInit, OnDestroy {
     return addresses;
   }
 
-  submit(): void {
+  async submit(): Promise<void> {
     const ccAddresses = this.parseCcAddresses(this.form.controls.cc_addresses.value);
     const bccAddresses = this.parseCcAddresses(this.form.controls.bcc_addresses.value);
     this.ccError.set(ccAddresses === null ? 'Enter valid Cc addresses separated by commas.' : bccAddresses === null ? 'Enter valid Bcc addresses separated by commas.' : '');
@@ -606,8 +665,30 @@ export class Compose implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const formValue = this.form.getRawValue();
     this.errorMessage.set('');
+    this.loading.set(true);
+    let plan: E2eSendPlan;
+    try {
+      plan = await this.e2e.planSend(this.recipientRequest());
+    }
+    catch {
+      this.loading.set(false);
+      this.errorMessage.set('Could not check the recipients\u2019 encryption keys. Check your connection and try again.');
+      return;
+    }
+    this.loading.set(false);
+    this.applyPlan(plan);
+    if (plan.mode === 'locked') {
+      this.errorMessage.set('Everyone on this message can receive end-to-end encrypted mail. Unlock your encryption key to send it.');
+      this.e2e.requestUnlock();
+      return;
+    }
+    if (plan.mode === 'key-changed') {
+      this.errorMessage.set('An encryption key has changed. Review the warning below before sending.');
+      return;
+    }
+
+    const formValue = this.form.getRawValue();
 
     this.composeService.send({
       sender_identity_type: formValue.sender_identity_type as 'original' | 'disposable',

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
 import { ValidationDetailEntry } from '../model/http-error.model';
+import { E2eError } from './e2e-crypto';
 
 function firstValidationMessage(detail: ValidationDetailEntry[]): string {
   const message = detail.find((entry) => typeof entry?.msg === 'string')?.msg;
@@ -20,6 +21,10 @@ function parseTextBody(body: unknown): { detail?: unknown } | null | undefined {
 }
 
 export function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof E2eError) {
+    return error.message;
+  }
+
   if (!(error instanceof HttpErrorResponse)) {
     return fallback;
   }

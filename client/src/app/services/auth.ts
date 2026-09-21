@@ -1,15 +1,17 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { CurrentUser, LogoutResponse, UserPreferences } from '../shared/model/auth.model';
+import { E2eService } from './e2e';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   private readonly baseUrl = `${environment.apiBaseUrl}/auth`;
+  private readonly e2e = inject(E2eService);
   private redirecting = false;
 
   readonly currentUser = signal<CurrentUser | null>(null);
@@ -35,6 +37,7 @@ export class AuthService {
       return;
     }
     this.redirecting = true;
+    this.e2e.forget(false);
     const destination = returnTo || `${window.location.pathname}${window.location.search}`;
     const params = new URLSearchParams({
       origin: window.location.origin,
@@ -52,6 +55,7 @@ export class AuthService {
   logout(): Observable<LogoutResponse> {
     return this.http.post<LogoutResponse>(`${this.baseUrl}/logout`, {}).pipe(tap(() => {
       this.currentUser.set(null);
+      this.e2e.forget(true);
     }));
   }
 }

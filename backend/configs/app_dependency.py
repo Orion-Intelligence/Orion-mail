@@ -79,8 +79,13 @@ async def get_current_user(request: Request) -> db_user_model:
     enforce_csrf(request)
 
     identity = await orion_identity_client.get_instance().verify(token)
+    request.state.orion_session = str(identity.get("session") or "")
 
     return await orion_identity_manager.get_instance().link_identity(identity)
+
+
+def login_session_id(request: Request) -> str | None:
+    return getattr(request.state, "orion_session", "") or session_token_from_request(request) or request.cookies.get(TEST_SESSION_COOKIE)
 
 
 def require_incoming_mail_token(request: Request) -> None:

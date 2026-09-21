@@ -3,7 +3,9 @@
 .venv
 backend/.venv
 backend/__pycache__
-backend/static
+backend/static/*
+!backend/static/maintenance.html
+!backend/static/maintenance-assets
 backend/*.log
 client/node_modules
 client/.angular

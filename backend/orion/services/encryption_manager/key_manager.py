@@ -1,3 +1,8 @@
+import base64
+import hashlib
+import hmac
+import secrets
+
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -9,6 +14,7 @@ from orion.services.mongo_manager.shared_model.db_user_key_model import db_user_
 
 RSA_KEY_SIZE = 3072
 RSA_PUBLIC_EXPONENT = 65537
+SCRYPT_PARAMS = {"n": 2 ** 14, "r": 8, "p": 1, "dklen": 32}
 
 
 class key_manager:
@@ -38,6 +44,22 @@ class key_manager:
         private_pem = private_key.private_bytes(encoding=serialization.Encoding.PEM, format=serialization.PrivateFormat.PKCS8, encryption_algorithm=serialization.NoEncryption()).decode()
         public_pem = private_key.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo).decode()
         return public_pem, private_pem
+
+    @staticmethod
+    def hash_secret(value: str) -> str:
+        salt = secrets.token_bytes(16)
+        digest = hashlib.scrypt(value.encode("utf-8"), salt=salt, **SCRYPT_PARAMS)
+        return f"scrypt${base64.b64encode(salt).decode()}${base64.b64encode(digest).decode()}"
+
+    @staticmethod
+    def secret_matches(value: str, stored: str | None) -> bool:
+        try:
+            scheme, salt, digest = (stored or "").split("$")
+            expected = base64.b64decode(digest)
+            actual = hashlib.scrypt(value.encode("utf-8"), salt=base64.b64decode(salt), **SCRYPT_PARAMS)
+        except ValueError:
+            return False
+        return scheme == "scrypt" and hmac.compare_digest(actual, expected)
 
     def wrap(self, value: str) -> str:
         return self._master.encrypt(value)

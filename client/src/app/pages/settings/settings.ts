@@ -11,10 +11,11 @@ import { SYSTEM_CONFIG_FIELDS } from '../../shared/constants/config.constants';
 import { SystemConfig, SystemConfigField } from '../../shared/model/config.model';
 import { SavedPgpKey, SenderIdentity } from '../../shared/model/message.model';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
+import { E2eSettings } from '../../shared/partials/e2e-settings/e2e-settings';
 
 @Component({
   selector: 'app-settings',
-  imports: [Icon, ReactiveFormsModule, ConfirmDialog],
+  imports: [Icon, ReactiveFormsModule, ConfirmDialog, E2eSettings],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './settings.html',
 })

@@ -1,5 +1,6 @@
-import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { Subscription, finalize } from 'rxjs';
+import { E2eService } from '../../services/e2e';
 import { MessengerService } from '../../services/messenger';
 import { Icon } from '../../shared/icons/icon/icon';
 import { MessengerConversation, MessengerMessage, MessengerUser } from '../../shared/model/message.model';
@@ -61,7 +62,15 @@ export class Messenger implements OnInit, OnDestroy {
   });
   showingSearchResults = computed(() => this.searchTerm().trim().length > 0);
 
-  constructor(private readonly messengerService: MessengerService) { }
+  constructor(private readonly messengerService: MessengerService) {
+    inject(E2eService).reloadOnKeyChange(() => {
+      this.loadConversations(true);
+      const user = this.selectedUser();
+      if (user) {
+        this.loadMessages(user.id);
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.loadConversations();

@@ -1,9 +1,11 @@
 from pydantic import BaseModel, Field, field_validator
 
+from orion.api.interactive.messenger_manager.messenger_enums import MESSENGER_LIMITS
+
 
 class MessengerSendRequest(BaseModel):
     receiver_user_id: str
-    body: str = Field(min_length=1, max_length=5000)
+    body: str = Field(min_length=1, max_length=MESSENGER_LIMITS.BODY_MAX_LENGTH)
 
     @field_validator("receiver_user_id")
     @classmethod

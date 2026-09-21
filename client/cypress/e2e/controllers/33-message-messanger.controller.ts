@@ -1,3 +1,48 @@
+import { loginAsTestUser } from './test-mail.controller';
+
+export function removeEncryptionKey(username: string) {
+    loginAsTestUser(username);
+
+    void cy.request({ method: 'DELETE', url: '/mailboxes/me/e2e-key', headers: { 'X-Requested-With': 'XMLHttpRequest' }, failOnStatusCode: false });
+}
+
+export function setUpEncryptionKey(username: string) {
+    removeEncryptionKey(username);
+
+    void cy.visit('/inbox', {
+        onBeforeLoad: (win) => {
+            win.localStorage.setItem('orion_mail_e2e_tests', 'on');
+        },
+    });
+
+    void cy.get('[data-testid="e2e-setup-passphrase"]')
+        .should('be.visible')
+        .type('cypress mail passphrase');
+
+    void cy.get('[data-testid="e2e-setup-confirm"]')
+        .type('cypress mail passphrase');
+
+    void cy.get('[data-testid="e2e-dialog-submit"]')
+        .click();
+
+    void cy.get('[data-testid="e2e-recovery-code-value"]', { timeout: 60000 })
+        .should('be.visible')
+        .invoke('text')
+        .should('match', /^\s*([A-Z2-9]{4}-){7}[A-Z2-9]{4}\s*$/);
+
+    void cy.get('[data-testid="e2e-recovery-done"]')
+        .should('be.disabled');
+
+    void cy.get('[data-testid="e2e-recovery-saved"]')
+        .check();
+
+    void cy.get('[data-testid="e2e-recovery-done"]')
+        .click();
+
+    void cy.get('[data-testid="e2e-dialog-form"]')
+        .should('not.exist');
+}
+
 export function openMessengerFromNavbar() {
     void cy.get('[data-testid="messenger-section"]')
         .should('be.visible')

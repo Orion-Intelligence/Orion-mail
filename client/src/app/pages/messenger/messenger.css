@@ -2,6 +2,18 @@
   --messenger-paper: color-mix(in srgb, var(--color-surface) 22%, white);
   --messenger-chrome: color-mix(in srgb, var(--color-surface) 30%, white);
   --messenger-canvas: color-mix(in srgb, var(--color-surface) 65%, white);
+  --messenger-search: color-mix(in srgb, var(--color-surface-muted) 45%, white);
+  --messenger-composer-field: var(--messenger-paper);
+  --messenger-outgoing: color-mix(in srgb, var(--color-primary-soft) 80%, white);
+}
+
+:host-context(.dark-theme) .messenger-surface {
+  --messenger-paper: var(--color-surface);
+  --messenger-chrome: var(--color-surface);
+  --messenger-canvas: var(--color-page);
+  --messenger-search: var(--color-field);
+  --messenger-composer-field: var(--color-field);
+  --messenger-outgoing: var(--color-primary-soft);
 }
 
 .messenger-chat {
@@ -22,7 +34,7 @@
 }
 
 .messenger-search {
-  background: color-mix(in srgb, var(--color-surface-muted) 45%, white);
+  background: var(--messenger-search);
 }
 
 .messenger-tabs button {
@@ -70,7 +82,7 @@
 }
 
 .messenger-sent {
-  background: color-mix(in srgb, var(--color-primary-soft) 80%, white);
+  background: var(--messenger-outgoing);
   border-bottom-right-radius: 4px;
 }
 
@@ -79,7 +91,7 @@
 }
 
 .messenger-composer textarea {
-  background: var(--messenger-paper);
+  background: var(--messenger-composer-field);
 }
 
 .messenger-composer textarea:focus {

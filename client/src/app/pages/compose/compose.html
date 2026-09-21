@@ -1,11 +1,11 @@
-<form [formGroup]="form" (ngSubmit)="submit()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave()" (drop)="onFilesDropped($event)" [attr.aria-label]="composeTitle()" animate.enter="mail-motion-dialog-panel-enter" class="{{ inline() ? 'relative mt-6 flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface' : 'fixed right-4 bottom-0 z-[90] flex h-[min(42.5rem,calc(100dvh-5rem))] w-144 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-xl border border-line bg-surface shadow-compose backdrop-blur-xl max-[720px]:inset-0 max-[720px]:z-[120] max-[720px]:h-auto max-[720px]:w-auto max-[720px]:max-w-none max-[720px]:rounded-none max-[720px]:border-0 max-[720px]:pb-[env(safe-area-inset-bottom)]' }}" data-testid="compose-form">
+<form [formGroup]="form" (ngSubmit)="submit()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave()" (drop)="onFilesDropped($event)" [attr.aria-label]="composeTitle()" animate.enter="mail-motion-dialog-panel-enter" class="mail-compose {{ inline() ? 'relative mt-6 flex w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface' : 'mail-compose-window fixed right-4 bottom-0 z-[90] flex h-[min(42.5rem,calc(100dvh-5rem))] w-144 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-t-xl border border-line bg-surface shadow-compose backdrop-blur-xl max-[720px]:inset-0 max-[720px]:z-[120] max-[720px]:h-auto max-[720px]:w-auto max-[720px]:max-w-none max-[720px]:rounded-none max-[720px]:border-0 max-[720px]:pb-[env(safe-area-inset-bottom)]' }}" data-testid="compose-form">
   @if (inline()) {
-  <div class="flex h-10 shrink-0 items-center gap-2 border-b border-row-line px-4 text-xs font-medium text-muted">
+  <div class="mail-compose-heading flex h-10 shrink-0 items-center gap-2 border-b border-row-line px-4 text-xs font-medium text-muted">
     <app-icon [name]="modeIcon()" class="h-4 w-4" />
     <span>{{ composeTitle() }}</span>
   </div>
   } @else {
-  <div class="flex h-10 shrink-0 items-center justify-between bg-titlebar px-4 text-titlebar-ink select-none max-[720px]:h-12">
+  <div class="mail-compose-heading flex h-10 shrink-0 items-center justify-between bg-titlebar px-4 text-titlebar-ink select-none max-[720px]:h-12">
     <span class="truncate text-sm font-medium" data-testid="compose-title">{{ composeTitle() }}</span>
     <button type="button" (click)="close()" title="Save & close" aria-label="Save draft and close composer" data-testid="close-button" class="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-titlebar-muted transition-colors hover:bg-titlebar-hover hover:text-titlebar-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-titlebar-ink">
       <app-icon [name]="'close'" class="h-4 w-4" />
@@ -18,7 +18,18 @@
   </div>
   }
 
-  <div class="relative z-30 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+  @if (e2eChanges().length > 0) {
+  <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 mt-3 rounded-lg bg-amber-soft px-3 py-2 text-[13px] text-warning" role="alert" data-testid="e2e-key-changed">
+    <p class="font-medium">Encryption key changed</p>
+    @for (change of e2eChanges(); track change.address) {
+    <p class="mt-1 [overflow-wrap:anywhere]">{{ change.address }}: {{ change.current ? 'now ' + change.current : 'no longer has an encryption key' }} (was {{ change.pinned }})</p>
+    }
+    <p class="mt-1">Confirm the new key with this person another way before trusting it. If you did not expect this, do not send.</p>
+    <button type="button" (click)="trustChangedKeys()" class="mt-2 h-8 cursor-pointer rounded-full border border-current bg-transparent px-3 text-xs font-semibold text-warning focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-trust-key">Trust the new key</button>
+  </div>
+  }
+
+  <div class="mail-compose-field relative z-30 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
     <label [attr.for]="'sender-' + uid()" class="w-12 shrink-0 text-sm text-muted">From</label>
 
     <select [id]="'sender-' + uid()" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none" [value]="form.controls.disposable_mailbox_id.value || 'original'" (change)="onSenderChanged($any($event.target).value)">
@@ -30,9 +41,12 @@
     </select>
   </div>
 
-  <div class="relative z-20 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+  <div class="mail-compose-field relative z-20 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
     <label [attr.for]="'receiver-' + uid()" class="w-12 shrink-0 text-sm text-muted">To</label>
-    <input #receiverInput [id]="'receiver-' + uid()" type="email" aria-label="To" autocomplete="off" role="combobox" aria-autocomplete="list" [attr.aria-controls]="uid() + '-to-recipient-hints'" [attr.aria-activedescendant]="activeHintOptionId('to')" [attr.aria-expanded]="activeHintField() === 'to' && receiverHints().length > 0" formControlName="receiver_address" placeholder="Recipient" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" (focus)="openHints('to')" (blur)="closeHintsSoon()" (keydown)="handleHintKeydown($event, 'to')" data-testid="receiver-input" />
+    <input #receiverInput [id]="'receiver-' + uid()" type="email" aria-label="To" [attr.aria-invalid]="form.controls.receiver_address.touched && form.controls.receiver_address.invalid ? true : null" [attr.aria-describedby]="form.controls.receiver_address.touched && form.controls.receiver_address.invalid ? 'receiver-error-' + uid() : null" autocomplete="off" role="combobox" aria-autocomplete="list" [attr.aria-controls]="uid() + '-to-recipient-hints'" [attr.aria-activedescendant]="activeHintOptionId('to')" [attr.aria-expanded]="activeHintField() === 'to' && receiverHints().length > 0" formControlName="receiver_address" placeholder="Recipient" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" (focus)="openHints('to')" (blur)="closeHintsSoon()" (keydown)="handleHintKeydown($event, 'to')" data-testid="receiver-input" />
+    @if (form.controls.receiver_address.touched && form.controls.receiver_address.invalid) {
+    <span [id]="'receiver-error-' + uid()" role="alert" title="Enter a valid recipient email address." class="ml-2 shrink-0 rounded-full bg-danger-soft px-2 py-1 text-[11px] font-medium whitespace-nowrap text-danger" data-testid="receiver-error"><span aria-hidden="true">Invalid email</span><span class="sr-only">Enter a valid recipient email address.</span></span>
+    }
     @if (activeHintField() === 'to' && receiverHints().length > 0) {
     <div [id]="uid() + '-to-recipient-hints'" role="listbox" aria-label="Recipient suggestions" class="mail-google-dropdown absolute top-[calc(100%-1px)] right-3 left-3 z-50 max-h-56 overflow-y-auto rounded-lg border py-1">
       @for (hint of receiverHints(); track hint.email_address; let i = $index) {
@@ -45,11 +59,8 @@
     </div>
     }
   </div>
-  @if (form.controls.receiver_address.touched && form.controls.receiver_address.invalid) {
-  <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger" data-testid="receiver-error">Enter a valid recipient email address.</div>
-  }
 
-  <div class="relative z-10 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25" data-testid="cc-field">
+  <div class="mail-compose-field relative z-10 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25" data-testid="cc-field">
     <label [attr.for]="'cc-addresses-' + uid()" class="w-12 shrink-0 text-sm text-muted">Cc</label>
     <input [id]="'cc-addresses-' + uid()" type="text" aria-label="Cc" autocomplete="off" role="combobox" aria-autocomplete="list" [attr.aria-controls]="uid() + '-cc-recipient-hints'" [attr.aria-activedescendant]="activeHintOptionId('cc')" [attr.aria-expanded]="activeHintField() === 'cc' && ccHints().length > 0" formControlName="cc_addresses" placeholder="Optional, comma separated" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" (focus)="openHints('cc')" (blur)="closeHintsSoon()" (keydown)="handleHintKeydown($event, 'cc')" data-testid="cc-input" />
     @if (activeHintField() === 'cc' && ccHints().length > 0) {
@@ -65,7 +76,7 @@
     }
   </div>
 
-  <div class="flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25" data-testid="bcc-field">
+  <div class="mail-compose-field flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25" data-testid="bcc-field">
     <label [attr.for]="'bcc-addresses-' + uid()" class="w-12 shrink-0 text-sm text-muted">Bcc</label>
     <input [id]="'bcc-addresses-' + uid()" type="text" aria-label="Bcc" autocomplete="off" formControlName="bcc_addresses" placeholder="Optional, comma separated" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" data-testid="bcc-input" />
   </div>
@@ -74,7 +85,7 @@
   }
 
   @if (!inline()) {
-  <div class="flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
+  <div class="mail-compose-field flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
     <input [id]="'subject-' + uid()" type="text" formControlName="subject" placeholder="Subject" aria-label="Subject" data-testid="subject-input" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
   </div>
   @if (form.controls.subject.touched && form.controls.subject.invalid) {
@@ -87,7 +98,7 @@
     Drop files to attach</div>
   }
 
-  <div class="flex shrink-0 items-center gap-0.5 border-b border-row-line px-3 py-1" data-testid="formatting-toolbar">
+  <div class="mail-compose-toolbar flex shrink-0 items-center gap-0.5 border-b border-row-line px-3 py-1" data-testid="formatting-toolbar">
     <button type="button" (click)="applyFormat('bold')" title="Bold" aria-label="Bold" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-sm font-bold text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="bold-button">B</button>
     <button type="button" (click)="applyFormat('italic')" title="Italic" aria-label="Italic" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-sm italic text-icon transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="italic-button">I</button>
     <button type="button" (click)="applyFormat('underline')" title="Underline" aria-label="Underline" class="flex h-8 w-8 cursor-pointer items-center justify-center rounded border-none bg-transparent text-sm text-icon underline transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="underline-button">U</button>
@@ -100,9 +111,9 @@
   </div>
 
   @if (richText()) {
-    <div #richEditor contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" (input)="onRichInput()" class="orion-html-body min-h-40 w-full flex-1 overflow-y-auto border-none px-4 py-3 text-sm leading-5 text-ink outline-none" data-testid="rich-text-editor"></div>
+    <div #richEditor contenteditable="true" role="textbox" aria-multiline="true" aria-label="Message" (input)="onRichInput()" class="mail-compose-editor orion-html-body min-h-40 w-full flex-1 overflow-y-auto border-none px-4 py-3 text-sm leading-5 text-ink outline-none" data-testid="rich-text-editor"></div>
   } @else {
-  <textarea #bodyArea [id]="'body-' + uid()" formControlName="body" aria-label="Message" placeholder="Write a message" class="{{ inline() ? 'min-h-44' : 'min-h-40 flex-1' }} w-full resize-none border-none bg-transparent px-4 py-3 text-sm leading-5 text-ink outline-none placeholder:text-placeholder focus:bg-primary-soft/15" data-testid="message-input"></textarea>
+  <textarea #bodyArea [id]="'body-' + uid()" formControlName="body" aria-label="Message" placeholder="Write a message" class="mail-compose-editor {{ inline() ? 'min-h-44' : 'min-h-40 flex-1' }} w-full resize-none border-none bg-transparent px-4 py-3 text-sm leading-5 text-ink outline-none placeholder:text-placeholder focus:bg-primary-soft/15" data-testid="message-input"></textarea>
   }
   @if (form.controls.body.touched && form.controls.body.invalid) {
     <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger" data-testid="message-error">Write a message before sending.</div>
@@ -138,7 +149,7 @@
     <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mx-4 mb-2 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger" role="alert" data-testid="file-error">{{ fileError() }}</div>
   }
 
-  <div class="flex h-14 shrink-0 items-center gap-1 px-4" data-testid="compose-actions">
+  <div class="mail-compose-actions flex h-14 shrink-0 items-center gap-1 px-4" data-testid="compose-actions">
     <button data-mail-action="send" type="submit" [disabled]="loading()" class="flex h-9 min-w-24 items-center justify-center gap-2 rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary transition-colors hover:enabled:cursor-pointer hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55" data-testid="send-button">
       <span>Send</span>
     </button>
@@ -146,6 +157,11 @@
       <app-icon [name]="'attach'" class="h-5 w-5" />
       <input [id]="'file-input-' + uid()" type="file" multiple class="sr-only" (change)="onFilesSelected($event)" data-testid="file-input" />
     </label>
+    @if (e2eMode() === 'e2e') {
+      <span class="ml-1 flex items-center gap-1 text-xs font-medium whitespace-nowrap text-success" title="Only you and the recipients can read this message" data-testid="e2e-indicator"><app-icon [name]="'lock'" class="h-4 w-4" />End-to-end encrypted</span>
+    } @else if (e2eMode() === 'locked') {
+      <button type="button" (click)="unlockE2e()" class="ml-1 flex h-8 cursor-pointer items-center gap-1 rounded-full border border-line bg-transparent px-3 text-xs font-medium whitespace-nowrap text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-unlock-button"><app-icon [name]="'lock'" class="h-4 w-4" />Unlock to encrypt</button>
+    }
     @if (selectedFiles().length > 0 || forwardedAttachments().length > 0) {
       <span class="ml-auto text-xs whitespace-nowrap text-muted" data-testid="total-file-size">{{ getTotalFileSize() }} MB / 1 MB</span>
     } @else {

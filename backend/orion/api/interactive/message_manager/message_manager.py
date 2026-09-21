@@ -16,6 +16,7 @@ from starlette.datastructures import Headers
 
 from orion.api.interactive.address_book_manager.address_book_manager import address_book_manager
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
+from orion.api.interactive.e2e_key_manager.e2e_key_manager import e2e_key_manager
 from orion.api.interactive.incoming_mail_manager.incoming_mail_manager import incoming_mail_manager
 from orion.api.interactive.message_manager.message_enums import MESSAGE_LIMITS
 from orion.api.interactive.mailbox_lookup import resolve_active_mailbox
@@ -118,6 +119,16 @@ class message_manager:
             message.folder = MESSAGE_FOLDER.INBOX
         message.updated_at = datetime.now(UTC)
         await message_crypto_manager.get_instance().save_message(message)
+
+    @staticmethod
+    async def assert_end_to_end_when_possible(sender_mailbox: db_mailbox_model, sender_identity_type: str, recipient_addresses: list[str], external_recipient_addresses: list[str], body: str) -> None:
+        if e2e_key_manager.is_e2e_body(body) or external_recipient_addresses or sender_identity_type != "original":
+            return
+        if await e2e_key_manager.get_instance().get_mailbox_key(sender_mailbox) is None:
+            return
+        keyed = {key["address"] for key in (await e2e_key_manager.get_instance().lookup_public_keys(recipient_addresses))["keys"]}
+        if keyed >= set(recipient_addresses):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mail to these recipients must be end-to-end encrypted. Reload Orion Mail and unlock your key.")
 
     async def partition_recipient_addresses(self, recipient_addresses: list[str]) -> tuple[list[str], list[str]]:
         mailboxes = await self._engine.find(
@@ -436,6 +447,7 @@ class message_manager:
         await self.enforce_send_quota(sender_mailbox)
         await self.enforce_storage_quota(sender_mailbox)
         internal_recipient_addresses, external_recipient_addresses = await self.partition_recipient_addresses(recipient_addresses)
+        await self.assert_end_to_end_when_possible(sender_mailbox, sender_identity_type, recipient_addresses, external_recipient_addresses, normalized_body)
         reply_parent = await self.get_owned_message(sender_mailbox, in_reply_to_message_id) if in_reply_to_message_id else None
         forward_source = await self.get_owned_message(sender_mailbox, forward_message_id) if forward_message_id else None
         if forward_attachment_ids and forward_source is None:

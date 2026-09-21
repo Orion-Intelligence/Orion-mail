@@ -3,6 +3,7 @@ from __future__ import annotations
 from bson import ObjectId
 
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
+from orion.api.interactive.e2e_key_manager.e2e_key_manager import e2e_key_manager
 from orion.api.interactive.message_manager.message_manager import message_manager
 from orion.api.interactive.sender_safety_manager.sender_safety_manager import sender_safety_manager
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
@@ -11,9 +12,13 @@ from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_S
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 from orion.services.spam_manager.spam_manager import spam_manager
 from tests.model.fakes import RecordingEngine
-from tests.scripts.message_manager.fakes import FakeMailboxEngine
+from tests.scripts.message_manager.fakes import FakeE2eKeyManager, FakeMailboxEngine
 
 USER = db_user_model(full_name="Test One", email="test1@orionintelligence.org", username="test1")
+ALICE = "alice@mail.orionintelligence.org"
+BOB = "bob@mail.orionintelligence.org"
+E2E_BODY = "-----BEGIN PGP MESSAGE-----\nComment: Orion Mail E2E v1\n\nwcBMA\n-----END PGP MESSAGE-----"
+FOREIGN_PGP_BODY = "-----BEGIN PGP MESSAGE-----\n\nwcBMA\n-----END PGP MESSAGE-----"
 
 
 def default_mailbox(signature=""):
@@ -114,3 +119,8 @@ def manager_with_mailboxes(addresses: list[str]) -> message_manager:
 
 def build_sent_message():
     return db_message_model(owner_mailbox_id=ObjectId(), sender_address="me@mail.orionintelligence.org", receiver_address="them@example.com", subject="s", body="b", direction=MESSAGE_DIRECTION.OUTGOING, folder=MESSAGE_FOLDER.SENT, delivery_status=DELIVERY_STATUS.QUEUED)
+
+
+def patch_e2e_keys(monkeypatch, sender_has_key=True, keyed=(ALICE, BOB)):
+    fake = FakeE2eKeyManager(sender_has_key, list(keyed))
+    monkeypatch.setattr(e2e_key_manager, "get_instance", staticmethod(lambda: fake))

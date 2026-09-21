@@ -1,0 +1,94 @@
+<div animate.enter="mail-motion-dialog-backdrop-enter" animate.leave="mail-motion-dialog-backdrop-leave" class="fixed inset-0 z-[130] flex items-center justify-center bg-scrim p-5 backdrop-blur-[2px] max-[640px]:p-2" role="dialog" aria-modal="true" aria-labelledby="e2e-dialog-title">
+  <form [formGroup]="form" (ngSubmit)="submit()" animate.enter="mail-motion-dialog-panel-enter" animate.leave="mail-motion-dialog-panel-leave" class="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-surface shadow-dialog" [attr.data-view]="view()" data-testid="e2e-dialog-form">
+    <div class="px-6 pt-6 pb-2">
+      <h2 id="e2e-dialog-title" class="flex items-center gap-2 text-[22px] leading-7 font-normal text-ink"><app-icon [name]="'lock'" class="h-5 w-5 shrink-0 text-icon" />
+        @switch (view()) {
+          @case ('setup') { Protect your mail }
+          @case ('recovery-code') { Save your recovery code }
+          @case ('forgot') { Recover your mail }
+          @case ('reset') { Start over with a new key? }
+          @case ('mismatch') { Your encryption key changed }
+          @case ('key-changed') { A contact’s key changed }
+          @default { Unlock your mail }
+        }
+      </h2>
+
+      @switch (view()) {
+        @case ('setup') {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">Orion Mail encrypts your mail and chats in this browser, so only you and the people you write to can read them. Choose a mail passphrase. It never leaves this browser.</p>
+          <input type="password" formControlName="passphrase" autocomplete="new-password" aria-label="Mail passphrase" [placeholder]="'Mail passphrase (' + minLength + ' characters or more)'" data-testid="e2e-setup-passphrase" class="mt-4 h-11 w-full rounded-lg border border-outline bg-field px-3.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+          <input type="password" formControlName="confirm" autocomplete="new-password" aria-label="Confirm mail passphrase" placeholder="Confirm passphrase" data-testid="e2e-setup-confirm" class="mt-3 h-11 w-full rounded-lg border border-outline bg-field px-3.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+          <p class="mt-3 text-xs leading-5 text-muted">This is separate from your Orion account password. Next you will get a recovery code to download.</p>
+        }
+        @case ('recovery-code') {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">This code is shown once. If you forget your passphrase it is the only way back into your encrypted mail. Orion Mail cannot recover it for you.</p>
+          <p class="mt-4 rounded-lg bg-field px-3 py-3 font-mono text-sm tracking-wide text-ink select-all [overflow-wrap:anywhere]" data-testid="e2e-recovery-code-value">{{ recoveryCode() }}</p>
+          <button type="button" (click)="downloadRecoveryCode()" class="mt-3 flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-recovery-download"><app-icon [name]="'download'" class="h-4.5 w-4.5" />Download recovery code</button>
+          <label class="mt-4 flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" [checked]="recoverySaved()" (change)="recoverySaved.set($any($event.target).checked)" data-testid="e2e-recovery-saved" />I have saved this code somewhere safe</label>
+        }
+        @case ('forgot') {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">Enter the recovery code you saved when you set up Orion Mail, then choose a new passphrase.</p>
+          <input type="text" formControlName="recoveryCode" autocomplete="off" spellcheck="false" aria-label="Recovery code" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" data-testid="e2e-recovery-code" class="mt-4 h-11 w-full rounded-lg border border-outline bg-field px-3.5 font-mono text-sm text-ink uppercase outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+          <input type="password" formControlName="passphrase" autocomplete="new-password" aria-label="New passphrase" [placeholder]="'New passphrase (' + minLength + ' characters or more)'" data-testid="e2e-next-passphrase" class="mt-3 h-11 w-full rounded-lg border border-outline bg-field px-3.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+          <input type="password" formControlName="confirm" autocomplete="new-password" aria-label="Confirm new passphrase" placeholder="Confirm new passphrase" data-testid="e2e-next-confirm" class="mt-3 h-11 w-full rounded-lg border border-outline bg-field px-3.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+        }
+        @case ('reset') {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">Without your passphrase or recovery code, nobody can open your existing encrypted mail and chats, including Orion. Starting over creates a new key. Everything encrypted with the old key stays unreadable forever, and your contacts will be asked to confirm your new key.</p>
+        }
+        @case ('key-changed') {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">The encryption key for this person is different from the one you used before. This happens when they start over with a new key, but it can also mean someone is trying to read your messages. Confirm the new fingerprint with them another way before trusting it.</p>
+          @for (change of e2e.keyChanges(); track change.address) {
+            <div class="mt-3 rounded-lg bg-field px-3 py-2 text-xs leading-5 text-ink-soft [overflow-wrap:anywhere]" data-testid="e2e-key-change">
+              <p class="font-medium text-ink">{{ change.address }}</p>
+              <p>New: <span class="font-mono">{{ change.current || 'no key on file' }}</span></p>
+              <p>Before: <span class="font-mono">{{ change.pinned }}</span></p>
+            </div>
+          }
+        }
+        @case ('mismatch') {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">The encryption key stored for your mailbox is not the one this browser used before. If you replaced your key on another device, you can trust the new one. If you did not, stop here and contact your administrator.</p>
+        }
+        @default {
+          <p class="mt-3 text-sm leading-6 text-ink-soft">Enter your mail passphrase to read and send encrypted mail. It unlocks your key in this browser only and is never sent to Orion Mail.</p>
+          <input type="password" formControlName="passphrase" autocomplete="current-password" aria-label="Mail passphrase" placeholder="Mail passphrase" data-testid="e2e-passphrase" class="mt-4 h-11 w-full rounded-lg border border-outline bg-field px-3.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary" />
+        }
+      }
+
+      @if (errorMessage()) {
+        <div animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert" data-testid="e2e-dialog-error">{{ errorMessage() }}</div>
+      }
+
+      @if (view() === 'unlock') {
+        <button type="button" (click)="show('forgot')" class="mt-4 cursor-pointer border-none bg-transparent p-0 text-xs font-medium text-link hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-forgot">Forgot your passphrase?</button>
+      }
+      @if (view() === 'forgot') {
+        <button type="button" (click)="show('reset')" class="mt-4 cursor-pointer border-none bg-transparent p-0 text-xs font-medium text-link hover:underline focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-lost-both">I lost my recovery code too</button>
+      }
+    </div>
+
+    <div class="flex items-center justify-end gap-2 px-6 py-4">
+      @switch (view()) {
+        @case ('recovery-code') {
+          <button type="button" (click)="finishSetup()" [disabled]="!recoverySaved()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-55" data-testid="e2e-recovery-done">Continue to mail</button>
+        }
+        @case ('reset') {
+          <button type="button" (click)="show('forgot')" [disabled]="working()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-ink-soft hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">Back</button>
+          <button type="button" (click)="reset()" [disabled]="working()" class="h-10 cursor-pointer rounded-full border-none bg-danger-solid px-5 text-sm font-medium text-white hover:enabled:bg-danger-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger disabled:cursor-wait disabled:opacity-55" data-testid="e2e-reset-confirm">{{ working() ? 'Removing…' : 'Start over' }}</button>
+        }
+        @case ('key-changed') {
+          <button type="button" (click)="keepOldKeys()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-key-change-cancel">Do not send</button>
+          <button type="button" (click)="trustChangedKeys()" class="h-10 cursor-pointer rounded-full border border-line bg-surface px-5 text-sm font-medium text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="e2e-key-change-trust">Trust the new key</button>
+        }
+        @case ('mismatch') {
+          <button type="button" (click)="trustServerKey()" [disabled]="working()" class="h-10 cursor-pointer rounded-full border border-line bg-surface px-5 text-sm font-medium text-ink-soft hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-55" data-testid="e2e-trust-server-key">I replaced my key. Trust it</button>
+        }
+        @default {
+          @if (view() === 'forgot') {
+            <button type="button" (click)="show(null)" [disabled]="working()" class="h-10 cursor-pointer rounded-full border-none bg-transparent px-4 text-sm font-medium text-ink-soft hover:enabled:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50">Back</button>
+          }
+          <button type="submit" [disabled]="working()" class="h-10 cursor-pointer rounded-full border-none bg-primary-solid px-5 text-sm font-medium text-on-primary hover:enabled:bg-primary-solid-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-55" data-testid="e2e-dialog-submit">{{ working() ? 'Working…' : view() === 'setup' ? 'Create my key' : view() === 'forgot' ? 'Recover' : 'Unlock' }}</button>
+        }
+      }
+    </div>
+  </form>
+</div>

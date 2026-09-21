@@ -6,6 +6,7 @@ import { Icon } from '../../shared/icons/icon/icon';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { MessageService } from '../../services/message';
+import { E2eService } from '../../services/e2e';
 import { MessageDetailResponse } from '../../shared/model/message.model';
 import { SearchService } from '../../services/search';
 import { formatMailDate } from '../../shared/utils/date-utils';
@@ -31,6 +32,9 @@ export class LabelMessages implements OnInit {
   filteredMessages = computed(() => filterMessagesByTerm(this.messages(), this.searchTerm()));
 
   constructor(private readonly route: ActivatedRoute, private readonly router: Router, private readonly labelService: LabelService, private readonly messageService: MessageService, private readonly searchService: SearchService) {
+    inject(E2eService).reloadOnKeyChange(() => {
+      this.loadMessages();
+    });
     this.searchTerm = this.searchService.searchTerm;
   }
 

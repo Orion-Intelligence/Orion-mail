@@ -10,6 +10,7 @@ function stubMailShell() {
     cy.intercept('GET', '**/messages/storage-status', { body: { storage_exceeded: false } });
     cy.intercept('GET', '**/messages/folder-counts', { total: {}, unread: { inbox: 0 } });
     cy.intercept('GET', '**/mailboxes/me', { mailbox_address: 'layout@example.test' });
+    cy.intercept('GET', '**/mailboxes/me/e2e-key', { configured: false, mailbox_address: 'layout@example.test' });
 }
 
 // Messenger responses are fixtures so this regression never sends real messages.

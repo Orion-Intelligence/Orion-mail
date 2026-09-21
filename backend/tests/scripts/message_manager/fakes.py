@@ -173,3 +173,15 @@ class FakeCryptoManager:
     async def save_message(self, message):
         self.saved.append(message)
         return message
+
+
+class FakeE2eKeyManager:
+    def __init__(self, sender_has_key: bool, keyed_addresses: list[str]):
+        self.sender_has_key = sender_has_key
+        self.keyed_addresses = keyed_addresses
+
+    async def get_mailbox_key(self, _mailbox):
+        return object() if self.sender_has_key else None
+
+    async def lookup_public_keys(self, addresses):
+        return {"keys": [{"address": address} for address in addresses if address in self.keyed_addresses]}
