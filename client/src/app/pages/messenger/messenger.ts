@@ -1,5 +1,5 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
-import { finalize } from 'rxjs';
+import { Component, OnDestroy, OnInit, computed, signal } from '@angular/core';
+import { Subscription, finalize } from 'rxjs';
 import { MessengerService } from '../../services/messenger';
 import { Icon } from '../../shared/icons/icon/icon';
 import { MessengerConversation, MessengerMessage, MessengerUser } from '../../shared/model/message.model';
@@ -12,8 +12,13 @@ type MessengerTab = 'chats' | 'users';
   imports: [Icon],
   host: { class: 'flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden' },
   templateUrl: './messenger.html',
+  styleUrls: ['./messenger.css'],
 })
-export class Messenger implements OnInit {
+export class Messenger implements OnInit, OnDestroy {
+  private messageRequest?: Subscription;
+  private readonly messageCache = new Map<string, MessengerMessage[]>();
+  private readonly drafts = new Map<string, string>();
+
   activeTab = signal<MessengerTab>('chats');
   users = signal<MessengerUser[]>([]);
   conversations = signal<MessengerConversation[]>([]);
@@ -63,9 +68,11 @@ export class Messenger implements OnInit {
     this.loadUsers();
   }
 
-  loadConversations(): void {
-    this.conversationsLoading.set(true);
-    this.errorMessage.set('');
+  loadConversations(background = false): void {
+    if (!background) {
+      this.conversationsLoading.set(true);
+      this.errorMessage.set('');
+    }
 
     this.messengerService.getConversations()
       .pipe(finalize(() => this.conversationsLoading.set(false)))
@@ -74,7 +81,9 @@ export class Messenger implements OnInit {
           this.conversations.set(conversations);
         },
         error: (error) => {
-          this.errorMessage.set(extractErrorMessage(error, 'Could not load chats.'));
+          if (!background) {
+            this.errorMessage.set(extractErrorMessage(error, 'Could not load chats.'));
+          }
         },
       });
   }
@@ -115,26 +124,46 @@ export class Messenger implements OnInit {
   }
 
   selectUser(user: MessengerUser): void {
+    if (this.selectedUser()?.id === user.id) {
+      return;
+    }
+    this.saveDraft();
     this.selectedUser.set(user);
-    this.draftMessage.set('');
+    this.draftMessage.set(this.drafts.get(user.id) ?? '');
     this.loadMessages(user.id);
   }
 
   closeChat(): void {
+    this.saveDraft();
+    this.messageRequest?.unsubscribe();
     this.selectedUser.set(null);
     this.messages.set([]);
   }
 
+  ngOnDestroy(): void {
+    this.messageRequest?.unsubscribe();
+  }
+
+  private saveDraft(): void {
+    const user = this.selectedUser();
+    if (user) {
+      this.drafts.set(user.id, this.draftMessage());
+    }
+  }
+
   loadMessages(otherUserId: string): void {
-    this.messagesLoading.set(true);
+    this.messageRequest?.unsubscribe();
+    this.messages.set(this.messageCache.get(otherUserId) ?? []);
+    this.messagesLoading.set(!this.messageCache.has(otherUserId));
     this.errorMessage.set('');
 
-    this.messengerService.getMessages(otherUserId)
+    this.messageRequest = this.messengerService.getMessages(otherUserId)
       .pipe(finalize(() => this.messagesLoading.set(false)))
       .subscribe({
         next: (messages) => {
+          this.messageCache.set(otherUserId, messages);
           this.messages.set(messages);
-          this.loadConversations();
+          this.loadConversations(true);
         },
         error: (error) => {
           this.errorMessage.set(extractErrorMessage(error, 'Could not load chat messages.'));
@@ -160,9 +189,19 @@ export class Messenger implements OnInit {
       .pipe(finalize(() => this.sending.set(false)))
       .subscribe({
         next: (message) => {
-          this.messages.update((messages) => [...messages, message]);
-          this.draftMessage.set('');
-          this.loadConversations();
+          const updated = [...(this.messageCache.get(user.id) ?? []), message];
+          this.messageCache.set(user.id, updated);
+          if (this.selectedUser()?.id === user.id) {
+            this.messages.set(updated);
+            if (this.draftMessage().trim() === body) {
+              this.draftMessage.set('');
+              this.drafts.delete(user.id);
+            }
+          }
+          else if (this.drafts.get(user.id)?.trim() === body) {
+            this.drafts.delete(user.id);
+          }
+          this.loadConversations(true);
         },
         error: (error) => {
           this.errorMessage.set(extractErrorMessage(error, 'Could not send message.'));

@@ -48,5 +48,15 @@
     "target": "http://127.0.0.1:8000",
     "secure": false,
     "changeOrigin": true
+  },
+  "/maintenance.html": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/maintenance-assets": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
   }
 }

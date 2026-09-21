@@ -1,8 +1,12 @@
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exception_handlers import http_exception_handler
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pymongo.errors import PyMongoError
 
 from orion.management.managers.service_manager import service_manager
@@ -33,6 +37,26 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="Orion Mail API", version="1.0.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 setup_middlewares(app)
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/maintenance-assets", StaticFiles(directory=STATIC_DIR / "maintenance-assets"), name="maintenance-assets")
+
+
+@app.get("/maintenance.html", include_in_schema=False)
+async def maintenance_page():
+    return FileResponse(STATIC_DIR / "maintenance.html", status_code=503, headers={"Retry-After": "60", "Cache-Control": "no-store"})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def service_unavailable_page(request: Request, error: StarletteHTTPException):
+    if (
+        error.status_code == 503
+        and request.url.path.startswith("/auth/")
+        and "text/html" in request.headers.get("accept", "")
+        and request.headers.get("x-requested-with") != "XMLHttpRequest"
+    ):
+        return await maintenance_page()
+    return await http_exception_handler(request, error)
 
 
 @app.get("/")

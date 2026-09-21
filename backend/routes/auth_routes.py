@@ -12,7 +12,9 @@ from configs.app_dependency import enforce_csrf, get_current_user
 from configs.auth_cookie import (
     clear_session_cookie,
     clear_sso_cookies,
+    orion_origin_from_request,
     session_token_from_request,
+    set_orion_origin_cookie,
     set_session_cookie,
     set_sso_cookies,
     sso_redirect_from_request,
@@ -67,13 +69,44 @@ def allowed_mail_origin(value: str | None) -> str:
     return candidate
 
 
+def allowed_orion_origin(value: str | None) -> str:
+    candidate = (value or "").strip().rstrip("/")
+    if not candidate:
+        return CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL
+    public = urlsplit(CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL)
+    parsed = urlsplit(candidate)
+    try:
+        hostname, port = parsed.hostname or "", parsed.port
+    except ValueError:
+        hostname, port = "", None
+    origin = f"{parsed.scheme}://{hostname}" + (f":{port}" if port else "")
+    if (
+        candidate != origin
+        or parsed.scheme != public.scheme
+        or port != public.port
+        or not (hostname == public.hostname or hostname.endswith(f".{CONSTANTS.S_ORION_INTELLIGENCE_TENANT_BASE_DOMAIN}"))
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unrecognized Orion Intelligence origin",
+        )
+    return candidate
+
+
+def remembered_orion_origin(request: Request) -> str:
+    try:
+        return allowed_orion_origin(orion_origin_from_request(request))
+    except HTTPException:
+        return CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL
+
+
 async def mailbox_for_user(user: db_user_model) -> db_mailbox_model | None:
     return await mongo_controller.get_instance().get_engine().find_one(
         db_mailbox_model, db_mailbox_model.user_id == user.id
     )
 
 
-def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None) -> dict:
+def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None, orion_origin: str) -> dict:
     return {
         "id": str(user.id),
         "full_name": user.full_name,
@@ -82,19 +115,20 @@ def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None)
         "mailbox_configured": mailbox is not None,
         "mailbox_address": mailbox.mailbox_address if mailbox else None,
         "mail_domain": CONSTANTS.S_MAIL_DOMAIN,
-        "orion_account_url": f"{CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL}/dashboard/profile/account",
+        "orion_account_url": f"{orion_origin}/dashboard/profile/account",
         "preferences": preference_manager.serialize_preferences(user),
     }
 
 
 @auth_routes.get("/login")
-async def begin_orion_login(origin: str | None = Query(default=None), return_to: str | None = Query(default=None)):
+async def begin_orion_login(request: Request, origin: str | None = Query(default=None), return_to: str | None = Query(default=None), orion_origin: str | None = Query(default=None)):
     mail_origin = allowed_mail_origin(origin)
+    intelligence_origin = allowed_orion_origin(orion_origin) if orion_origin else remembered_orion_origin(request)
     redirect_uri = f"{mail_origin}/auth/callback"
     state = secrets.token_urlsafe(32)
     destination = safe_return_to(return_to)
     authorize_url = (
-        f"{CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL}/api/sso/mail/authorize?"
+        f"{intelligence_origin}/api/sso/mail/authorize?"
         + urlencode({"redirect_uri": redirect_uri, "state": state})
     )
     response = RedirectResponse(authorize_url, status_code=status.HTTP_302_FOUND)
@@ -104,6 +138,7 @@ async def begin_orion_login(origin: str | None = Query(default=None), return_to:
         redirect_uri=redirect_uri,
         return_to=destination,
     )
+    set_orion_origin_cookie(response, intelligence_origin)
     return response
 
 
@@ -148,8 +183,8 @@ async def complete_orion_login(request: Request, code: str, state: str):
 
 
 @auth_routes.get("/me")
-async def get_me(current_user: db_user_model = Depends(get_current_user)):
-    return current_user_response(current_user, await mailbox_for_user(current_user))
+async def get_me(request: Request, current_user: db_user_model = Depends(get_current_user)):
+    return current_user_response(current_user, await mailbox_for_user(current_user), remembered_orion_origin(request))
 
 
 @auth_routes.put("/me/preferences")
@@ -169,5 +204,5 @@ async def logout(request: Request, response: Response):
     clear_sso_cookies(response)
     return {
         "message": "Logged out successfully",
-        "redirect_url": f"{CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL}/login",
+        "redirect_url": f"{remembered_orion_origin(request)}/login",
     }

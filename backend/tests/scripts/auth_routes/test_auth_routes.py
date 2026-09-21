@@ -33,6 +33,21 @@ def test_login_rejects_unknown_origin(client):
     assert response.status_code == 400
 
 
+def test_login_uses_tenant_orion_origin_and_remembers_it(client):
+    response = client.get("/auth/login", params={"orion_origin": "http://acme.localhost:4200"}, follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"].startswith("http://acme.localhost:4200/api/sso/mail/authorize?")
+    assert "orion_mail_orion_origin" in response.headers.get("set-cookie", "")
+    response = client.get("/auth/login", follow_redirects=False)
+    assert response.headers["location"].startswith("http://acme.localhost:4200/api/sso/mail/authorize?")
+
+
+def test_login_rejects_foreign_orion_origin(client):
+    for origin in ("https://attacker.example", "http://localhost:4300", "http://localhost.attacker.example:4200", "http://acme.localhost:4200/x"):
+        response = client.get("/auth/login", params={"orion_origin": origin}, follow_redirects=False)
+        assert response.status_code == 400
+
+
 def test_me_returns_current_user_without_mailbox(client, override, monkeypatch):
     user = build_user()
     override(get_current_user, lambda: user)
@@ -142,3 +157,28 @@ def test_callback_rejects_invalid_exchange_response(client, monkeypatch):
     _set_callback_cookies(client)
     response = client.get("/auth/callback", params={"code": "abc", "state": "the-state"}, follow_redirects=False)
     assert response.status_code == 503
+
+
+def test_callback_unavailable_shows_maintenance_for_browser(client, monkeypatch):
+    _install_callback_managers(monkeypatch, build_user(), {"session_token": "", "identity": None})
+    _set_callback_cookies(client)
+    response = client.get(
+        "/auth/callback", params={"code": "abc", "state": "the-state"},
+        headers={"accept": "text/html"}, follow_redirects=False,
+    )
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith("text/html")
+    assert response.headers["retry-after"] == "60"
+    assert 'class="status">Maintenance' in response.text
+    assert "/maintenance-assets/maintenance.css" in response.text
+
+
+def test_maintenance_assets_are_available_without_sign_in(client):
+    for path, content_type in (
+        ("/maintenance-assets/maintenance.css", "text/css"),
+        ("/maintenance-assets/maintenance.js", "text/javascript"),
+        ("/maintenance-assets/logo_url_default.png", "image/png"),
+    ):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(content_type)

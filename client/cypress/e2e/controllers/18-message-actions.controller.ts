@@ -69,6 +69,11 @@ export function viewOriginalSource() {
 
   void cy.get('[data-testid="source-dialog"]')
     .should('be.visible');
+
+  void cy.get('[data-testid="source-summary"]')
+    .should('be.visible')
+    .and('contain.text', 'Created at')
+    .and('contain.text', 'From');
 }
 
 function openMoreMenu() {

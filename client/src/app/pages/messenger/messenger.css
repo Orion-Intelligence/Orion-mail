@@ -1,0 +1,87 @@
+.messenger-surface {
+  --messenger-paper: color-mix(in srgb, var(--color-surface) 22%, white);
+  --messenger-chrome: color-mix(in srgb, var(--color-surface) 30%, white);
+  --messenger-canvas: color-mix(in srgb, var(--color-surface) 65%, white);
+}
+
+.messenger-chat {
+  background: var(--messenger-canvas);
+}
+
+.messenger-sidebar,
+.messenger-header {
+  background: var(--messenger-chrome);
+}
+
+.messenger-header {
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.messenger-sidebar .messenger-header {
+  border-bottom: 0;
+}
+
+.messenger-search {
+  background: color-mix(in srgb, var(--color-surface-muted) 45%, white);
+}
+
+.messenger-tabs button {
+  background: transparent;
+  border-radius: 0;
+}
+
+.messenger-tabs button[aria-pressed="true"] {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.messenger-person + .messenger-person {
+  margin-top: 2px;
+}
+
+.messenger-person.bg-selected {
+  background: color-mix(in srgb, var(--color-primary-soft) 60%, var(--messenger-chrome));
+}
+
+.messenger-avatar {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary-soft) 65%, var(--messenger-paper));
+}
+
+.messenger-unread > span:first-child > span:first-child {
+  font-weight: 700;
+}
+
+.messenger-unread > span:last-child {
+  color: var(--color-ink);
+}
+
+.messenger-follow-up {
+  margin-top: -4px;
+}
+
+.messenger-bubble {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 5%);
+}
+
+.messenger-received {
+  background: var(--messenger-paper);
+  border-bottom-left-radius: 4px;
+}
+
+.messenger-sent {
+  background: color-mix(in srgb, var(--color-primary-soft) 80%, white);
+  border-bottom-right-radius: 4px;
+}
+
+.messenger-composer {
+  background: var(--messenger-chrome);
+}
+
+.messenger-composer textarea {
+  background: var(--messenger-paper);
+}
+
+.messenger-composer textarea:focus {
+  border-color: var(--color-primary);
+}

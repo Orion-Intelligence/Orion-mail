@@ -29,7 +29,7 @@ class orion_identity_client:
         if not public_host:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Orion Intelligence authentication is unavailable",
+                detail="The sign-in server is temporarily unavailable. Please try again shortly.",
             )
         return {
             "X-Orion-Mail-Client-Secret": CONSTANTS.S_ORION_MAIL_SSO_CLIENT_SECRET,
@@ -48,7 +48,7 @@ class orion_identity_client:
         except httpx.RequestError as error:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Orion Intelligence authentication is unavailable",
+                detail="The sign-in server is temporarily unavailable. Please try again shortly.",
             ) from error
 
         if response.status_code == status.HTTP_401_UNAUTHORIZED:
@@ -59,7 +59,7 @@ class orion_identity_client:
         if response.status_code >= 400:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Orion Intelligence authentication is unavailable",
+                detail="The sign-in server is temporarily unavailable. Please try again shortly.",
             )
 
         try:

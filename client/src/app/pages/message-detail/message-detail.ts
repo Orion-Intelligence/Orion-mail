@@ -8,6 +8,8 @@ import { BulkMessageAction, MessageDetailResponse, MessageFolder, MessageTransla
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { formatFullMailDate } from '../../shared/utils/date-utils';
+import { extractErrorMessage } from '../../shared/utils/http-error';
+import { summarizeMessageSource } from '../../shared/utils/message-source';
 import { Icon } from '../../shared/icons/icon/icon';
 import { ComposeRequest } from '../../shared/model/compose.model';
 import { Compose } from '../compose/compose';
@@ -43,6 +45,8 @@ export class MessageDetail implements OnInit {
   sourceDialogOpen = signal(false);
   sourceLoading = signal(false);
   messageSource = signal('');
+  sourceError = signal('');
+  sourceSummary = computed(() => summarizeMessageSource(this.messageSource(), this.message()));
   sourceCopied = signal(false);
   translationDialogOpen = signal(false);
   translationLoading = signal(false);
@@ -715,13 +719,15 @@ export class MessageDetail implements OnInit {
     this.sourceDialogOpen.set(true);
     this.sourceLoading.set(true);
     this.sourceCopied.set(false);
+    this.sourceError.set('');
+    this.messageSource.set('');
     this.messageService.getMessageSource(currentMessage.id).subscribe({
       next: (source) => {
         this.messageSource.set(source);
         this.sourceLoading.set(false);
       },
       error: (error) => {
-        this.messageSource.set(typeof error?.error?.detail === 'string' ? error.error.detail : 'Message source could not be loaded.');
+        this.sourceError.set(extractErrorMessage(error, 'Message source could not be loaded.'));
         this.sourceLoading.set(false);
       },
     });

@@ -22,6 +22,14 @@ export class AuthService {
     }));
   }
 
+  showMaintenance(): void {
+    if (this.redirecting) {
+      return;
+    }
+    this.redirecting = true;
+    window.location.replace('/maintenance.html');
+  }
+
   startOrionLogin(returnTo?: string): void {
     if (this.redirecting) {
       return;

@@ -66,7 +66,6 @@ export class Navbar implements OnInit {
   user = this.authService.currentUser;
   initial = computed(() => (
     this.user()?.username
-    || this.user()?.email
     || this.mailbox()?.mailbox_address
     || 'o'
   ).charAt(0).toUpperCase());

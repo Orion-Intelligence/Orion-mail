@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from orion.helper_manager.env_handler import env_handler
 
@@ -19,6 +20,10 @@ class CONSTANTS:
     S_ORION_INTELLIGENCE_PUBLIC_URL = env_handler.get_instance().env(
         "ORION_INTELLIGENCE_PUBLIC_URL", "http://localhost:4200"
     ).strip().rstrip("/")
+    S_ORION_INTELLIGENCE_TENANT_BASE_DOMAIN = (
+        env_handler.get_instance().env("ORION_INTELLIGENCE_TENANT_BASE_DOMAIN", "").strip().lower().rstrip(".")
+        or (urlsplit(S_ORION_INTELLIGENCE_PUBLIC_URL).hostname or "")
+    )
     S_ORION_MAIL_SSO_CLIENT_SECRET = env_handler.get_instance().env(
         "ORION_MAIL_SSO_CLIENT_SECRET", ""
     )

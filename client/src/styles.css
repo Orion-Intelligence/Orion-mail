@@ -338,8 +338,7 @@
 }
 
 .dark-theme .mail-message-surface,
-.dark-theme .mail-message-surface .mail-soft-white,
-.dark-theme .mail-message-surface [role="menu"] {
+.dark-theme .mail-message-surface .mail-soft-white {
   --color-surface: #cdcfd2;
   --mail-unread-row: #d9dbde;
   --color-surface-muted: #c4c6c9;
@@ -349,6 +348,13 @@
   --color-read: #b9bec0;
   --color-danger-soft: #e7c5c2;
   --color-amber-soft: #ded1b5;
+}
+
+.dark-theme .mail-message-surface [role="menu"] {
+  --color-surface: #fff;
+  --color-surface-muted: #f2f6fc;
+  --color-elevated: #fff;
+  --color-field: #fff;
 }
 
 .mail-message-surface {

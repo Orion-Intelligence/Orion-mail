@@ -111,11 +111,8 @@
           <div class="min-w-0">
             <p class="truncate text-sm font-medium text-ink">{{ user()?.full_name || user()?.username || 'Orion account'
               }}</p>
-            @if (user()?.email) {
-            <p class="mt-0.5 truncate text-xs text-muted" [title]="user()?.email">{{ user()?.email }}</p>
-            }
             @if (mailbox()) {
-            <p class="mt-1 truncate text-xs text-ink-soft" [title]="mailbox()?.mailbox_address">{{
+            <p class="mt-0.5 truncate text-xs text-ink-soft" [title]="mailbox()?.mailbox_address">{{
               mailbox()?.mailbox_address }}</p>
             } @else {
             <p class="mt-0.5 text-xs text-muted">Mailbox unavailable</p>

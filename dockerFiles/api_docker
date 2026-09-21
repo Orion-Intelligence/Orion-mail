@@ -32,6 +32,8 @@ COPY --chown=app:app backend/main.py backend/cronjobs.py backend/cleanup_attachm
 COPY --chown=app:app backend/configs/ /app/configs/
 COPY --chown=app:app backend/routes/ /app/routes/
 COPY --chown=app:app backend/orion/ /app/orion/
+COPY --chown=app:app backend/static/maintenance.html /app/static/maintenance.html
+COPY --chown=app:app backend/static/maintenance-assets/ /app/static/maintenance-assets/
 
 EXPOSE 8000
 

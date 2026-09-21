@@ -1,23 +1,23 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="30">
-  <title>Orion Mail &mdash; Maintenance</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-           font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
-    main { text-align: center; padding: 2rem; max-width: 32rem; }
-    h1 { font-size: 1.5rem; margin: 0 0 .75rem; }
-    p { margin: 0; color: #94a3b8; line-height: 1.5; }
-  </style>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta content="noindex, nofollow" name="robots">
+    <link href="/maintenance-assets/logo_url_default.png" rel="icon" type="image/png">
+    <link href="/maintenance-assets/logo_url_default.png" rel="apple-touch-icon">
+    <title>Orion Mail Maintenance</title>
+    <link href="/maintenance-assets/maintenance.css" rel="stylesheet">
 </head>
 <body>
-  <main>
-    <h1>Orion Mail is being updated</h1>
-    <p>The service is temporarily unavailable while a deployment completes. This page refreshes automatically.</p>
-  </main>
+<main>
+    <img alt="" class="logo" src="/maintenance-assets/logo_url_default.png">
+    <div class="status">Maintenance</div>
+    <h1>Orion is temporarily unavailable</h1>
+    <p id="summary">Maintenance or update in progress. Please try again in a few moments.</p>
+    <a class="home-link" href="/inbox">Try again</a>
+    <div class="meta">This page checks automatically and will reconnect when the service is ready.</div>
+</main>
+<script src="/maintenance-assets/maintenance.js" defer></script>
 </body>
 </html>
