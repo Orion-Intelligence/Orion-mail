@@ -1,0 +1,252 @@
+<section aria-label="Messenger"
+  class="mail-message-surface mail-motion-page flex min-h-0 w-full flex-1 overflow-hidden rounded-2xl border border-line-soft bg-surface">
+
+    <aside class="{{ selectedUser() ? 'max-[640px]:hidden' : '' }} flex !h-full !px-0 min-h-0 w-88 shrink-0 flex-col overflow-hidden border-r border-row-line bg-surface-muted max-[900px]:w-80 max-[640px]:w-full">
+        <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-4">
+            <app-icon [name]="'account'" class="h-5 w-5 text-icon" />
+            <h1 class="text-base font-medium text-ink">Messenger</h1>
+        </header>
+
+        @if (errorMessage()) {
+        <div class="mx-3 mt-3 shrink-0 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+            {{ errorMessage() }}
+        </div>
+        }
+
+        <div class="shrink-0 border-b border-row-line px-3 py-3">
+            <div class="flex h-10 items-center gap-2 rounded-2xl border border-outline bg-field px-3">
+                <app-icon [name]="'search'" class="h-4.5 w-4.5 text-icon" />
+
+                <input type="text" maxlength="100" placeholder="Search Orion users" [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value); refreshUsersFromSearch()" class="h-full min-w-0 flex-1 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" />
+
+                @if (searchTerm()) {
+                <button type="button" (click)="searchTerm.set(''); loadUsers()" title="Clear search" aria-label="Clear search" class="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft">
+                    <app-icon [name]="'close'" class="h-4 w-4" />
+                </button>
+                }
+            </div>
+
+            <div class="mt-3 flex rounded-full bg-surface p-1">
+                <button type="button" (click)="activeTab.set('chats')" class="h-8 flex-1 cursor-pointer rounded-full border-none text-sm font-medium transition-colors" [class.bg-selected]="activeTab() === 'chats'" [class.text-selected-ink]="activeTab() === 'chats'" [class.bg-transparent]="activeTab() !== 'chats'" [class.text-muted]="activeTab() !== 'chats'">
+                    Chats
+                </button>
+
+                <button type="button" (click)="activeTab.set('users')" class="h-8 flex-1 cursor-pointer rounded-full border-none text-sm font-medium transition-colors" [class.bg-selected]="activeTab() === 'users'" [class.text-selected-ink]="activeTab() === 'users'" [class.bg-transparent]="activeTab() !== 'users'" [class.text-muted]="activeTab() !== 'users'">
+                    All Users
+                </button>
+            </div>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto py-2">
+            @if (showingSearchResults()) {
+            <p class="px-4 pb-2 text-xs font-medium text-muted">Search results</p>
+
+            @for (user of filteredUsers(); track user.id) {
+            <button type="button" (click)="selectUser(user)" class="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left transition-colors hover:bg-hover-soft" [class.bg-selected]="selectedUser()?.id === user.id">
+
+                <span class="orion-brand-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                    {{ userInitial(user) }}
+                </span>
+
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium text-ink">
+                        {{ user.full_name || user.username || user.mailbox_address }}
+                    </span>
+
+                    <span class="mt-0.5 block truncate text-xs text-muted">
+                        {{ user.mailbox_address }}
+                    </span>
+
+                    <span class="mt-0.5 block truncate text-[11px] text-muted">
+                        PGP: {{ user.fingerprint }}
+                    </span>
+                </span>
+            </button>
+            } @empty {
+            <div class="px-4 py-8 text-center text-sm text-muted">
+                No users found.
+            </div>
+            }
+            } @else if (activeTab() === 'chats') {
+            @if (conversationsLoading()) {
+            <div class="px-4 py-8 text-center text-sm text-muted">
+                Loading chats…
+            </div>
+            } @else if (conversations().length > 0) {
+            @for (conversation of filteredConversations(); track conversation.id) {
+            <button type="button" (click)="selectConversation(conversation)" class="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left transition-colors hover:bg-hover-soft" [class.bg-selected]="selectedUser()?.id === conversation.other_user.id">
+
+                <span class="orion-brand-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                    {{ userInitial(conversation.other_user) }}
+                </span>
+
+                <span class="min-w-0 flex-1">
+                    <span class="flex items-center gap-2">
+                        <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                            {{ conversation.other_user.full_name || conversation.other_user.username ||
+                            conversation.other_user.mailbox_address }}
+                        </span>
+
+                        @if (conversation.last_message_at) {
+                        <span class="shrink-0 text-[11px] text-muted">
+                            {{ formatTime(conversation.last_message_at) }}
+                        </span>
+                        }
+                    </span>
+
+                    <span class="mt-0.5 block truncate text-xs text-muted">
+                        {{ conversation.last_message || 'No message yet' }}
+                    </span>
+                </span>
+
+                @if (conversation.unread_count > 0) {
+                <span class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary-solid px-1.5 text-[11px] font-bold text-on-primary">
+                    {{ conversation.unread_count }}
+                </span>
+                }
+            </button>
+            }
+            } @else {
+            <div class="px-4 pb-2 text-xs font-medium text-muted">
+                No chats yet. Showing all users.
+            </div>
+
+            @for (user of users(); track user.id) {
+            <button type="button" (click)="selectUser(user)" class="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left transition-colors hover:bg-hover-soft" [class.bg-selected]="selectedUser()?.id === user.id">
+
+                <span class="orion-brand-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                    {{ userInitial(user) }}
+                </span>
+
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium text-ink">
+                        {{ user.full_name || user.username || user.mailbox_address }}
+                    </span>
+
+                    <span class="mt-0.5 block truncate text-xs text-muted">
+                        {{ user.mailbox_address }}
+                    </span>
+                </span>
+            </button>
+            }
+            }
+            } @else {
+            @if (usersLoading()) {
+            <div class="px-4 py-8 text-center text-sm text-muted">
+                Loading users…
+            </div>
+            } @else {
+            @for (user of filteredUsers(); track user.id) {
+            <button type="button" (click)="selectUser(user)" class="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left transition-colors hover:bg-hover-soft" [class.bg-selected]="selectedUser()?.id === user.id">
+
+                <span class="orion-brand-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                    {{ userInitial(user) }}
+                </span>
+
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm font-medium text-ink">
+                        {{ user.full_name || user.username || user.mailbox_address }}
+                    </span>
+
+                    <span class="mt-0.5 block truncate text-xs text-muted">
+                        {{ user.mailbox_address }}
+                    </span>
+
+                    <span class="mt-0.5 block truncate text-[11px] text-muted">
+                        PGP: {{ user.fingerprint }}
+                    </span>
+                </span>
+            </button>
+            } @empty {
+            <div class="px-4 py-8 text-center text-sm text-muted">
+                No Orion users available.
+            </div>
+            }
+            }
+            }
+        </div>
+    </aside>
+
+    <section class="flex min-w-0 flex-1 flex-col max-[640px]:hidden">
+        @if (selectedUser(); as user) {
+        <header class="flex h-12 shrink-0 items-center gap-3 border-b border-row-line px-4">
+            <span class="orion-brand-avatar flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-medium">
+                {{ userInitial(user) }}
+            </span>
+
+            <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium text-ink">
+                    {{ user.full_name || user.username || user.mailbox_address }}
+                </p>
+
+                <p class="truncate text-xs text-muted">
+                    {{ user.mailbox_address }}
+                </p>
+            </div>
+
+            <span class="hidden rounded-full bg-primary-soft px-3 py-1 text-xs font-medium text-primary min-[760px]:inline">
+                PGP encrypted
+            </span>
+        </header>
+
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            @if (messagesLoading()) {
+            <div class="flex h-full items-center justify-center text-sm text-muted">
+                Loading messages…
+            </div>
+            } @else {
+            <div class="flex min-h-full flex-col justify-end gap-3">
+                @for (message of messages(); track message.id) {
+                <div class="flex" [class.justify-end]="message.direction === 'sent'" [class.justify-start]="message.direction === 'received'">
+
+                    <div class="max-w-[72%] rounded-2xl px-4 py-2 text-sm leading-6 shadow-sm" [class.bg-primary-solid]="message.direction === 'sent'" [class.text-on-primary]="message.direction === 'sent'" [class.bg-surface-muted]="message.direction === 'received'" [class.text-ink]="message.direction === 'received'">
+
+                        <p class="whitespace-pre-wrap">{{ message.body }}</p>
+
+                        <p class="mt-1 text-right text-[11px]" [class.text-on-primary]="message.direction === 'sent'" [class.text-muted]="message.direction === 'received'">
+                            {{ formatTime(message.created_at) }}
+                        </p>
+                    </div>
+                </div>
+                } @empty {
+                <div class="flex flex-1 items-center justify-center py-12 text-center">
+                    <div>
+                        <p class="text-sm font-medium text-ink">No messages yet</p>
+                        <p class="mt-1 text-xs text-muted">
+                            Start an encrypted Orion chat with this user.
+                        </p>
+                    </div>
+                </div>
+                }
+            </div>
+            }
+        </div>
+
+        <form class="flex shrink-0 items-end gap-2 border-t border-row-line px-4 py-3" (submit)="$event.preventDefault(); sendMessage()">
+
+            <textarea rows="1" maxlength="5000" placeholder="Write an encrypted message" [value]="draftMessage()" (input)="draftMessage.set($any($event.target).value)" class="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-outline bg-field px-4 py-2.5 text-sm text-ink outline-none placeholder:text-placeholder focus:border-primary focus:ring-1 focus:ring-primary">
+        </textarea>
+
+            <button type="submit" [disabled]="sending() || !draftMessage().trim()" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-primary-solid text-on-primary disabled:cursor-wait disabled:opacity-50">
+                <app-icon [name]="'send'" class="h-5 w-5" />
+            </button>
+        </form>
+        } @else {
+        <div class="flex flex-1 items-center justify-center px-6 text-center">
+            <div>
+                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-soft text-primary">
+                    <app-icon [name]="'account'" class="h-8 w-8" />
+                </div>
+
+                <h2 class="mt-4 text-lg font-medium text-ink">
+                    Select a user to start chatting
+                </h2>
+
+                <p class="mt-1 max-w-sm text-sm text-muted">
+                    Orion-to-Orion encrypted messenger for main mailbox users only.
+                </p>
+            </div>
+        </div>
+        }
+    </section>
+</section>
