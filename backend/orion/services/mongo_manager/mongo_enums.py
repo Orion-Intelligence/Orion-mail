@@ -20,3 +20,5 @@ class MONGO_COLLECTIONS:
     ATTACHMENTS = "attachments"
     SYSTEM_CONFIG = "system_config"
     USER_KEYS = "user_keys"
+    MESSENGER_CONVERSATIONS = "messenger_conversations"
+    MESSENGER_MESSAGES = "messenger_messages"

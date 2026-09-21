@@ -9,6 +9,7 @@ import { LabelMessages } from './pages/label-messages/label-messages';
 import { FolderMessages } from './pages/folder-messages/folder-messages';
 import { ConfigureEmail } from './pages/configure-email/configure-email';
 import { Settings } from './pages/settings/settings';
+import { Messenger } from './pages/messenger/messenger';
 
 export const routes: Routes = [
   {
@@ -77,6 +78,11 @@ export const routes: Routes = [
   {
     path: 'inbox',
     component: Inbox,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'messenger',
+    component: Messenger,
     canActivate: [authGuard],
   },
   {
