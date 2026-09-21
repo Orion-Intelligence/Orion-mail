@@ -28,14 +28,14 @@ export class Messenger implements OnInit {
   errorMessage = signal('');
   filteredUsers = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
-    if (!query) return this.users();
+    if (!query) {
+      return this.users();
+    }
 
     return this.users().filter((user) =>
       [user.full_name, user.username, user.mailbox_address]
-        .some((value) => (value ?? '').toLowerCase().includes(query)),
-    );
+        .some((value) => (value ?? '').toLowerCase().includes(query)),);
   });
-
   filteredConversations = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
 
@@ -54,7 +54,6 @@ export class Messenger implements OnInit {
       ].some((value) => (value ?? '').toLowerCase().includes(query));
     });
   });
-
   showingSearchResults = computed(() => this.searchTerm().trim().length > 0);
 
   constructor(private readonly messengerService: MessengerService) { }
