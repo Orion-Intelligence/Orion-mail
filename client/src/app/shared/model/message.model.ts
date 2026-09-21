@@ -169,3 +169,38 @@ export interface DeleteMessageResponse {
 export interface FolderCounts extends FolderCountMap {
   unread: FolderCountMap;
 }
+
+export interface MessengerUser {
+  id: string;
+  full_name: string;
+  username: string;
+  mailbox_address: string;
+  fingerprint: string;
+  has_public_key: boolean;
+}
+
+export interface MessengerConversation {
+  id: string;
+  other_user: MessengerUser;
+  last_message: string;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export type MessengerMessageDirection = 'sent' | 'received';
+
+export interface MessengerMessage {
+  id: string;
+  conversation_id: string;
+  sender_user_id: string;
+  receiver_user_id: string;
+  direction: MessengerMessageDirection;
+  body: string;
+  created_at: string;
+  read_at?: string | null;
+}
+
+export interface SendMessengerMessageRequest {
+  receiver_user_id: string;
+  body: string;
+}

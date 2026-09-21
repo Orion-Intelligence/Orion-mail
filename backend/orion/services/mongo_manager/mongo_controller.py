@@ -13,6 +13,8 @@ from orion.services.mongo_manager.shared_model.db_user_key_model import db_user_
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
+from orion.services.mongo_manager.shared_model.db_messenger_conversation_model import db_messenger_conversation_model
+from orion.services.mongo_manager.shared_model.db_messenger_message_model import db_messenger_message_model
 
 
 class mongo_controller:
@@ -66,6 +68,12 @@ class mongo_controller:
         await self.__engine.get_collection(db_pgp_key_model).create_index("fingerprint", unique=True)
         await self.__engine.get_collection(db_pgp_key_model).create_index([("user_id", 1), ("status", 1)])
         await self.__engine.get_collection(db_pgp_key_model).create_index([("owner_mailbox_id", 1), ("key_type", 1)])
+        await self.__engine.get_collection(db_messenger_conversation_model).create_index("conversation_key", unique=True)
+        await self.__engine.get_collection(db_messenger_conversation_model).create_index([("user_a_id", 1), ("last_message_at", -1)])
+        await self.__engine.get_collection(db_messenger_conversation_model).create_index([("user_b_id", 1), ("last_message_at", -1)])
+        await self.__engine.get_collection(db_messenger_message_model).create_index([("conversation_id", 1), ("created_at", 1)])
+        await self.__engine.get_collection(db_messenger_message_model).create_index([("sender_user_id", 1), ("created_at", -1)])
+        await self.__engine.get_collection(db_messenger_message_model).create_index([("receiver_user_id", 1), ("read_at", 1)])
 
     async def close_connection(self) -> None:
         self.__client.close()

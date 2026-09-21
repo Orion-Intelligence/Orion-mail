@@ -358,7 +358,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.mail-message-surface > :first-child {
+.mail-message-surface > header:first-child {
   height: 48px;
   padding-inline: 16px;
   border-bottom-color: transparent;

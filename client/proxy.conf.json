@@ -39,6 +39,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/messenger-api": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/health": {
     "target": "http://127.0.0.1:8000",
     "secure": false,
