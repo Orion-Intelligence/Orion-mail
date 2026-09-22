@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse
 
 from configs.app_dependency import enforce_csrf, get_current_user
 from configs.auth_cookie import (
+    SSO_CALLBACK_PATH,
     clear_session_cookie,
     clear_sso_cookies,
     orion_origin_from_request,
@@ -124,7 +125,7 @@ def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None,
 async def begin_orion_login(request: Request, origin: str | None = Query(default=None), return_to: str | None = Query(default=None), orion_origin: str | None = Query(default=None)):
     mail_origin = allowed_mail_origin(origin)
     intelligence_origin = allowed_orion_origin(orion_origin) if orion_origin else remembered_orion_origin(request)
-    redirect_uri = f"{mail_origin}/auth/callback"
+    redirect_uri = f"{mail_origin}{SSO_CALLBACK_PATH}"
     state = secrets.token_urlsafe(32)
     destination = safe_return_to(return_to)
     authorize_url = (
