@@ -35,7 +35,7 @@ export function openOrionAccount() {
   void cy.intercept('GET', '**/auth/me', (req) => {
     req.continue((res) => {
       if (res.body && typeof res.body === 'object') {
-        res.body.orion_account_url = '/settings';
+        res.body.orion_account_url = 'https://account.example.test/dashboard/profile/account';
       }
     });
   }).as('meAccount');
@@ -45,9 +45,16 @@ export function openOrionAccount() {
 
   openProfileMenu();
 
-  void cy.get('[data-testid="profile-orion-account"]').should('be.visible').click();
+  void cy.get('[data-testid="profile-orion-account"]')
+    .should('be.visible')
+    .and('have.attr', 'href', 'https://account.example.test/dashboard/profile/account')
+    .and('have.attr', 'target', '_blank')
+    .and('have.attr', 'rel', 'noopener')
+    .click();
 
-  void cy.url({ timeout: 15000 }).should('include', '/settings');
+  void cy.url().should('include', '/inbox');
+
+  void cy.get('[data-testid="profile-popover"]').should('not.exist');
 }
 
 export function signOut() {

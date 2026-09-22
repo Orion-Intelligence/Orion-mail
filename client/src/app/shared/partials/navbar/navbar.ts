@@ -295,14 +295,6 @@ export class Navbar implements OnInit {
     this.themeService.setTheme(this.themeService.theme() === 'dark' ? 'light' : 'dark');
   }
 
-  goToOrionAccount(): void {
-    this.profileMenuOpen.set(false);
-    const accountUrl = this.user()?.orion_account_url;
-    if (accountUrl) {
-      window.location.assign(accountUrl);
-    }
-  }
-
   goToSettings(): void {
     this.profileMenuOpen.set(false);
     this.closeMobileNavigation();

@@ -135,10 +135,10 @@
             <app-icon [name]="'settings'" class="h-4.5 w-4.5 text-icon" />
             Settings
           </button>
-          <button data-testid="profile-orion-account" type="button" (click)="goToOrionAccount()" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
+          <a data-testid="profile-orion-account" [href]="user()?.orion_account_url" target="_blank" rel="noopener" (click)="profileMenuOpen.set(false)" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft no-underline transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
             <app-icon [name]="'account'" class="h-4.5 w-4.5 text-icon" />
             Manage Orion account
-          </button>
+          </a>
           <button data-testid="profile-sign-out" type="button" (click)="logout()" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-danger">
             <app-icon [name]="'logout'" class="h-4.5 w-4.5" />
             Sign out
