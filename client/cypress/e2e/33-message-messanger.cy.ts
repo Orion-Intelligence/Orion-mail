@@ -13,7 +13,7 @@ describe('Orion Mail - Messenger', () => {
         setUpEncryptionKey('test1');
         setUpEncryptionKey('test2');
 
-        cy.intercept('POST', '**/messenger-api/messages').as('chatSend');
+        cy.intercept('POST', '**/messenger/messages').as('chatSend');
 
         cy.get('[data-testid="messenger-section"]')
             .should('be.visible');

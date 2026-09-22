@@ -10,7 +10,7 @@ import { E2eService } from './e2e';
 })
 export class MessengerService {
   private readonly apiBaseUrl = environment.apiBaseUrl;
-  private readonly baseUrl = `${this.apiBaseUrl}/messenger-api`;
+  private readonly baseUrl = `${this.apiBaseUrl}/messenger`;
   private readonly e2e = inject(E2eService);
 
   constructor(private readonly http: HttpClient) { }

@@ -19,13 +19,13 @@ describe('Messenger responsive layout', () => {
         it(`opens and navigates a conversation at ${width}px`, () => {
             cy.viewport(width, 844);
             stubMailShell();
-            cy.intercept('GET', '**/messenger-api/users*', [user]);
-            cy.intercept('GET', '**/messenger-api/conversations', []);
-            cy.intercept('GET', '**/messenger-api/conversations/*/messages', [
+            cy.intercept('GET', '**/messenger/users*', [user]);
+            cy.intercept('GET', '**/messenger/conversations', []);
+            cy.intercept('GET', '**/messenger/conversations/*/messages', [
                 { id: 'received', direction: 'received', body: 'Long message ' + 'a'.repeat(250), created_at: '2026-09-21T12:00:00Z' },
                 { id: 'sent', direction: 'sent', body: 'Thanks, received.', created_at: '2026-09-21T12:01:00Z' },
             ]);
-            cy.intercept('POST', '**/messenger-api/messages', {
+            cy.intercept('POST', '**/messenger/messages', {
                 statusCode: 500, body: { detail: 'Test send failure' },
             });
             cy.visit('/messenger');
@@ -72,13 +72,13 @@ describe('Messenger responsive layout', () => {
             id: other_user.id, other_user, last_message: `Hello from ${other_user.full_name}`,
             last_message_at: '2026-09-21T12:00:00Z', unread_count: 0,
         }));
-        cy.intercept('GET', '**/messenger-api/users*', [user, secondUser]);
+        cy.intercept('GET', '**/messenger/users*', [user, secondUser]);
         let conversationRequests = 0;
-        cy.intercept('GET', '**/messenger-api/conversations', (req) => {
+        cy.intercept('GET', '**/messenger/conversations', (req) => {
             req.reply({ body: conversations, delay: conversationRequests++ === 0 ? 0 : 800 });
         });
         let messageRequests = 0;
-        cy.intercept('GET', '**/messenger-api/conversations/*/messages', (req) => {
+        cy.intercept('GET', '**/messenger/conversations/*/messages', (req) => {
             messageRequests++;
             const isAlex = req.url.includes(user.id);
             req.reply({ delay: messageRequests > 1 ? 600 : 0, body: [{

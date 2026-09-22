@@ -4,7 +4,7 @@ export function loginAsUnconfiguredUser() {
   // Ensure test4 starts without a mailbox so the setup screen renders.
   void cy.request({
     method: 'DELETE',
-    url: '/mailboxes/me',
+    url: '/api/mailboxes/me',
     headers: { 'x-requested-with': 'XMLHttpRequest' },
     failOnStatusCode: false,
   });

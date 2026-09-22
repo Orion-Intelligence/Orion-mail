@@ -3,7 +3,7 @@ describe('Sign-in maintenance page', () => {
         it(`shows the maintenance design on a sign-in outage at ${width}px`, () => {
             cy.viewport(width, 800);
             cy.intercept('GET', '**/auth/me', { statusCode: 503, body: { detail: 'Service Not Ready' } });
-            cy.intercept('GET', '**/health', { statusCode: 503 });
+            cy.intercept('GET', '**/api/health', { statusCode: 503 });
             cy.visit('/messenger');
             cy.location('pathname').should('eq', '/maintenance.html');
             cy.title().should('eq', 'Orion Mail Maintenance');

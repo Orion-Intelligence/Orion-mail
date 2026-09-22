@@ -181,7 +181,7 @@ disable_maintenance_mode() {
 }
 
 ensure_runtime_dirs() {
-    mkdir -p backend/static/resource/attachments/incoming backend/static/resource/attachments/outgoing backend/static/resource/attachments/raw backend/static/resource/attachments/staging backend/e2e-coverage client/build
+    mkdir -p backend/static/resource/attachments/incoming backend/static/resource/attachments/outgoing backend/static/resource/attachments/raw backend/static/resource/attachments/staging backend/e2e-coverage client/build/assets
     local app_uid app_gid
     app_uid="$(sed -n 's/^APP_UID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"
     app_gid="$(sed -n 's/^APP_GID=//p' "$ENV_FILE" 2>/dev/null | tail -1)"

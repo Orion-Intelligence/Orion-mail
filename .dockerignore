@@ -9,7 +9,6 @@ backend/static/*
 backend/*.log
 client/node_modules
 client/.angular
-client/build
 client/dist
 .env
 .env.*

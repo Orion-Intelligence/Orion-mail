@@ -33,6 +33,7 @@ services:
         condition: service_started
     volumes:
       - ./backend/main.py:/app/main.py:cached
+      - ./backend/interface.py:/app/interface.py:cached
       - ./backend/cronjobs.py:/app/cronjobs.py:cached
       - ./backend/configs:/app/configs:cached
       - ./backend/routes:/app/routes:cached
@@ -40,6 +41,7 @@ services:
       - ./backend/.coveragerc:/app/.coveragerc:cached
       - ./backend/e2e-coverage:/app/e2e-coverage:rw
       - ./backend/static/resource/attachments:/app/static/resource/attachments:rw
+      - ./client/build:/app/workspace/build:delegated
     ports:
       - "127.0.0.1:8000:8000"
     security_opt:
@@ -48,7 +50,7 @@ services:
       - backend
       - shared_bridge
     healthcheck:
-      test: [ "CMD", "python3", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).status == 200 else 1)" ]
+      test: [ "CMD", "python3", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status == 200 else 1)" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -67,7 +69,7 @@ services:
         APP_GID: "${APP_GID:-1000}"
     environment:
       MAIL_DOMAIN: ${MAIL_DOMAIN:-mail.orionintelligence.org}
-      ORION_MAIL_INCOMING_URL: http://web:8000/incoming-mail/
+      ORION_MAIL_INCOMING_URL: http://web:8000/api/incoming-mail/
       ORION_MAIL_INCOMING_TOKEN: ${INCOMING_MAIL_TOKEN:?INCOMING_MAIL_TOKEN must be set}
       POSTFIX_MYNETWORKS: 127.0.0.0/8 172.16.0.0/12
       POSTFIX_MILTER: inet:rspamd:11332

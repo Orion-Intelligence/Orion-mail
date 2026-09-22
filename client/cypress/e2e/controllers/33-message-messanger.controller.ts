@@ -3,7 +3,7 @@ import { loginAsTestUser } from './test-mail.controller';
 export function removeEncryptionKey(username: string) {
     loginAsTestUser(username);
 
-    void cy.request({ method: 'DELETE', url: '/mailboxes/me/e2e-key', headers: { 'X-Requested-With': 'XMLHttpRequest' }, failOnStatusCode: false });
+    void cy.request({ method: 'DELETE', url: '/api/mailboxes/me/e2e-key', headers: { 'X-Requested-With': 'XMLHttpRequest' }, failOnStatusCode: false });
 }
 
 export function setUpEncryptionKey(username: string) {

@@ -16,7 +16,7 @@ if (!fs.existsSync(path.join(buildDir, "index.html"))) {
 }
 
 const proxyConfig = JSON.parse(fs.readFileSync(path.resolve(clientDir, "proxy.conf.json"), "utf8"));
-const proxyRoutes = Object.entries(proxyConfig).map(([prefix, options]) => ({ prefix, target: new URL(options.target) }));
+const proxyRoutes = proxyConfig.flatMap((options) => options.context.map((prefix) => ({ prefix, target: new URL(options.target) })));
 
 const contentTypes = new Map([
     [".css", "text/css; charset=utf-8"],

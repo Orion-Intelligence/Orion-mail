@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           for i in $(seq 1 120); do
-            api_code="$(curl -s --connect-timeout 2 --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/health" || true)"
+            api_code="$(curl -s --connect-timeout 2 --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000/api/health" || true)"
             client_code="$(curl -s --connect-timeout 2 --max-time 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:4300/" || true)"
             echo "readiness attempt $i/120: API HTTP ${api_code:-000}, client HTTP ${client_code:-000}"
             if [ "$api_code" = "200" ] && [ "$client_code" = "200" ]; then

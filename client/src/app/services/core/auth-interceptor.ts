@@ -13,7 +13,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   });
 
   return next(secured).pipe(catchError((error: HttpErrorResponse) => {
-    if ([502, 503, 504].includes(error.status) && request.url.startsWith('/auth/')) {
+    if ([502, 503, 504].includes(error.status) && request.url.startsWith('/api/auth/')) {
       authService.showMaintenance();
     }
     if (error.status === 401 && !AUTH_CONTROL_PATHS.some((path) => request.url.endsWith(path))) {
