@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-INCOMING_MAIL_URL = os.getenv("ORION_MAIL_INCOMING_URL", "http://127.0.0.1:8000/incoming-mail/")
+INCOMING_MAIL_URL = os.getenv("ORION_MAIL_INCOMING_URL", "http://127.0.0.1:8000/api/incoming-mail/")
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 AUTH_RESULT_PATTERN = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)", re.IGNORECASE)
 SPAM_SCORE_PATTERN = re.compile(r"\[\s*(-?\d+(?:\.\d+)?)\s*/\s*-?\d+(?:\.\d+)?\s*\]")

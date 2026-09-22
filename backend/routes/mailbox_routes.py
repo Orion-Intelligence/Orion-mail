@@ -8,7 +8,7 @@ from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manage
 from orion.api.interactive.message_manager.models.message_param_model import MailboxSettingsRequest
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
-mailbox_routes = APIRouter(prefix="/mailboxes", tags=["Mailboxes"])
+mailbox_routes = APIRouter(prefix="/api/mailboxes", tags=["Mailboxes"])
 
 
 @mailbox_routes.post("")

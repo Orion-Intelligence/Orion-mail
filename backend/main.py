@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pymongo.errors import PyMongoError
 
+from interface import ANGULAR_BUILD_DIR, interface
 from orion.management.managers.service_manager import service_manager
 from orion.middleware.middleware_setup import setup_middlewares
 from orion.services.mongo_manager.mongo_controller import mongo_controller
@@ -26,11 +27,12 @@ from routes.messenger_routes import messenger_routes
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(p_app: FastAPI):
     await service_manager.get_instance().init_services()
     if os.getenv("ORION_TESTING", "false").lower() == "true":
         from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manager
         await mailbox_manager.get_instance().seed_local_test_mailboxes()
+    p_app.include_router(interface)
     yield
     await service_manager.get_instance().close_services()
 
@@ -39,6 +41,7 @@ app = FastAPI(title="Orion Mail API", version="1.0.0", lifespan=lifespan, docs_u
 setup_middlewares(app)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/assets", StaticFiles(directory=ANGULAR_BUILD_DIR / "assets", check_dir=False), name="assets")
 app.mount("/maintenance-assets", StaticFiles(directory=STATIC_DIR / "maintenance-assets"), name="maintenance-assets")
 
 
@@ -51,7 +54,7 @@ async def maintenance_page():
 async def service_unavailable_page(request: Request, error: StarletteHTTPException):
     if (
         error.status_code == 503
-        and request.url.path.startswith("/auth/")
+        and request.url.path.startswith("/api/auth/")
         and "text/html" in request.headers.get("accept", "")
         and request.headers.get("x-requested-with") != "XMLHttpRequest"
     ):
@@ -59,12 +62,7 @@ async def service_unavailable_page(request: Request, error: StarletteHTTPExcepti
     return await http_exception_handler(request, error)
 
 
-@app.get("/")
-async def root():
-    return {"message": "Orion Mail API is running"}
-
-
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     try:
         await mongo_controller.get_instance().link_connection()

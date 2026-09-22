@@ -4,7 +4,7 @@ from configs.app_dependency import get_current_user
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
-attachment_routes = APIRouter(prefix="/attachments", tags=["Attachments"])
+attachment_routes = APIRouter(prefix="/api/attachments", tags=["Attachments"])
 
 
 @attachment_routes.get("/{attachment_id}/download")

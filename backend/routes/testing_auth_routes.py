@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, HTTPException, Response, status
 
 
-test_auth_routes = APIRouter(prefix="/test", tags=["Testing"])
+test_auth_routes = APIRouter(prefix="/api/test", tags=["Testing"])
 
 
 def testing_enabled() -> bool:

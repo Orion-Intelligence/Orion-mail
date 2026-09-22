@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from orion.constants.constant import CONSTANTS
+from orion.middleware.middlewares.content_security_policy_middleware import content_security_policy_middleware
 from orion.middleware.middlewares.security_headers_middleware import security_headers_middleware
 
 
@@ -14,7 +15,7 @@ def middleware(cls: Any, **options: Any) -> Middleware:
 
 
 def build_middlewares() -> list[Middleware]:
-    return [middleware(CORSMiddleware, allow_origins=CONSTANTS.S_CORS_ALLOWED_ORIGINS, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Requested-With"]), middleware(TrustedHostMiddleware, allowed_hosts=CONSTANTS.S_ALLOWED_HOSTS), middleware(security_headers_middleware)]
+    return [middleware(CORSMiddleware, allow_origins=CONSTANTS.S_CORS_ALLOWED_ORIGINS, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type", "X-Requested-With"]), middleware(TrustedHostMiddleware, allowed_hosts=CONSTANTS.S_ALLOWED_HOSTS), middleware(content_security_policy_middleware), middleware(security_headers_middleware)]
 
 
 def setup_middlewares(app: FastAPI) -> None:

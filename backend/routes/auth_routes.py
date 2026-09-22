@@ -34,7 +34,7 @@ from orion.services.orion_identity_manager.orion_identity_manager import (
     orion_identity_manager,
 )
 
-auth_routes = APIRouter(prefix="/auth", tags=["Authentication"])
+auth_routes = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 SAFE_RETURN_TO = re.compile(r"^/(?![/\\])[A-Za-z0-9._~\-/]*(?:\?[A-Za-z0-9._~\-/&=%+]*)?$")

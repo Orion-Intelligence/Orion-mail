@@ -8,7 +8,7 @@ from orion.api.interactive.message_manager.models.message_param_model import Dra
 from orion.services.mongo_manager.shared_model.db_message_model import MESSAGE_FOLDER
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
-message_routes = APIRouter(prefix="/messages", tags=["Messages"])
+message_routes = APIRouter(prefix="/api/messages", tags=["Messages"])
 
 
 @message_routes.post("/send")

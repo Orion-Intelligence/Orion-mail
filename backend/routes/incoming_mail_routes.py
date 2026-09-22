@@ -6,7 +6,7 @@ from pydantic import EmailStr
 from configs.app_dependency import require_incoming_mail_token
 from orion.api.interactive.incoming_mail_manager.incoming_mail_manager import incoming_mail_manager
 
-incoming_mail_routes = APIRouter(prefix="/incoming-mail", tags=["Incoming Mail"], dependencies=[Depends(require_incoming_mail_token)], include_in_schema=False)
+incoming_mail_routes = APIRouter(prefix="/api/incoming-mail", tags=["Incoming Mail"], dependencies=[Depends(require_incoming_mail_token)], include_in_schema=False)
 
 
 @incoming_mail_routes.post("/")

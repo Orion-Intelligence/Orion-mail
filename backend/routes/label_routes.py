@@ -5,7 +5,7 @@ from orion.api.interactive.label_manager.label_manager import label_manager
 from orion.api.interactive.label_manager.models.label_param_model import LabelCreateRequest, LabelUpdateRequest
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
-label_routes = APIRouter(prefix="/labels", tags=["Labels"])
+label_routes = APIRouter(prefix="/api/labels", tags=["Labels"])
 
 
 @label_routes.get("")

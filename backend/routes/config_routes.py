@@ -5,7 +5,7 @@ from orion.api.server.config_manager.config_controller import config_controller
 from orion.api.server.config_manager.models.config_param_model import SystemConfigUpdateRequest
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
-config_routes = APIRouter(prefix="/system-config", tags=["System configuration"])
+config_routes = APIRouter(prefix="/api/system-config", tags=["System configuration"])
 
 
 @config_routes.get("")

@@ -6,7 +6,7 @@ from orion.api.interactive.disposable_mailbox_manager.models.disposable_mailbox_
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
 
-disposable_mailbox_routes = APIRouter(prefix="/sender-identities", tags=["Sender Identities"])
+disposable_mailbox_routes = APIRouter(prefix="/api/sender-identities", tags=["Sender Identities"])
 
 
 @disposable_mailbox_routes.get("")

@@ -13,7 +13,7 @@ ORION_ORIGIN_COOKIE = "orion_mail_orion_origin"
 COOKIE_MAX_AGE = CONSTANTS.S_ORION_MAIL_SESSION_MAX_AGE_SECONDS
 SSO_COOKIE_MAX_AGE = 5 * 60
 ORION_ORIGIN_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
-SSO_CALLBACK_PATH = "/auth/callback"
+SSO_CALLBACK_PATH = "/api/auth/callback"
 SSO_RETURN_TO_FALLBACK = "/inbox"
 SSO_RETURN_TO_PATTERN = re.compile(r"^/[A-Za-z0-9._~\-/]*(?:\?[A-Za-z0-9._~\-/=&%]*)?$")
 
@@ -72,7 +72,7 @@ def allowed_sso_return_to(return_to: str) -> str:
 def set_sso_cookies(response: Response, *, state: str, redirect_uri: str, return_to: str) -> None:
     cookie_options = {
         "max_age": SSO_COOKIE_MAX_AGE,
-        "path": "/auth",
+        "path": "/api/auth",
         "secure": CONSTANTS.S_COOKIE_SECURE,
         "httponly": True,
         "samesite": "lax",
@@ -87,7 +87,7 @@ def set_orion_origin_cookie(response: Response, origin: str) -> None:
         key=ORION_ORIGIN_COOKIE,
         value=quote(origin, safe=""),
         max_age=ORION_ORIGIN_COOKIE_MAX_AGE,
-        path="/auth",
+        path="/api/auth",
         secure=CONSTANTS.S_COOKIE_SECURE,
         httponly=True,
         samesite="lax",
@@ -103,7 +103,7 @@ def clear_sso_cookies(response: Response) -> None:
     for key in (SSO_STATE_COOKIE, SSO_REDIRECT_COOKIE, SSO_RETURN_TO_COOKIE):
         response.delete_cookie(
             key=key,
-            path="/auth",
+            path="/api/auth",
             secure=CONSTANTS.S_COOKIE_SECURE,
             httponly=True,
             samesite="lax",

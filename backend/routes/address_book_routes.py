@@ -8,7 +8,7 @@ from orion.api.interactive.address_book_manager.models.address_book_response_mod
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
 
-address_book_routes = APIRouter(prefix="/address-book", tags=["Address book"])
+address_book_routes = APIRouter(prefix="/api/address-book", tags=["Address book"])
 
 
 class AddressHintRequest(BaseModel):

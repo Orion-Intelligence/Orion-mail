@@ -6,7 +6,7 @@ from orion.api.interactive.messenger_manager.models.messenger_param_model import
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 
 
-messenger_routes = APIRouter(prefix="/messenger-api", tags=["Messenger"])
+messenger_routes = APIRouter(prefix="/api/messenger", tags=["Messenger"])
 
 
 @messenger_routes.get("/users")
