@@ -1,5 +1,5 @@
 <div animate.enter="mail-motion-dialog-backdrop-enter" animate.leave="mail-motion-dialog-backdrop-leave" class="fixed inset-0 z-[130] flex items-center justify-center bg-scrim p-5 backdrop-blur-[2px] max-[640px]:p-2" role="dialog" aria-modal="true" aria-labelledby="e2e-dialog-title">
-  <form [formGroup]="form" (ngSubmit)="submit()" animate.enter="mail-motion-dialog-panel-enter" animate.leave="mail-motion-dialog-panel-leave" class="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-surface shadow-dialog" [attr.data-view]="view()" data-testid="e2e-dialog-form">
+  <form [formGroup]="form" (ngSubmit)="submit()" animate.enter="mail-motion-dialog-panel-enter" animate.leave="mail-motion-dialog-panel-leave" class="flex max-h-[92dvh] w-full max-w-md flex-col overflow-y-auto rounded-2xl border border-line bg-surface" [attr.data-view]="view()" data-testid="e2e-dialog-form">
     <div class="px-6 pt-6 pb-2">
       <h2 id="e2e-dialog-title" class="flex items-center gap-2 text-[22px] leading-7 font-normal text-ink"><app-icon [name]="'lock'" class="h-5 w-5 shrink-0 text-icon" />
         @switch (view()) {

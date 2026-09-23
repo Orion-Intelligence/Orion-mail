@@ -1,7 +1,7 @@
 [
   {
     "context": ["/api", "/maintenance-assets", "/maintenance.html"],
-    "target": "http://172.19.0.6:8001",
+    "target": "http://127.0.0.1:8000",
     "secure": false,
     "changeOrigin": true
   }
