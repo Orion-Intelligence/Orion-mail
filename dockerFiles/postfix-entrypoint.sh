@@ -3,6 +3,7 @@ set -e
 
 MAIL_DOMAIN="${MAIL_DOMAIN:-mail.orionintelligence.org}"
 MAIL_BASE_DOMAIN="${MAIL_BASE_DOMAIN:-mail.orionintelligence.org}"
+MAIL_HELO_HOST="${MAIL_HELO_HOST:-mx.${MAIL_BASE_DOMAIN#mail.}}"
 POSTFIX_MYNETWORKS="${POSTFIX_MYNETWORKS:-127.0.0.0/8 172.16.0.0/12}"
 POSTFIX_MILTER="${POSTFIX_MILTER:-inet:rspamd:11332}"
 POSTFIX_MESSAGE_SIZE_LIMIT="${POSTFIX_MESSAGE_SIZE_LIMIT:-67108864}"
@@ -12,6 +13,7 @@ cp -a /etc/aliases /etc/postfix/aliases
 chown postfix:postfix /var/lib/postfix
 
 postconf -e "myhostname = ${MAIL_DOMAIN}"
+postconf -e "smtp_helo_name = ${MAIL_HELO_HOST}"
 postconf -e "mydestination = localhost"
 postconf -e "inet_interfaces = all"
 postconf -e "inet_protocols = ipv4"
