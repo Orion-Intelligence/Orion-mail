@@ -3,7 +3,6 @@ import { SearchScopeOption } from '../model/navbar.model';
 export const GO_TO_ROUTES: Record<string, string> = { i: '/inbox', s: '/sent', d: '/drafts', t: '/trash', a: '/all', l: '/settings/labels' };
 
 export const MORE_STORAGE_KEY = 'orion-mail-sidebar-more';
-export const SEARCHABLE_ROUTES = ['/inbox', '/sent', '/drafts', '/archive', '/spam', '/trash', '/starred', '/important', '/all', '/label/', '/search'];
 export const MORE_ROUTES = ['/starred', '/important', '/archive', '/all', '/trash'];
 export const MAILBOX_ROUTE_SEGMENTS = new Set(['inbox', 'sent', 'drafts', 'archive', 'spam', 'trash', 'starred', 'important', 'all', 'label']);
 

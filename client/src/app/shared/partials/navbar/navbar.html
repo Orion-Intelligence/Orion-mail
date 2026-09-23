@@ -14,7 +14,6 @@
     </div>
 
     <div data-testid="mail-search" class="flex min-w-0 flex-1 items-center" role="search">
-      @if (showSearch()) {
       <div #searchWrapper class="relative w-full max-w-180">
         <div class="mail-search-field mail-soft-white flex h-12 w-full items-center rounded-3xl border border-outline/25 bg-search px-1 transition-[background-color,border-color] focus-within:border-primary/40 focus-within:bg-field max-[720px]:h-10">
           <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-icon">
@@ -89,7 +88,6 @@
         </div>
         }
       </div>
-      }
     </div>
 
     <div class="relative z-[110] shrink-0" #profileWrapper>
@@ -238,14 +236,6 @@
         </div>
 
         <nav data-testid="labels-nav" aria-label="Labels" class="flex shrink-0 flex-col gap-px pb-2">
-          @if (labelsPending()) {
-          @for (row of labelSkeletonRows; track row) {
-          <span aria-hidden="true" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 max-[720px]:h-10">
-            <span class="mail-skeleton h-3 w-3 shrink-0 rounded-sm"></span>
-            <span class="mail-skeleton h-3 min-w-0 flex-1 {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}"></span>
-          </span>
-          }
-          } @else {
           @for (label of labelService.labels(); track label.id) {
           <a [attr.data-testid]="'label-section-' + label.id" [routerLink]="['/label', label.id]" (click)="onSidebarNavigation('/label/' + label.id)" routerLinkActive="bg-selected font-bold text-selected-ink" [title]="label.name" animate.enter="mail-motion-row-enter" animate.leave="mail-motion-row-leave" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center"><span class="h-3 w-3 rounded-sm" [class]="labelColorClass(label.color)"></span></span>
@@ -258,7 +248,6 @@
           @if (!sidebarCollapsed()) {
           <button data-testid="create-first-label" type="button" (click)="openCreateLabel()" class="mt-1 ml-6 cursor-pointer border-none bg-transparent py-1 text-left text-xs text-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">Create
             your first label</button>
-          }
           }
           }
         </nav>

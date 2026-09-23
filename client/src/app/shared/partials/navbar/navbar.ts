@@ -19,7 +19,7 @@ import { LabelDialog } from '../label-dialog/label-dialog';
 import { E2eUnlockDialog } from '../e2e-unlock-dialog/e2e-unlock-dialog';
 import { E2eService } from '../../../services/e2e';
 import { BrandService } from '../../../services/brand';
-import { GO_TO_ROUTES, MAILBOX_ROUTE_SEGMENTS, MESSAGE_FOLDER_NAMES, MORE_ROUTES, MORE_STORAGE_KEY, SEARCHABLE_ROUTES, SEARCH_SCOPE_OPTIONS } from '../../constants/navbar.constants';
+import { GO_TO_ROUTES, MAILBOX_ROUTE_SEGMENTS, MESSAGE_FOLDER_NAMES, MORE_ROUTES, MORE_STORAGE_KEY, SEARCH_SCOPE_OPTIONS } from '../../constants/navbar.constants';
 import { SearchHintRequest } from '../../model/navbar.model';
 
 import { MessagePreview } from '../../pipes/message-preview';
@@ -56,7 +56,6 @@ export class Navbar implements OnInit {
   private goToTimer?: ReturnType<typeof setTimeout>;
 
   readonly e2e = inject(E2eService);
-  readonly labelSkeletonRows = [0, 1, 2];
   mailbox = signal<Mailbox | null>(null);
   profileMenuOpen = signal(false);
   searchSuggestionsOpen = signal(false);
@@ -88,10 +87,6 @@ export class Navbar implements OnInit {
     this.searchScope = this.searchService.searchScope;
   }
 
-  labelsPending(): boolean {
-    return this.labelService.loading() && this.labelService.labels().length === 0;
-  }
-
   ngOnInit(): void {
     this.initializeSearch();
     this.syncSearchStateFromUrl(this.router.url);
@@ -114,10 +109,6 @@ export class Navbar implements OnInit {
     if (MORE_ROUTES.some((route) => this.router.url.startsWith(route))) {
       this.moreOpen.set(true);
     }
-  }
-
-  showSearch(): boolean {
-    return SEARCHABLE_ROUTES.some((route) => this.router.url.startsWith(route));
   }
 
   onSearch(event: Event): void {
@@ -484,7 +475,7 @@ export class Navbar implements OnInit {
 
   @HostListener('document:keydown', ['$event'])
   focusSearchOnShortcut(event: KeyboardEvent): void {
-    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || !this.showSearch()) {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) {
       return;
     }
 

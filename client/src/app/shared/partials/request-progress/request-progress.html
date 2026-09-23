@@ -1,5 +1,5 @@
-<div data-testid="loading-progress" role="progressbar" aria-label="Loading mail" [class.opacity-100]="progress.active()" [class.visible]="progress.active()" [class.opacity-0]="!progress.active()" [class.invisible]="!progress.active()" class="mail-request-progress z-10 h-[5px] shrink-0 bg-[#0e355650] transition-opacity duration-300 ease-in-out">
-  <div class="h-1 w-full overflow-hidden bg-[#295884]">
+<div data-testid="loading-progress" role="progressbar" aria-label="Loading mail" [class.mail-request-progress-active]="progress.active()" class="mail-request-progress z-10 h-[3px] shrink-0">
+  <div class="h-full w-full overflow-hidden bg-[#295884]">
     <div class="mail-motion-progress-bar h-full w-full bg-[#08c]"></div>
   </div>
 </div>

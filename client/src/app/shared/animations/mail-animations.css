@@ -167,13 +167,22 @@ article.mail-message-surface.mail-motion-page,
 
 .mail-request-progress {
   position: relative;
-  margin-bottom: -5px;
+  margin-bottom: -3px;
   overflow: hidden;
   pointer-events: none;
+  opacity: 0%;
+  visibility: hidden;
+  transition: opacity 180ms ease-out, visibility 0s linear 180ms;
+}
+
+.mail-request-progress-active {
+  opacity: 100%;
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .mail-motion-progress-bar {
-  animation: mail-progress 1.5s linear infinite;
+  animation: mail-progress 1.6s linear infinite, mail-progress-scale 1.6s ease-in-out infinite;
   transform-origin: left center;
   will-change: transform;
 }
@@ -353,29 +362,23 @@ article.mail-message-surface.mail-motion-page,
 }
 
 @keyframes mail-progress {
-  0% {
-    opacity: 80%;
-    transform: translateX(0) scaleX(0.05);
+  from {
+    translate: -10% 0;
   }
 
-  25% {
-    opacity: 100%;
-    transform: translateX(25%) scaleX(0.3);
+  to {
+    translate: 100% 0;
+  }
+}
+
+@keyframes mail-progress-scale {
+  0%,
+  100% {
+    transform: scaleX(0.1);
   }
 
   50% {
-    opacity: 100%;
-    transform: translateX(50%) scaleX(0.6);
-  }
-
-  75% {
-    opacity: 100%;
-    transform: translateX(75%) scaleX(0.3);
-  }
-
-  100% {
-    opacity: 50%;
-    transform: translateX(100%) scaleX(0.1);
+    transform: scaleX(0.6);
   }
 }
 
