@@ -6,7 +6,7 @@
       <p class="mt-1 text-sm leading-5 text-muted">Private conversations start here.</p>
     </div>
   </div>
-  <p class="mt-4 max-w-3xl text-sm leading-6 text-muted">Mail and chats between Orion Mail addresses are always encrypted in your browser, so only you and the people you write to can read them. Your key is locked with a passphrase that never leaves this browser.</p>
+  <p class="mt-4 max-w-3xl text-sm leading-6 text-muted">Mail and chats between {{ brand.name() }} addresses are always encrypted in your browser, so only you and the people you write to can read them. Your key is locked with a passphrase that never leaves this browser.</p>
 
   @if (errorMessage()) {
   <div class="mt-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ errorMessage() }}</div>

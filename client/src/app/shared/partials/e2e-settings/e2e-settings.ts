@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
+import { BrandService } from '../../../services/brand';
 import { E2eService } from '../../../services/e2e';
 import { ConfirmDialog } from '../../components/confirm-dialog/confirm-dialog';
 import { Icon } from '../../icons/icon/icon';
@@ -15,6 +16,7 @@ import { extractErrorMessage } from '../../utils/http-error';
 })
 export class E2eSettings implements OnInit {
   readonly e2e = inject(E2eService);
+  readonly brand = inject(BrandService);
   readonly minLength = E2E_MIN_PASSPHRASE_LENGTH;
   readonly changeForm = new FormGroup({ current: new FormControl('', { nonNullable: true }), next: new FormControl('', { nonNullable: true }) });
   readonly groupedFingerprint = computed(() => this.e2e.fingerprint().match(/.{4}/g)?.join(' ') ?? '');
