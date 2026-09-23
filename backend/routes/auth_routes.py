@@ -108,6 +108,13 @@ async def mailbox_for_user(user: db_user_model) -> db_mailbox_model | None:
     )
 
 
+def _resolve_mail_domain(user: db_user_model) -> str:
+    slug = (getattr(user, "orion_tenant_slug", "") or "").strip().lower()
+    if not slug:
+        return CONSTANTS.S_MAIL_DOMAIN
+    return f"{slug}.{CONSTANTS.S_MAIL_BASE_DOMAIN}"
+
+
 def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None, orion_origin: str, brand: dict[str, str] | None = None) -> dict:
     return {
         "id": str(user.id),
@@ -116,7 +123,7 @@ def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None,
         "username": user.username,
         "mailbox_configured": mailbox is not None,
         "mailbox_address": mailbox.mailbox_address if mailbox else None,
-        "mail_domain": CONSTANTS.S_MAIL_DOMAIN,
+        "mail_domain": _resolve_mail_domain(user),
         "orion_account_url": f"{orion_origin}/dashboard/profile/account",
         "brand": brand or {"name": "", "logo_light": "", "logo_dark": ""},
         "preferences": preference_manager.serialize_preferences(user),

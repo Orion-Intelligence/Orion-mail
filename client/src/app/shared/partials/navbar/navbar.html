@@ -4,10 +4,10 @@
       <button data-testid="navigation-toggle" data-mail-action="more" type="button" (click)="toggleNavigation()" title="Main menu" aria-label="Toggle main menu" [attr.aria-expanded]="navigationExpanded()" class="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-primary">
         <app-icon [name]="'menu'" class="h-6 w-6" />
       </button>
-      <a data-testid="navbar-logo-link" routerLink="/inbox" [attr.aria-label]="brandName() + ' inbox'" class="ml-1 flex min-w-0 items-center gap-2 no-underline max-[720px]:ml-0">
+      <a data-testid="navbar-logo-link" routerLink="/inbox" [attr.aria-label]="brand.name() + ' inbox'" class="ml-1 flex min-w-0 items-center gap-2 no-underline max-[720px]:ml-0">
         <span class="flex items-center max-[720px]:hidden">
-          <img [src]="logoLight()" [alt]="brandName()" class="orion-logo-light h-7 w-auto" />
-          <img [src]="logoDark()" [alt]="brandName()" class="orion-logo-dark h-7 w-auto" />
+          <img [src]="brand.logoLight()" [alt]="brand.name()" class="orion-logo-light h-7 w-auto" />
+          <img [src]="brand.logoDark()" [alt]="brand.name()" class="orion-logo-dark h-7 w-auto" />
         </span>
         <img src="assets/images/logo-mark.png" alt="" class="hidden h-9 w-9 rounded-lg max-[720px]:block" />
       </a>
@@ -98,7 +98,7 @@
     </div>
 
     <div class="relative z-[110] shrink-0" #profileWrapper>
-      <button data-testid="profile-menu-button" #profileButton type="button" (click)="toggleProfileMenu()" title="Orion Mail account" aria-label="Open account menu" aria-haspopup="dialog" [attr.aria-controls]="profileMenuOpen() ? 'profile-popover' : null" [attr.aria-expanded]="profileMenuOpen()" class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-transparent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary">
+      <button data-testid="profile-menu-button" #profileButton type="button" (click)="toggleProfileMenu()" [title]="brand.name() + ' account'" aria-label="Open account menu" aria-haspopup="dialog" [attr.aria-controls]="profileMenuOpen() ? 'profile-popover' : null" [attr.aria-expanded]="profileMenuOpen()" class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-transparent transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary">
         <span class="orion-brand-avatar flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium">{{
           initial() }}</span>
       </button>
@@ -109,7 +109,7 @@
           <span class="orion-brand-avatar flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-semibold">{{
             initial() }}</span>
           <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-ink">{{ user()?.full_name || user()?.username || 'Orion account'
+            <p class="truncate text-sm font-medium text-ink">{{ user()?.full_name || user()?.username || (brand.name() + ' account')
               }}</p>
             @if (mailbox()) {
             <p class="mt-0.5 truncate text-xs text-ink-soft" [title]="mailbox()?.mailbox_address">{{
@@ -137,7 +137,7 @@
           </button>
           <a data-testid="profile-orion-account" [href]="user()?.orion_account_url" target="_blank" rel="noopener" (click)="profileMenuOpen.set(false)" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft no-underline transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
             <app-icon [name]="'account'" class="h-4.5 w-4.5 text-icon" />
-            Manage Orion account
+            Manage {{ brand.name() }} account
           </a>
           <button data-testid="profile-sign-out" type="button" (click)="logout()" class="flex h-10 w-full cursor-pointer items-center gap-3 rounded-lg border-none bg-transparent px-3 text-left text-sm text-ink-soft transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-2 focus-visible:outline-danger">
             <app-icon [name]="'logout'" class="h-4.5 w-4.5" />

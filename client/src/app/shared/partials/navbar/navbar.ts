@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet, UrlSegmentGroup } from '@angular/router';
@@ -18,6 +18,7 @@ import { Icon } from '../../icons/icon/icon';
 import { LabelDialog } from '../label-dialog/label-dialog';
 import { E2eUnlockDialog } from '../e2e-unlock-dialog/e2e-unlock-dialog';
 import { E2eService } from '../../../services/e2e';
+import { BrandService } from '../../../services/brand';
 import { GO_TO_ROUTES, MAILBOX_ROUTE_SEGMENTS, MESSAGE_FOLDER_NAMES, MORE_ROUTES, MORE_STORAGE_KEY, SEARCHABLE_ROUTES, SEARCH_SCOPE_OPTIONS } from '../../constants/navbar.constants';
 import { SearchHintRequest } from '../../model/navbar.model';
 
@@ -67,9 +68,7 @@ export class Navbar implements OnInit {
   readonly searchScopeOptions = SEARCH_SCOPE_OPTIONS;
   readonly labelColorClass = labelColorClass;
   user = this.authService.currentUser;
-  brandName = computed(() => this.user()?.brand?.name?.trim() || 'Orion Mail');
-  logoLight = computed(() => this.user()?.brand?.logo_light?.trim() || 'assets/images/logo-wide.svg');
-  logoDark = computed(() => this.user()?.brand?.logo_dark?.trim() || 'assets/images/logo-wide-dark.svg');
+  readonly brand = inject(BrandService);
   initial = computed(() => (
     this.user()?.username
     || this.mailbox()?.mailbox_address
@@ -85,9 +84,6 @@ export class Navbar implements OnInit {
   constructor(public readonly messageService: MessageService, private readonly searchService: SearchService, public readonly labelService: LabelService, public readonly themeService: ThemeService, public readonly composeService: ComposeService, public readonly mailPollService: MailPollService, public readonly router: Router) {
     this.searchTerm = this.searchService.searchTerm;
     this.searchScope = this.searchService.searchScope;
-    effect(() => {
-      document.title = this.brandName();
-    });
   }
 
   labelsPending(): boolean {

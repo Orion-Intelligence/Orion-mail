@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../../services/auth';
+import { BrandService } from '../../services/brand';
 import { MessageService } from '../../services/message';
 import { extractErrorMessage } from '../../shared/utils/http-error';
 
@@ -13,13 +14,14 @@ import { extractErrorMessage } from '../../shared/utils/http-error';
 export class ConfigureEmail {
   private readonly authService = inject(AuthService);
 
+  readonly brand = inject(BrandService);
   loading = signal(false);
   errorMessage = signal('');
   user = this.authService.currentUser;
   mailDomain = computed(() => this.user()?.mail_domain || 'mail.orionintelligence.org');
   mailboxUsername = computed(() => this.user()?.username.trim().toLowerCase() || '');
   mailboxAddress = computed(() => this.mailboxUsername() ? `${this.mailboxUsername()}@${this.mailDomain()}` : '');
-  accountName = computed(() => this.user()?.full_name.trim() || this.user()?.username.trim() || 'Orion Intelligence account');
+  accountName = computed(() => this.user()?.full_name.trim() || this.user()?.username.trim() || `${this.brand.name()} account`);
   accountDetail = computed(() => {
     const user = this.user();
     const email = user?.email.trim();

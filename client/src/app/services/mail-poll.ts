@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 
+import { BrandService } from './brand';
 import { MessageService } from './message';
 import { POLL_INTERVAL_MS } from '../shared/constants/mail-poll.constants';
 
@@ -7,6 +8,7 @@ import { POLL_INTERVAL_MS } from '../shared/constants/mail-poll.constants';
   providedIn: 'root',
 })
 export class MailPollService {
+  private readonly brand = inject(BrandService);
   private timer?: ReturnType<typeof setInterval>;
   private knownUnread = -1;
 
@@ -81,7 +83,7 @@ export class MailPollService {
     }
 
     try {
-      const notification = new Notification('Orion Mail', { body: arrived === 1 ? 'You have 1 new message' : `You have ${arrived} new messages`, tag: 'orion-mail-new' });
+      const notification = new Notification(this.brand.name(), { body: arrived === 1 ? 'You have 1 new message' : `You have ${arrived} new messages`, tag: 'orion-mail-new' });
       notification.onclick = () => {
         window.focus();
       };
