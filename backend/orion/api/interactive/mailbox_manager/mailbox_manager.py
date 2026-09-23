@@ -37,10 +37,7 @@ class mailbox_manager:
 
     @staticmethod
     def _resolve_mail_domain(current_user: db_user_model) -> str:
-        slug = (getattr(current_user, "orion_tenant_slug", "") or "").strip().lower()
-        if not slug:
-            return CONSTANTS.S_MAIL_DOMAIN
-        return f"{slug}.{CONSTANTS.S_MAIL_BASE_DOMAIN}"
+        return CONSTANTS.S_MAIL_DOMAIN
 
     async def create_mailbox(self, current_user: db_user_model) -> dict:
         if await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == current_user.id) is not None:

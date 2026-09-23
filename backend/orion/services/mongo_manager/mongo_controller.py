@@ -1,6 +1,8 @@
 import motor.motor_asyncio
 from odmantic import AIOEngine
+from pymongo.errors import DuplicateKeyError
 
+from orion.constants.constant import CONSTANTS
 from orion.services.mongo_manager.mongo_enums import MONGO_CONNECTIONS
 from orion.services.mongo_manager.shared_model.db_address_book_entry_model import db_address_book_entry_model
 from orion.services.mongo_manager.shared_model.db_attachment_model import db_attachment_model
@@ -45,8 +47,18 @@ class mongo_controller:
         await user_collection.create_index("email", unique=True)
         await user_collection.create_index("orion_user_id", unique=True, sparse=True)
         await self.__engine.get_collection(db_user_key_model).create_index("auth_id", unique=True)
-        await self.__engine.get_collection(db_mailbox_model).create_index("mailbox_address", unique=True)
-        await self.__engine.get_collection(db_mailbox_model).create_index("user_id", unique=True)
+        mailbox_collection = self.__engine.get_collection(db_mailbox_model)
+        await mailbox_collection.create_index("mailbox_address", unique=True)
+        await mailbox_collection.create_index("user_id", unique=True)
+        async for mailbox in mailbox_collection.find({"mail_domain": {"$ne": CONSTANTS.S_MAIL_DOMAIN}}, {"mailbox_address": 1}):
+            local_part = str(mailbox.get("mailbox_address") or "").split("@", 1)[0]
+            new_address = f"{local_part}@{CONSTANTS.S_MAIL_DOMAIN}"
+            if not local_part or new_address == mailbox.get("mailbox_address"):
+                continue
+            try:
+                await mailbox_collection.update_one({"_id": mailbox["_id"]}, {"$set": {"mailbox_address": new_address, "mail_domain": CONSTANTS.S_MAIL_DOMAIN}})
+            except DuplicateKeyError:
+                continue
         await self.__engine.get_collection(db_address_book_entry_model).create_index([("owner_mailbox_id", 1), ("email_address", 1)], unique=True)
         await self.__engine.get_collection(db_address_book_entry_model).create_index([("owner_mailbox_id", 1), ("last_used_at", -1)])
         await self.__engine.get_collection(db_system_config_model).create_index("key", unique=True)
