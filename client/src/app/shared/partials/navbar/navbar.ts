@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, HostListener, inject, OnInit, signal, ViewChild, WritableSignal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet, UrlSegmentGroup } from '@angular/router';
@@ -67,6 +67,9 @@ export class Navbar implements OnInit {
   readonly searchScopeOptions = SEARCH_SCOPE_OPTIONS;
   readonly labelColorClass = labelColorClass;
   user = this.authService.currentUser;
+  brandName = computed(() => this.user()?.brand?.name?.trim() || 'Orion Mail');
+  logoLight = computed(() => this.user()?.brand?.logo_light?.trim() || 'assets/images/logo-wide.svg');
+  logoDark = computed(() => this.user()?.brand?.logo_dark?.trim() || 'assets/images/logo-wide-dark.svg');
   initial = computed(() => (
     this.user()?.username
     || this.mailbox()?.mailbox_address
@@ -82,6 +85,9 @@ export class Navbar implements OnInit {
   constructor(public readonly messageService: MessageService, private readonly searchService: SearchService, public readonly labelService: LabelService, public readonly themeService: ThemeService, public readonly composeService: ComposeService, public readonly mailPollService: MailPollService, public readonly router: Router) {
     this.searchTerm = this.searchService.searchTerm;
     this.searchScope = this.searchService.searchScope;
+    effect(() => {
+      document.title = this.brandName();
+    });
   }
 
   labelsPending(): boolean {

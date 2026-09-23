@@ -17,6 +17,7 @@ class db_user_model(Model):
     username: str = ""
     orion_user_id: str | None = None
     orion_tenant_id: str | None = None
+    orion_tenant_slug: str | None = None
     preferences: Optional[Dict[str, Any]] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

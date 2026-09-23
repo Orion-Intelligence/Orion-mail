@@ -8,6 +8,7 @@ class CONSTANTS:
     BASE_DIR = Path(__file__).resolve().parents[2]
 
     S_MAIL_DOMAIN = env_handler.get_instance().env("MAIL_DOMAIN", "mail.orionintelligence.org")
+    S_MAIL_BASE_DOMAIN = env_handler.get_instance().env("MAIL_BASE_DOMAIN", "mail.orionintelligence.org").strip().lower().rstrip(".")
     S_SEED_LOCAL_TEST_MAILBOXES = env_handler.get_instance().env("SEED_LOCAL_TEST_MAILBOXES", "false").lower() == "true"
 
     S_ORION_MAIL_SESSION_MAX_AGE_SECONDS = int(

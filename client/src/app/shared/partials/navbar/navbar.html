@@ -4,10 +4,10 @@
       <button data-testid="navigation-toggle" data-mail-action="more" type="button" (click)="toggleNavigation()" title="Main menu" aria-label="Toggle main menu" [attr.aria-expanded]="navigationExpanded()" class="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-primary">
         <app-icon [name]="'menu'" class="h-6 w-6" />
       </button>
-      <a data-testid="navbar-logo-link" routerLink="/inbox" aria-label="Orion Mail inbox" class="ml-1 flex min-w-0 items-center gap-2 no-underline max-[720px]:ml-0">
+      <a data-testid="navbar-logo-link" routerLink="/inbox" [attr.aria-label]="brandName() + ' inbox'" class="ml-1 flex min-w-0 items-center gap-2 no-underline max-[720px]:ml-0">
         <span class="flex items-center max-[720px]:hidden">
-          <img src="assets/images/logo-wide.svg" alt="Orion Intelligence" class="orion-logo-light h-7 w-auto" />
-          <img src="assets/images/logo-wide-dark.svg" alt="Orion Intelligence" class="orion-logo-dark h-7 w-auto" />
+          <img [src]="logoLight()" [alt]="brandName()" class="orion-logo-light h-7 w-auto" />
+          <img [src]="logoDark()" [alt]="brandName()" class="orion-logo-dark h-7 w-auto" />
         </span>
         <img src="assets/images/logo-mark.png" alt="" class="hidden h-9 w-9 rounded-lg max-[720px]:block" />
       </a>

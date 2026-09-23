@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,6 +31,7 @@ class orion_identity_manager:
     def _normalized_identity(identity: dict[str, Any]) -> dict[str, str]:
         orion_user_id = str(identity.get("user_id") or "").strip()
         tenant_id = str(identity.get("tenant_id") or "").strip()
+        tenant_slug = str(identity.get("tenant_slug") or "").strip().lower()
         username = str(identity.get("username") or "").strip()
         email = str(identity.get("email") or "").strip().lower()
         if not orion_user_id or not tenant_id or not username:
@@ -37,9 +39,12 @@ class orion_identity_manager:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incomplete Orion Intelligence identity",
             )
+        if not re.fullmatch(r"[a-z0-9-]+", tenant_slug):
+            tenant_slug = ""
         return {
             "orion_user_id": orion_user_id,
             "orion_tenant_id": tenant_id,
+            "orion_tenant_slug": tenant_slug,
             "username": username,
             "email": email or username.lower(),
             "full_name": str(identity.get("full_name") or username).strip()
@@ -76,6 +81,7 @@ class orion_identity_manager:
         user.username = profile["username"]
         user.orion_user_id = profile["orion_user_id"]
         user.orion_tenant_id = profile["orion_tenant_id"]
+        user.orion_tenant_slug = profile["orion_tenant_slug"]
         user.updated_at = datetime.now(UTC)
 
         try:

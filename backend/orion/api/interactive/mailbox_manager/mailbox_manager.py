@@ -35,6 +35,13 @@ class mailbox_manager:
         mailbox_manager.__instance = self
         self._engine = mongo_controller.get_instance().get_engine()
 
+    @staticmethod
+    def _resolve_mail_domain(current_user: db_user_model) -> str:
+        slug = (getattr(current_user, "orion_tenant_slug", "") or "").strip().lower()
+        if not slug:
+            return CONSTANTS.S_MAIL_DOMAIN
+        return f"{slug}.{CONSTANTS.S_MAIL_BASE_DOMAIN}"
+
     async def create_mailbox(self, current_user: db_user_model) -> dict:
         if await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == current_user.id) is not None:
             raise HTTPException(
@@ -50,11 +57,12 @@ class mailbox_manager:
                 detail="Your Orion Intelligence username cannot be used as an email username"
             ) from error
 
-        mailbox_address = f"{username}@{CONSTANTS.S_MAIL_DOMAIN}"
+        mail_domain = self._resolve_mail_domain(current_user)
+        mailbox_address = f"{username}@{mail_domain}"
 
         try:
             mailbox = await self._engine.save(
-                db_mailbox_model(user_id=current_user.id, mailbox_address=mailbox_address))
+                db_mailbox_model(user_id=current_user.id, mailbox_address=mailbox_address, mail_domain=mail_domain))
         except DuplicateKeyError as error:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

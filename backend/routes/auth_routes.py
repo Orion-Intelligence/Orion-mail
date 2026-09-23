@@ -28,6 +28,7 @@ from orion.constants.constant import CONSTANTS
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
+from orion.services.orion_identity_manager.orion_brand_client import get_tenant_brand
 from orion.services.orion_identity_manager.orion_identity_client import (
     orion_identity_client,
 )
@@ -107,7 +108,7 @@ async def mailbox_for_user(user: db_user_model) -> db_mailbox_model | None:
     )
 
 
-def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None, orion_origin: str) -> dict:
+def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None, orion_origin: str, brand: dict[str, str] | None = None) -> dict:
     return {
         "id": str(user.id),
         "full_name": user.full_name,
@@ -117,6 +118,7 @@ def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None,
         "mailbox_address": mailbox.mailbox_address if mailbox else None,
         "mail_domain": CONSTANTS.S_MAIL_DOMAIN,
         "orion_account_url": f"{orion_origin}/dashboard/profile/account",
+        "brand": brand or {"name": "", "logo_light": "", "logo_dark": ""},
         "preferences": preference_manager.serialize_preferences(user),
     }
 
@@ -185,7 +187,9 @@ async def complete_orion_login(request: Request, code: str, state: str):
 
 @auth_routes.get("/me")
 async def get_me(request: Request, current_user: db_user_model = Depends(get_current_user)):
-    return current_user_response(current_user, await mailbox_for_user(current_user), remembered_orion_origin(request))
+    orion_origin = remembered_orion_origin(request)
+    brand = await get_tenant_brand(orion_origin)
+    return current_user_response(current_user, await mailbox_for_user(current_user), orion_origin, brand)
 
 
 @auth_routes.put("/me/preferences")

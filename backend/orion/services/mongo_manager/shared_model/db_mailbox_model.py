@@ -13,6 +13,7 @@ class db_mailbox_model(Model):
 
     user_id: ObjectId = Field(unique=True)
     mailbox_address: NormalizedMailboxAddress = Field(unique=True)
+    mail_domain: str = Field(default="")
     is_active: bool = Field(default=True)
     signature: str = Field(default="")
     address_book_backfilled_at: datetime | None = Field(default=None)

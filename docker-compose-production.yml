@@ -66,6 +66,7 @@ services:
         APP_GID: "${APP_GID:-1000}"
     environment:
       MAIL_DOMAIN: ${MAIL_DOMAIN:-mail.orionintelligence.org}
+      MAIL_BASE_DOMAIN: ${MAIL_BASE_DOMAIN:-mail.orionintelligence.org}
       ORION_MAIL_INCOMING_URL: http://web:8000/api/incoming-mail/
       ORION_MAIL_INCOMING_TOKEN: ${INCOMING_MAIL_TOKEN:?INCOMING_MAIL_TOKEN must be set}
       POSTFIX_MYNETWORKS: 127.0.0.0/8 172.16.0.0/12

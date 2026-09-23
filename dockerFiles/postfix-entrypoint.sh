@@ -2,6 +2,7 @@
 set -e
 
 MAIL_DOMAIN="${MAIL_DOMAIN:-mail.orionintelligence.org}"
+MAIL_BASE_DOMAIN="${MAIL_BASE_DOMAIN:-mail.orionintelligence.org}"
 POSTFIX_MYNETWORKS="${POSTFIX_MYNETWORKS:-127.0.0.0/8 172.16.0.0/12}"
 POSTFIX_MILTER="${POSTFIX_MILTER:-inet:rspamd:11332}"
 POSTFIX_MESSAGE_SIZE_LIMIT="${POSTFIX_MESSAGE_SIZE_LIMIT:-67108864}"
@@ -14,7 +15,9 @@ postconf -e "myhostname = ${MAIL_DOMAIN}"
 postconf -e "mydestination = localhost"
 postconf -e "inet_interfaces = all"
 postconf -e "inet_protocols = ipv4"
-postconf -e "virtual_mailbox_domains = ${MAIL_DOMAIN}"
+MAIL_BASE_DOMAIN_RE=$(printf '%s' "${MAIL_BASE_DOMAIN}" | sed 's/[.]/\\./g')
+printf '/^(.*\\.)?%s$/ OK\n' "${MAIL_BASE_DOMAIN_RE}" > /etc/postfix/virtual_domains.pcre
+postconf -e "virtual_mailbox_domains = pcre:/etc/postfix/virtual_domains.pcre"
 postconf -e "virtual_transport = orion-mail"
 postconf -e "mynetworks = ${POSTFIX_MYNETWORKS}"
 postconf -e "smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination"
