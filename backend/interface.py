@@ -18,7 +18,8 @@ def _tenant_orion_origin(request: Request) -> str:
     host = (request.headers.get("host") or "").split(":")[0].strip().lower()
     base_domain = CONSTANTS.S_MAIL_BASE_DOMAIN
     if base_domain.startswith("mail.") and CONSTANTS.S_MAIL_TENANT_HOST_PATTERN.fullmatch(host):
-        return f"https://{host.split('.', 1)[0]}.{base_domain[len('mail.'):]}"
+        slug = host.split(".", 1)[0][: -len("mail")]
+        return f"https://{slug}.{base_domain[len('mail.'):]}"
     return CONSTANTS.S_ORION_INTELLIGENCE_PUBLIC_URL
 
 
