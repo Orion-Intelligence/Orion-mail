@@ -45,6 +45,9 @@ async def _frontend_index_response(request: Request) -> HTMLResponse:
         html = html.replace(' ngCspNonce=""', "").replace(' ngcspnonce=""', "").replace(' nonce=""', "")
     brand = await get_tenant_brand(_tenant_orion_origin(request))
     html = html.replace(SPLASH_LOGO_PLACEHOLDER, _splash_logo_html(brand))
+    favicon = brand.get("favicon")
+    if favicon:
+        html = html.replace('href="favicon.ico"', f'href="{favicon}"')
     return HTMLResponse(html)
 
 

@@ -14,7 +14,7 @@ _brand_cache: dict[str, tuple[float, dict[str, str]]] = {}
 
 
 def _empty_brand() -> dict[str, str]:
-    return {"name": "", "logo_light": "", "logo_dark": ""}
+    return {"name": "", "logo_light": "", "logo_dark": "", "favicon": ""}
 
 
 async def _fetch_logo(client: httpx.AsyncClient, resource_path: str, host: str) -> str:
@@ -68,6 +68,7 @@ async def get_tenant_brand(orion_origin: str) -> dict[str, str]:
                 "name": str(settings.get("app_name") or ""),
                 "logo_light": await _fetch_logo(client, str(settings.get("logo_wide_light") or ""), host),
                 "logo_dark": await _fetch_logo(client, str(settings.get("logo_wide_dark") or ""), host),
+                "favicon": await _fetch_logo(client, "/api/s/static/favicon", host),
             }
     except (httpx.RequestError, ValueError):
         return _empty_brand()
