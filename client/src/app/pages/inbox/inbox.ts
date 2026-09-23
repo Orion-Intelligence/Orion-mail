@@ -1,11 +1,10 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild, computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { Icon } from '../../shared/icons/icon/icon';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { MessageService } from '../../services/message';
-import { E2eService } from '../../services/e2e';
 import { SplashService } from '../../services/splash';
 import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, InboxMessage } from '../../shared/model/message.model';
 import { SearchService } from '../../services/search';
@@ -15,9 +14,11 @@ import { MailPollService } from '../../services/mail-poll';
 import { SelectionMode, SortOrder, ToolbarMenu } from '../../shared/model/inbox.model';
 import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
+import { MessagePreview } from '../../shared/pipes/message-preview';
+
 @Component({
   selector: 'app-inbox',
-  imports: [Icon, MessageListSkeleton],
+  imports: [MessagePreview, Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './inbox.html',
 })
@@ -65,7 +66,7 @@ export class Inbox implements OnInit {
 
   constructor(public readonly mailPollService: MailPollService, private readonly messageService: MessageService, private readonly router: Router, private readonly searchService: SearchService, public readonly labelService: LabelService, private readonly splashService: SplashService) {
     this.searchTerm = this.searchService.searchTerm;
-    inject(E2eService).reloadOnKeyChange(() => {
+    this.messageService.reloadOnMailboxChange(() => {
       this.loadInboxMessages();
     });
   }

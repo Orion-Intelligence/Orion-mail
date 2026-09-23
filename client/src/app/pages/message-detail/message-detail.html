@@ -65,7 +65,7 @@
         <div class="relative" #moreMenu>
           <button data-mail-action="more" data-testid="more-button" type="button" (click)="toggleMoreMenu()" [attr.aria-expanded]="moreMenuOpen()" aria-haspopup="menu" title="More" aria-label="More email options" class="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon transition-colors hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'more'" class="h-5 w-5" /></button>
           @if (moreMenuOpen()) {
-            <div role="menu" aria-label="More email options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_36px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left] max-[900px]:right-0 max-[900px]:left-auto max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
+            <div role="menu" aria-label="More email options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 max-h-[70vh] w-72 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_36px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left] max-[900px]:right-0 max-[900px]:left-auto max-[520px]:fixed max-[520px]:top-28 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
               @if (message()?.direction === 'incoming') {
                 <button data-mail-action="reply" data-testid="reply-menu-button" role="menuitem" type="button" (click)="reply()" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'reply'" class="h-4.5 w-4.5 text-icon" />Reply</button>
                 <button role="menuitem" type="button" (click)="replyAll()" data-testid="reply-all-menu-button" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary"><app-icon [name]="'replyAll'" class="h-4.5 w-4.5 text-icon" />Reply all</button>
@@ -127,7 +127,7 @@
   </header>
 
   @if (loading()) {
-    <div class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft">
+    <div animate.leave="mail-motion-loader-leave" class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft">
       <div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div>
     </div>
   }
@@ -145,7 +145,7 @@
 
   @if (message()) {
     <div data-print-scroll animate.enter="mail-motion-content-enter" class="min-h-0 flex-1 overflow-y-auto">
-      <div data-testid="message-card" class="mail-message-card mail-soft-white mx-auto my-5 w-[calc(100%-2.5rem)] max-w-5xl rounded-2xl border border-line-soft bg-surface px-8 pt-7 pb-7 max-[820px]:px-5 max-[720px]:my-2 max-[720px]:w-[calc(100%-1rem)] max-[720px]:rounded-xl max-[720px]:pt-5">
+      <div data-testid="message-card" animate.enter="mail-motion-card-enter" class="mail-message-card mail-soft-white mx-auto my-5 w-[calc(100%-2.5rem)] max-w-5xl rounded-2xl border border-line-soft bg-surface px-8 pt-7 pb-7 max-[820px]:px-5 max-[720px]:my-2 max-[720px]:w-[calc(100%-1rem)] max-[720px]:rounded-xl max-[720px]:pt-5">
         <div class="mb-6 flex flex-wrap items-center gap-2.5 max-[720px]:mb-5">
           <h1 data-testid="message-subject" class="min-w-0 text-2xl leading-8 font-semibold tracking-[-0.025em] break-words text-ink max-[720px]:text-xl max-[720px]:leading-7">{{ message()?.subject || '(no subject)' }}</h1>
           <span class="inline-flex h-6 items-center rounded-lg bg-primary-soft px-2 text-[11px] font-semibold text-primary">{{ sourceName() }}</span>
@@ -177,14 +177,14 @@
                 <button data-print-hidden data-mail-action="important" type="button" (click)="toggleImportant()" [disabled]="actionLoading()" [title]="message()?.is_important ? 'Mark as not important' : 'Mark as important'" [attr.aria-label]="message()?.is_important ? 'Mark message as not important' : 'Mark message as important'" class="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-45" [class.text-warning]="message()?.is_important" [class.text-faint]="!message()?.is_important"><app-icon [name]="message()?.is_important ? 'labelImportantFilled' : 'labelImportant'" class="h-4.5 w-4.5" /></button>
               </div>
             </div>
-            <div class="mt-2 flex min-w-0 items-center gap-1 text-xs text-muted">
+            <div class="relative mt-2 flex min-w-0 items-center gap-1 text-xs text-muted">
               <span class="shrink-0">to</span>
               <span class="min-w-0 truncate font-medium text-ink-soft">{{ toRecipients().slice(0, 2).join(', ') }}</span>
               @if (toRecipients().length > 2) {
-                <div data-print-hidden class="relative shrink-0" (click)="$event.stopPropagation()">
+                <div data-print-hidden class="shrink-0" (click)="$event.stopPropagation()">
                   <button type="button" (click)="toggleRecipientMenu('to')" class="flex h-6 cursor-pointer items-center gap-0.5 rounded-md border-none bg-transparent px-1.5 text-[11px] font-semibold text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary" [attr.aria-expanded]="recipientMenuOpen() === 'to'" aria-haspopup="menu">+{{ toRecipients().length - 2 }} more<app-icon [name]="'chevronDown'" class="h-3.5 w-3.5" /></button>
                   @if (recipientMenuOpen() === 'to') {
-                    <div role="menu" aria-label="All To recipients" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-7 left-0 z-50 max-h-52 w-80 max-w-[calc(100vw-3rem)] overflow-y-auto rounded-lg border py-1">
+                    <div role="menu" aria-label="All To recipients" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-7 left-0 z-50 max-h-52 w-80 max-w-full overflow-y-auto rounded-lg border py-1">
                       @for (address of toRecipients(); track address) {
                         <div role="menuitem" class="mail-google-dropdown-option flex h-10 items-center gap-2.5 px-3 text-[13px]" [title]="address"><span class="mail-google-dropdown-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase">{{ address.charAt(0) }}</span><span class="min-w-0 flex-1 truncate">{{ address }}</span></div>
                       }
@@ -194,14 +194,14 @@
               }
             </div>
             @if (ccRecipients().length) {
-              <div class="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted">
+              <div class="relative mt-1 flex min-w-0 items-center gap-1 text-xs text-muted">
                 <span class="shrink-0">cc</span>
                 <span class="min-w-0 truncate font-medium text-ink-soft">{{ ccRecipients().slice(0, 2).join(', ') }}</span>
                 @if (ccRecipients().length > 2) {
-                  <div data-print-hidden class="relative shrink-0" (click)="$event.stopPropagation()">
+                  <div data-print-hidden class="shrink-0" (click)="$event.stopPropagation()">
                     <button type="button" (click)="toggleRecipientMenu('cc')" class="flex h-6 cursor-pointer items-center gap-0.5 rounded-md border-none bg-transparent px-1.5 text-[11px] font-semibold text-primary hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-primary" [attr.aria-expanded]="recipientMenuOpen() === 'cc'" aria-haspopup="menu">+{{ ccRecipients().length - 2 }} more<app-icon [name]="'chevronDown'" class="h-3.5 w-3.5" /></button>
                     @if (recipientMenuOpen() === 'cc') {
-                      <div role="menu" aria-label="All Cc recipients" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-7 left-0 z-50 max-h-52 w-80 max-w-[calc(100vw-3rem)] overflow-y-auto rounded-lg border py-1">
+                      <div role="menu" aria-label="All Cc recipients" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-7 left-0 z-50 max-h-52 w-80 max-w-full overflow-y-auto rounded-lg border py-1">
                         @for (address of ccRecipients(); track address) {
                           <div role="menuitem" class="mail-google-dropdown-option flex h-10 items-center gap-2.5 px-3 text-[13px]" [title]="address"><span class="mail-google-dropdown-avatar flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-medium uppercase">{{ address.charAt(0) }}</span><span class="min-w-0 flex-1 truncate">{{ address }}</span></div>
                         }
@@ -276,7 +276,7 @@
               <button type="button" (click)="openThreadMessage(item.id)" [title]="item.subject || '(no subject)'" class="flex w-full cursor-pointer items-center gap-3 border-none border-b border-row-line bg-transparent px-4 py-2.5 text-left last:border-b-0 transition-colors hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary">
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-sm text-ink-soft">{{ item.direction === 'outgoing' ? 'You' : item.sender_address.split('@')[0] }}</span>
-                  <span class="mt-0.5 block truncate text-xs text-muted">{{ item.body }}</span>
+                  <span class="mt-0.5 block truncate text-xs text-muted">{{ item.body | messagePreview }}</span>
                 </span>
                 <span class="shrink-0 text-[11px] whitespace-nowrap text-muted">{{ formatFullMailDate(item.created_at) }}</span>
               </button>

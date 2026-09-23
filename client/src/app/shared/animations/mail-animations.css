@@ -84,6 +84,28 @@ app-root [data-mail-action="refresh"]:active app-icon {
   animation: mail-content-in var(--mail-motion-base) var(--mail-motion-enter) both;
 }
 
+/* The reader animates its card once the message arrives. */
+article.mail-message-surface.mail-motion-page,
+.mail-message-surface > .mail-motion-content-enter {
+  animation: none;
+}
+
+.mail-motion-card-enter {
+  animation: mail-card-in var(--mail-motion-base) var(--mail-motion-enter) both;
+}
+
+@keyframes mail-card-in {
+  from {
+    opacity: 80%;
+    transform: translateY(0.35rem);
+  }
+
+  to {
+    opacity: 100%;
+    transform: translateY(0);
+  }
+}
+
 .mail-motion-menu-enter {
   animation: mail-menu-in var(--mail-motion-base) var(--mail-motion-enter) both;
   transform-origin: var(--mail-menu-origin, top right);
@@ -152,6 +174,31 @@ app-root [data-mail-action="refresh"]:active app-icon {
   animation: mail-progress 1.15s cubic-bezier(0.65, 0, 0.35, 1) infinite;
   transform-origin: left center;
   will-change: transform;
+}
+
+/* Show progress immediately without moving rows; let it fade out on completion. */
+.mail-message-surface > .mail-motion-progress {
+  margin-bottom: -0.125rem;
+  pointer-events: none;
+}
+
+.mail-message-surface > app-message-list-skeleton {
+  animation: mail-loader-in 100ms ease-out 180ms both;
+}
+
+.mail-motion-loader-leave {
+  animation: mail-backdrop-out var(--mail-motion-fast) ease-in both;
+  pointer-events: none;
+}
+
+@keyframes mail-loader-in {
+  from {
+    opacity: 0%;
+  }
+
+  to {
+    opacity: 100%;
+  }
 }
 
 @keyframes mail-page-in {
@@ -316,7 +363,7 @@ app-root [data-mail-action="refresh"]:active app-icon {
 
 @keyframes mail-progress {
   0% {
-    transform: translateX(-130%) scaleX(0.65);
+    transform: translateX(-30%) scaleX(0.65);
   }
 
   55% {
@@ -361,6 +408,7 @@ app-root [data-mail-action="refresh"]:active app-icon {
   }
 
   .mail-motion-page,
+  .mail-motion-card-enter,
   .mail-motion-content-enter,
   .mail-motion-menu-enter,
   .mail-motion-menu-leave,
@@ -376,6 +424,8 @@ app-root [data-mail-action="refresh"]:active app-icon {
   .mail-motion-chip-leave,
   .mail-motion-progress-bar,
   .mail-skeleton,
+  .mail-motion-loader-leave,
+  .mail-message-surface > app-message-list-skeleton,
   app-root input:is([type="checkbox"], [type="radio"]):checked {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
@@ -384,6 +434,8 @@ app-root [data-mail-action="refresh"]:active app-icon {
 
 @media print {
   .mail-motion-page,
+  .mail-motion-card-enter,
+  .mail-motion-loader-leave,
   .mail-motion-content-enter,
   .mail-motion-menu-enter,
   .mail-motion-menu-leave,

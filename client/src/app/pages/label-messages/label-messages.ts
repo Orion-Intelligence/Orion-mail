@@ -6,16 +6,17 @@ import { Icon } from '../../shared/icons/icon/icon';
 import { LabelService, labelColorClass } from '../../services/label';
 import { MailLabel } from '../../shared/model/label.model';
 import { MessageService } from '../../services/message';
-import { E2eService } from '../../services/e2e';
 import { MessageDetailResponse } from '../../shared/model/message.model';
 import { SearchService } from '../../services/search';
 import { formatMailDate } from '../../shared/utils/date-utils';
 import { filterMessagesByTerm } from '../../shared/utils/message-filter';
 import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
+import { MessagePreview } from '../../shared/pipes/message-preview';
+
 @Component({
   selector: 'app-label-messages',
-  imports: [Icon, MessageListSkeleton],
+  imports: [MessagePreview, Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './label-messages.html',
 })
@@ -32,7 +33,7 @@ export class LabelMessages implements OnInit {
   filteredMessages = computed(() => filterMessagesByTerm(this.messages(), this.searchTerm()));
 
   constructor(private readonly route: ActivatedRoute, private readonly router: Router, private readonly labelService: LabelService, private readonly messageService: MessageService, private readonly searchService: SearchService) {
-    inject(E2eService).reloadOnKeyChange(() => {
+    this.messageService.reloadOnMailboxChange(() => {
       this.loadMessages();
     });
     this.searchTerm = this.searchService.searchTerm;

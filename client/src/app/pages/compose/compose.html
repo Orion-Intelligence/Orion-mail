@@ -29,6 +29,7 @@
   </div>
   }
 
+  @if (senderIdentities().length > 1) {
   <div class="mail-compose-field relative z-30 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
     <label [attr.for]="'sender-' + uid()" class="w-12 shrink-0 text-sm text-muted">From</label>
 
@@ -40,6 +41,7 @@
       }
     </select>
   </div>
+  }
 
   <div class="mail-compose-field relative z-20 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
     <label [attr.for]="'receiver-' + uid()" class="w-12 shrink-0 text-sm text-muted">To</label>

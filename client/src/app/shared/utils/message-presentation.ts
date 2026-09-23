@@ -1,5 +1,11 @@
 const SIGNATURE_ARMOR = /^-----BEGIN PGP SIGNATURE-----\r?\n[\s\S]*\r?\n-----END PGP SIGNATURE-----$/;
 
+export function messagePreview(body: string): string {
+  return splitTextIdentityFooter(body).body
+    .replace(/(?:PGP Signature:\s*)?-----BEGIN PGP SIGNATURE-----[\s\S]*?(?:-----END PGP SIGNATURE-----|$)/g, '')
+    .trim();
+}
+
 /** Split only Orion's complete generated footer. Never change the stored message. */
 export function splitTextIdentityFooter(body: string): { body: string; identity: string } {
   const footer = /\r?\n\r?\n--\r?\nSigned Identity Text:\r?\n([\s\S]*?)\r?\n\r?\nPGP Signature:\r?\n(-----BEGIN PGP SIGNATURE-----\r?\n[\s\S]*?\r?\n-----END PGP SIGNATURE-----)\s*$/.exec(body);

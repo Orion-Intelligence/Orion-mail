@@ -38,7 +38,7 @@
         </div>
 
         @if (searchScopeMenuOpen()) {
-        <div data-testid="search-scope-menu" role="menu" aria-label="Search in" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-[calc(100%+6px)] right-0 z-[130] max-h-[min(32rem,calc(100vh-5.5rem))] w-68 overflow-y-auto rounded-xl border py-2">
+        <div data-testid="search-scope-menu" role="menu" aria-label="Search in" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="mail-google-dropdown absolute top-[calc(100%+6px)] right-0 z-[130] max-h-[min(32rem,calc(100vh-5.5rem))] w-68 overflow-y-auto rounded-xl border py-2 max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto">
           <p class="px-4 pt-1 pb-2 text-xs font-medium text-muted">Search in</p>
           @for (option of searchScopeOptions; track option.value) {
           <button [attr.data-testid]="'search-scope-option-' + option.value" type="button" role="menuitemradio" [attr.aria-checked]="searchScopeSelected(option.value)" (mousedown)="$event.preventDefault()" (click)="selectSearchScope(option.value)" class="mail-google-dropdown-option flex h-10 w-full cursor-pointer items-center gap-3 border-none px-4 text-left text-sm focus-visible:outline-none">
@@ -82,7 +82,7 @@
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm font-medium">{{ hint.subject || '(no subject)' }}</span>
               <span class="mt-0.5 block truncate text-xs text-muted">{{ searchHintCorrespondent(hint) }} · {{
-                hint.body }}</span>
+                hint.body | messagePreview }}</span>
             </span>
             <span class="shrink-0 rounded-full bg-chip px-2 py-1 text-[11px] text-muted">{{
               searchHintFolder(hint) }}</span>
@@ -164,17 +164,17 @@
 
       <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
         <nav data-testid="mailbox-folders" aria-label="Mailbox folders" class="flex shrink-0 flex-col gap-px">
-          <a data-testid="inbox-section" routerLink="/inbox" (click)="onSidebarNavigation()" routerLinkActive="bg-selected text-selected-ink" title="Inbox" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().unread.inbox > 0 || router.url.startsWith('/inbox')">
+          <a data-testid="inbox-section" routerLink="/inbox" (click)="onSidebarNavigation('/inbox')" routerLinkActive="bg-selected text-selected-ink" title="Inbox" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().unread.inbox > 0 || router.url.startsWith('/inbox')">
             <app-icon [name]="'inbox'" class="h-5 w-5 shrink-0" />
             <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Inbox</span>
             @if (messageService.folderCounts().unread.inbox > 0) { <span class="text-xs font-bold {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{
               messageService.folderCounts().unread.inbox }}</span> }
           </a>
-          <a data-testid="sent-section" data-mail-action="send" routerLink="/sent" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Sent" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+          <a data-testid="sent-section" data-mail-action="send" routerLink="/sent" (click)="onSidebarNavigation('/sent')" routerLinkActive="bg-selected font-bold text-selected-ink" title="Sent" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
             <app-icon [name]="'send'" class="h-5 w-5 shrink-0" />
             <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Sent</span>
           </a>
-          <a data-testid="messenger-section" routerLink="/messenger" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Messenger" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+          <a data-testid="messenger-section" routerLink="/messenger" (click)="onSidebarNavigation('/messenger')" routerLinkActive="bg-selected font-bold text-selected-ink" title="Messenger" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
 
             <app-icon [name]="'account'" class="h-5 w-5 shrink-0" />
 
@@ -182,13 +182,13 @@
               Messenger
             </span>
           </a>
-          <a data-testid="drafts-section" routerLink="/drafts" (click)="onSidebarNavigation()" routerLinkActive="bg-selected text-selected-ink" title="Drafts" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().drafts > 0 || router.url.startsWith('/drafts')">
+          <a data-testid="drafts-section" routerLink="/drafts" (click)="onSidebarNavigation('/drafts')" routerLinkActive="bg-selected text-selected-ink" title="Drafts" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().drafts > 0 || router.url.startsWith('/drafts')">
             <app-icon [name]="'drafts'" class="h-5 w-5 shrink-0" />
             <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Drafts</span>
             @if (messageService.folderCounts().drafts > 0) { <span class="text-xs font-bold {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{
               messageService.folderCounts().drafts }}</span> }
           </a>
-          <a data-testid="spam-section" routerLink="/spam" (click)="onSidebarNavigation()" routerLinkActive="bg-selected text-selected-ink" title="Spam" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().unread.spam > 0 || router.url.startsWith('/spam')">
+          <a data-testid="spam-section" routerLink="/spam" (click)="onSidebarNavigation('/spam')" routerLinkActive="bg-selected text-selected-ink" title="Spam" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10" [class.font-bold]="messageService.folderCounts().unread.spam > 0 || router.url.startsWith('/spam')">
             <app-icon [name]="'spam'" class="h-5 w-5 shrink-0" />
             <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Spam</span>
             @if (messageService.folderCounts().unread.spam > 0) { <span class="text-xs font-bold {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{
@@ -201,23 +201,23 @@
           </button>
           @if (moreOpen()) {
           <div animate.enter="mail-motion-content-enter" class="flex flex-col gap-px">
-            <a data-testid="starred-section" routerLink="/starred" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Starred" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <a data-testid="starred-section" routerLink="/starred" (click)="onSidebarNavigation('/starred')" routerLinkActive="bg-selected font-bold text-selected-ink" title="Starred" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
               <app-icon [name]="'starBorder'" class="h-5 w-5 shrink-0" />
               <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Starred</span>
             </a>
-            <a data-testid="important-section" routerLink="/important" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Important" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <a data-testid="important-section" routerLink="/important" (click)="onSidebarNavigation('/important')" routerLinkActive="bg-selected font-bold text-selected-ink" title="Important" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
               <app-icon [name]="'labelImportant'" class="h-5 w-5 shrink-0" />
               <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Important</span>
             </a>
-            <a data-testid="archive-section" data-mail-action="archive" routerLink="/archive" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Archive" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <a data-testid="archive-section" data-mail-action="archive" routerLink="/archive" (click)="onSidebarNavigation('/archive')" routerLinkActive="bg-selected font-bold text-selected-ink" title="Archive" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
               <app-icon [name]="'archive'" class="h-5 w-5 shrink-0" />
               <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Archive</span>
             </a>
-            <a data-testid="all-mail-section" routerLink="/all" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="All Mail" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <a data-testid="all-mail-section" routerLink="/all" (click)="onSidebarNavigation('/all')" routerLinkActive="bg-selected font-bold text-selected-ink" title="All Mail" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
               <app-icon [name]="'allMail'" class="h-5 w-5 shrink-0" />
               <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">All Mail</span>
             </a>
-            <a data-testid="trash-section" data-mail-action="delete" routerLink="/trash" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" title="Trash" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+            <a data-testid="trash-section" data-mail-action="delete" routerLink="/trash" (click)="onSidebarNavigation('/trash')" routerLinkActive="bg-selected font-bold text-selected-ink" title="Trash" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
               <app-icon [name]="'delete'" class="h-5 w-5 shrink-0" />
               <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">Trash</span>
             </a>
@@ -252,7 +252,7 @@
           }
           } @else {
           @for (label of labelService.labels(); track label.id) {
-          <a [attr.data-testid]="'label-section-' + label.id" [routerLink]="['/label', label.id]" (click)="onSidebarNavigation()" routerLinkActive="bg-selected font-bold text-selected-ink" [title]="label.name" animate.enter="mail-motion-row-enter" animate.leave="mail-motion-row-leave" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
+          <a [attr.data-testid]="'label-section-' + label.id" [routerLink]="['/label', label.id]" (click)="onSidebarNavigation('/label/' + label.id)" routerLinkActive="bg-selected font-bold text-selected-ink" [title]="label.name" animate.enter="mail-motion-row-enter" animate.leave="mail-motion-row-leave" class="flex h-8 items-center gap-4 rounded-r-full pr-3 pl-6 text-sm text-ink-soft no-underline transition-colors hover:bg-nav-hover focus-visible:outline-2 focus-visible:outline-primary max-[720px]:h-10">
             <span class="flex h-5 w-5 shrink-0 items-center justify-center"><span class="h-3 w-3 rounded-sm" [class]="labelColorClass(label.color)"></span></span>
             <span class="min-w-0 flex-1 truncate {{ sidebarCollapsed() ? 'min-[721px]:hidden' : '' }}">{{ label.name
               }}</span>

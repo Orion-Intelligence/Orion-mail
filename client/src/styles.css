@@ -427,7 +427,6 @@ button.mail-google-dropdown-option[aria-selected="true"] {
   border-color: var(--color-line-soft);
 }
 
-.dark-theme article.mail-message-surface,
 .dark-theme app-label-manager > section > div {
   background-color: var(--color-page);
 }

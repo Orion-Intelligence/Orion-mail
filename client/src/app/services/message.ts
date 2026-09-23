@@ -1,5 +1,5 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Observable, from, map, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../environments/environment';
@@ -149,6 +149,17 @@ export class MessageService {
 
   notifyMailboxChanged(): void {
     this.mailboxRevision.update((revision) => revision + 1);
+  }
+
+  reloadOnMailboxChange(reload: () => void): void {
+    let previous = this.mailboxRevision();
+    effect(() => {
+      const revision = this.mailboxRevision();
+      if (revision !== previous) {
+        previous = revision;
+        untracked(reload);
+      }
+    });
   }
 
   refreshStorageStatus(): void {

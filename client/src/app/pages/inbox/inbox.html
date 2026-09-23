@@ -39,7 +39,7 @@
       <div class="relative" data-testid="labels-menu-container">
         <button data-mail-action="label" type="button" (click)="toggleMenu('labels')" [attr.aria-expanded]="activeMenu() === 'labels'" aria-haspopup="menu" title="Labels" aria-label="Add labels to selected messages" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" data-testid="labels-button"><app-icon [name]="'label'" class="h-5 w-5" /></button>
         @if (activeMenu() === 'labels') {
-          <div animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 w-72 overflow-hidden rounded-xl border border-line bg-surface shadow-[0_12px_34px_rgba(15,23,42,0.22)] max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto" data-testid="labels-menu">
+          <div animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 w-72 overflow-hidden rounded-xl border border-line bg-surface shadow-[0_12px_34px_rgba(15,23,42,0.22)] max-[520px]:fixed max-[520px]:top-28 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto" data-testid="labels-menu">
             <div class="border-b border-line-soft px-4 py-3"><p class="text-sm font-medium text-ink">Add labels</p><p class="mt-0.5 text-xs text-muted">Existing labels are kept.</p></div>
             <div class="max-h-56 overflow-y-auto p-2" data-testid="labels-list">
               @for (label of labelService.labels(); track label.id) {
@@ -58,7 +58,7 @@
       <div class="relative" data-testid="bulk-more-menu-container">
         <button data-mail-action="more" type="button" (click)="toggleMenu('more')" [attr.aria-expanded]="activeMenu() === 'more'" aria-haspopup="menu" title="More" aria-label="More bulk actions" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft hover:text-primary focus-visible:outline-2 focus-visible:outline-primary" data-testid="bulk-more-button"><app-icon [name]="'more'" class="h-5 w-5" /></button>
         @if (activeMenu() === 'more') {
-          <div role="menu" aria-label="More bulk actions" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 max-h-[72vh] w-64 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] max-[520px]:fixed max-[520px]:top-16 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto" data-testid="bulk-more-menu">
+          <div role="menu" aria-label="More bulk actions" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 right-0 z-50 max-h-[72vh] w-64 overflow-y-auto rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] max-[520px]:fixed max-[520px]:top-28 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto" data-testid="bulk-more-menu">
             <button role="menuitem" type="button" (click)="runSelectedAction('archive')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="more-archive-button"><app-icon [name]="'archive'" class="h-4.5 w-4.5 text-icon" />Archive</button>
             <button role="menuitem" type="button" (click)="runSelectedAction(selectedContainUnread() ? 'mark_read' : 'mark_unread')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="more-toggle-read-button"><app-icon [name]="selectedContainUnread() ? 'markRead' : 'markUnread'" class="h-4.5 w-4.5 text-icon" />{{ selectedContainUnread() ? 'Mark as read' : 'Mark as unread' }}</button>
             <button role="menuitem" type="button" (click)="runSelectedAction(selectedContainUnstarred() ? 'star' : 'unstar')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="more-toggle-star-button"><app-icon [name]="selectedContainUnstarred() ? 'starBorder' : 'star'" class="h-4.5 w-4.5 text-icon" />{{ selectedContainUnstarred() ? 'Add star' : 'Remove star' }}</button>
@@ -75,7 +75,7 @@
       <div class="relative" data-testid="inbox-more-menu-container">
         <button data-mail-action="more" type="button" (click)="toggleMenu('more')" [attr.aria-expanded]="activeMenu() === 'more'" aria-haspopup="menu" title="More" aria-label="More inbox options" class="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-icon hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="inbox-more-button"><app-icon [name]="'more'" class="h-5 w-5" /></button>
         @if (activeMenu() === 'more') {
-          <div role="menu" aria-label="More inbox options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 w-56 overflow-hidden rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left]" data-testid="inbox-more-menu">
+          <div role="menu" aria-label="More inbox options" animate.enter="mail-motion-menu-enter" animate.leave="mail-motion-menu-leave" class="absolute top-11 left-0 z-50 w-56 overflow-hidden rounded-xl border border-line bg-surface py-2 shadow-[0_12px_34px_rgba(15,23,42,0.22)] [--mail-menu-origin:top_left] max-[520px]:fixed max-[520px]:top-28 max-[520px]:right-2 max-[520px]:left-2 max-[520px]:w-auto" data-testid="inbox-more-menu">
             <button role="menuitem" type="button" (click)="selectMode('all')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="select-all-visible-button">Select all visible</button>
             <button role="menuitem" type="button" (click)="runVisibleAction('mark_read')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="mark-visible-read-button"><app-icon [name]="'markRead'" class="h-4.5 w-4.5 text-icon" />Mark visible as read</button>
             <button role="menuitem" type="button" (click)="runVisibleAction('mark_unread')" class="flex h-10 w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 text-left text-sm text-ink-soft hover:bg-hover-soft focus-visible:outline-2 focus-visible:outline-primary" data-testid="mark-visible-unread-button"><app-icon [name]="'markUnread'" class="h-4.5 w-4.5 text-icon" />Mark visible as unread</button>
@@ -106,9 +106,9 @@
     </button>
   }
 
-  <div class="mail-motion-progress h-0.5 w-full shrink-0 transition-opacity" [class.bg-primary-soft]="loading() || actionLoading()" [class.opacity-0]="!loading() && !actionLoading()" data-testid="loading-progress">
+  <div class="mail-motion-progress h-0.5 w-full shrink-0 bg-primary-soft transition-opacity" [class.opacity-0]="!loading() && !actionLoading()" data-testid="loading-progress">
     @if (loading() || actionLoading()) {
-      <div class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div>
+      <div animate.leave="mail-motion-loader-leave" class="mail-motion-progress-bar h-full w-1/3 rounded-full bg-primary"></div>
     }
   </div>
 
@@ -152,7 +152,7 @@
             @for (label of messageLabels(message.label_ids).slice(0, 2); track label.id) {
               <span class="inline-flex max-w-28 shrink-0 items-center gap-1 truncate rounded-full bg-hover-soft px-1.5 py-0.5 text-[10px] leading-none text-ink-soft max-[900px]:hidden" [title]="label.name" data-testid="message-label"><span class="h-1.5 w-1.5 shrink-0 rounded-full" [class]="labelColorClass(label.color)"></span><span class="truncate">{{ label.name }}</span></span>
             }
-            <span class="shrink-0 text-faint">–</span><span class="truncate text-snippet" data-testid="message-body">{{ message.body }}</span>
+            <span class="shrink-0 text-faint">–</span><span class="truncate text-snippet" data-testid="message-body">{{ message.body | messagePreview }}</span>
           </span>
 
           @if (message.attachments && message.attachments.length > 0) { <span class="flex h-8 w-8 items-center justify-center text-muted max-[900px]:hidden" [title]="message.attachments.length === 1 ? message.attachments[0]?.original_filename : message.attachments.length + ' attachments'" data-testid="attachment-indicator"><app-icon [name]="'attach'" class="h-4 w-4" /></span> }

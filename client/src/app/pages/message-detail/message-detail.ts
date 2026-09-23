@@ -1,4 +1,5 @@
-import { Component, ElementRef, HostListener, OnInit, SecurityContext, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, HostListener, OnInit, SecurityContext, ViewChild, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable } from 'rxjs';
@@ -18,13 +19,16 @@ import { Compose } from '../compose/compose';
 import { SOURCE_NAMES, TRANSLATION_LANGUAGES } from '../../shared/constants/message-detail.constants';
 import { MessageSource, RecipientMenu } from '../../shared/model/message-detail.model';
 
+import { MessagePreview } from '../../shared/pipes/message-preview';
+
 @Component({
   selector: 'app-message-detail',
-  imports: [Icon, Compose],
+  imports: [MessagePreview, Icon, Compose],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './message-detail.html',
 })
 export class MessageDetail implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly domSanitizer = inject(DomSanitizer);
   private readonly e2e = inject(E2eService);
 
@@ -91,6 +95,7 @@ export class MessageDetail implements OnInit {
   @ViewChild('moreMenu') moreMenu?: ElementRef<HTMLElement>;
 
   constructor( private readonly route: ActivatedRoute, private readonly router: Router, private readonly messageService: MessageService, public readonly labelService: LabelService, ) {
+    this.destroyRef.onDestroy(() => this.releaseImagePreviews());
     this.e2e.reloadOnKeyChange(() => {
       const current = this.message();
       if (current?.e2e) {
@@ -106,8 +111,11 @@ export class MessageDetail implements OnInit {
         continue;
       }
 
-      this.messageService.downloadAttachment(attachment.id).subscribe({
+      this.messageService.downloadAttachment(attachment.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (blob) => {
+          if (this.message()?.id !== message.id) {
+            return;
+          }
           const objectUrl = URL.createObjectURL(new Blob([blob], { type: attachment.content_type }));
           this.imagePreviews.update((previews) => ({ ...previews, [attachment.id]: objectUrl }));
         },
@@ -124,18 +132,22 @@ export class MessageDetail implements OnInit {
   }
 
   loadThread(messageId: string): void {
-    this.messageService.getThreadMessages(messageId).subscribe({
+    this.messageService.getThreadMessages(messageId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (messages) => {
-        this.threadMessages.set(messages);
+        if (this.route.snapshot.paramMap.get('id') === messageId) {
+          this.threadMessages.set(messages);
+        }
       },
       error: () => {
-        this.threadMessages.set([]);
+        if (this.route.snapshot.paramMap.get('id') === messageId) {
+          this.threadMessages.set([]);
+        }
       },
     });
   }
 
   openThreadMessage(messageId: string): void {
-    void this.router.navigate(['/message', messageId], { queryParams: { from: this.source() } });
+    void this.router.navigate(['/message', messageId], { queryParamsHandling: 'preserve' });
   }
 
   prepareHtmlBody(rawHtml: string, allowRemoteImages: boolean): { html: string; blocked: number; identity: string } {
@@ -168,23 +180,20 @@ export class MessageDetail implements OnInit {
   }
 
   ngOnInit(): void {
-    const messageId = this.route.snapshot.paramMap.get('id');
-
-    const from = this.route.snapshot.queryParamMap.get('from');
-    const fromLabel = this.route.snapshot.queryParamMap.get('fromLabel');
-
-    if (fromLabel) {
-      this.source.set('label');
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const from = params.get('from');
+      const fromLabel = params.get('fromLabel');
+      this.source.set('inbox');
       this.fromLabelId.set(fromLabel);
-    }
-    else if (from === 'search') {
-      this.source.set('search');
-      this.fromSearchQuery.set(this.route.snapshot.queryParamMap.get('q') ?? '');
-      this.fromSearchScope.set(this.route.snapshot.queryParamMap.get('scope') ?? 'all');
-    }
-    else if (from && SOURCE_NAMES.has(from)) {
-      this.source.set(from as MessageSource);
-    }
+      this.fromSearchQuery.set(params.get('q') ?? '');
+      this.fromSearchScope.set(params.get('scope') ?? 'all');
+      if (fromLabel) {
+        this.source.set('label');
+      }
+      else if (from && SOURCE_NAMES.has(from)) {
+        this.source.set(from as MessageSource);
+      }
+    });
 
     if (this.labelService.labels().length === 0) {
       this.labelService.loadLabels().subscribe({ error: () => undefined });
@@ -196,15 +205,26 @@ export class MessageDetail implements OnInit {
       error: () => undefined,
     });
 
-    if (!messageId) {
-      this.errorMessage.set('Message ID not found.');
-      return;
-    }
-
-    this.loadMessage(messageId);
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const messageId = params.get('id');
+      if (messageId) {
+        this.loadMessage(messageId);
+      }
+      else {
+        this.errorMessage.set('Message ID not found.');
+      }
+    });
   }
 
   loadMessage(messageId: string): void {
+    if (this.message()?.id !== messageId) {
+      this.message.set(null);
+      this.releaseImagePreviews();
+    }
+    this.closeActionMenus();
+    this.recipientMenuOpen.set(null);
+    this.closeSourceDialog();
+    this.closeTranslationDialog();
     this.loading.set(true);
     this.errorMessage.set('');
     this.replyRequest.set(null);
@@ -212,8 +232,11 @@ export class MessageDetail implements OnInit {
     this.threadMessages.set([]);
     this.loadThread(messageId);
 
-    this.messageService.getMessageById(messageId).subscribe({
+    this.messageService.getMessageById(messageId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (message) => {
+        if (this.route.snapshot.paramMap.get('id') !== messageId) {
+          return;
+        }
         this.message.set(message);
         this.draftLabelIds.set([...message.label_ids]);
         this.loadImagePreviews(message);
@@ -224,6 +247,9 @@ export class MessageDetail implements OnInit {
       },
 
       error: () => {
+        if (this.route.snapshot.paramMap.get('id') !== messageId) {
+          return;
+        }
         this.errorMessage.set('Could not load the message.');
         this.loading.set(false);
       },

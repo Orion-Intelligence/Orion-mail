@@ -18,9 +18,11 @@ import { FOLDER_VIEWS } from '../../shared/constants/folder-messages.constants';
 import { SystemFolder } from '../../shared/model/folder-messages.model';
 import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
+import { MessagePreview } from '../../shared/pipes/message-preview';
+
 @Component({
   selector: 'app-folder-messages',
-  imports: [Icon, MessageListSkeleton],
+  imports: [MessagePreview, Icon, MessageListSkeleton],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './folder-messages.html',
 })

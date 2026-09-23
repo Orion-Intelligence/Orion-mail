@@ -22,6 +22,8 @@ import { BrandService } from '../../../services/brand';
 import { GO_TO_ROUTES, MAILBOX_ROUTE_SEGMENTS, MESSAGE_FOLDER_NAMES, MORE_ROUTES, MORE_STORAGE_KEY, SEARCHABLE_ROUTES, SEARCH_SCOPE_OPTIONS } from '../../constants/navbar.constants';
 import { SearchHintRequest } from '../../model/navbar.model';
 
+import { MessagePreview } from '../../pipes/message-preview';
+
 function readMoreState(): boolean {
   try {
     return window.localStorage.getItem(MORE_STORAGE_KEY) === 'open';
@@ -42,7 +44,7 @@ function writeMoreState(open: boolean): void {
 
 @Component({
   selector: 'app-navbar',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, Icon, LabelDialog, Compose, E2eUnlockDialog],
+  imports: [MessagePreview, RouterLink, RouterLinkActive, RouterOutlet, Icon, LabelDialog, Compose, E2eUnlockDialog],
   host: { class: 'block h-dvh bg-transparent text-ink' },
   templateUrl: './navbar.html',
 })
@@ -278,9 +280,13 @@ export class Navbar implements OnInit {
     this.mobileNavOpen.set(false);
   }
 
-  onSidebarNavigation(): void {
+  onSidebarNavigation(destination?: string): void {
+    const refresh = destination === this.router.url.split('?')[0];
     this.resetSearchState();
     this.closeMobileNavigation();
+    if (refresh) {
+      this.messageService.notifyMailboxChanged();
+    }
   }
 
   toggleMore(): void {
@@ -466,6 +472,7 @@ export class Navbar implements OnInit {
 
   @HostListener('document:keydown.escape')
     closeMenusOnEscape(): void {
+      this.closeMobileNavigation();
       if (this.searchSuggestionsOpen() || this.searchScopeMenuOpen()) {
         this.closeSearchMenus();
       }
