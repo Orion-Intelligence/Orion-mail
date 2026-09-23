@@ -1,6 +1,7 @@
 import re
 import os
 import secrets
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException, Request, status
 
@@ -31,7 +32,12 @@ def allowed_origins() -> set[str]:
 
 
 def is_origin_allowed(origin: str) -> bool:
-    return origin in allowed_origins() or (not CONSTANTS.S_COOKIE_SECURE and bool(LOCAL_ORIGIN_PATTERN.match(origin)))
+    if origin in allowed_origins():
+        return True
+    parsed = urlsplit(origin)
+    if parsed.scheme == "https" and CONSTANTS.S_MAIL_TENANT_HOST_PATTERN.fullmatch(parsed.hostname or ""):
+        return True
+    return not CONSTANTS.S_COOKIE_SECURE and bool(LOCAL_ORIGIN_PATTERN.match(origin))
 
 
 def enforce_csrf(request: Request) -> None:
