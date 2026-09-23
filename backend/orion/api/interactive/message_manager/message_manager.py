@@ -468,12 +468,9 @@ class message_manager:
 
         identity_signature_text = self.resolve_identity_signature_text(current_user=current_user, sender_mailbox=sender_mailbox, sender_identity_type=sender_identity_type, disposable=disposable_sender)
         pgp_identity_signature = await pgp_manager.get_instance().sign_bytes(identity_signature_text.encode("utf-8"), pgp_key.wrapped_private_key)
-        final_body = normalized_body + self.build_identity_signature_block(identity_signature_text, pgp_identity_signature)
+        final_body = normalized_body
         normalized_body_html = (body_html or "").strip() or None
-        final_body_html = None
-
-        if normalized_body_html:
-            final_body_html = normalized_body_html + self.build_identity_signature_block_html(identity_signature_text, pgp_identity_signature)
+        final_body_html = normalized_body_html
 
         message = db_message_model(
             owner_mailbox_id=sender_mailbox.id,
@@ -504,7 +501,7 @@ class message_manager:
         try:
             staged_attachments = await attachment_manager.get_instance().stage_outgoing_attachments(files=files)
 
-            if len(staged_attachments) + 1 > MESSAGE_LIMITS.MAX_ATTACHMENTS:
+            if len(staged_attachments) + 2 > MESSAGE_LIMITS.MAX_ATTACHMENTS:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_ATTACHMENTS} attachments")
 
             public_key_attachment = await attachment_manager.get_instance().stage_generated_attachment(
@@ -514,6 +511,13 @@ class message_manager:
             )
 
             staged_attachments.append(public_key_attachment)
+
+            identity_signature_attachment = await attachment_manager.get_instance().stage_generated_attachment(
+                original_filename="identity-signature.txt",
+                content=self.build_identity_signature_block(identity_signature_text, pgp_identity_signature).strip().encode("utf-8"),
+                content_type="text/plain",
+            )
+            staged_attachments.append(identity_signature_attachment)
             if forward_source:
                 staged_attachments = [*staged_attachments, *await attachment_manager.get_instance().stage_forwarded_attachments(
                     source_message_id=forward_source.id,
