@@ -468,110 +468,14 @@ button.mail-google-dropdown-option[aria-selected="true"] {
 }
 
 .dark-theme .mail-compose {
-  --color-surface: #414c5c;
-  --color-surface-muted: #455163;
-  --color-field: #4b586b;
-  --color-ink: #f8faff;
-  --color-ink-soft: #e8eff9;
-  --color-muted: #c7d1df;
-  --color-placeholder: #c7d1df;
-  --color-icon: #dbe5f3;
-  --color-line: #657387;
-  --color-line-soft: #5b687b;
-  --color-row-line: #536071;
-  --color-hover-soft: #5b697d;
-  --color-chip: #536882;
-  --color-titlebar: #465469;
-  --color-titlebar-ink: #f8fafc;
-  --color-titlebar-muted: #e2ebf7;
-  --color-primary: #bdd4ff;
-  --color-primary-dark: #dfebff;
-  --color-primary-solid: #bdd4ff;
-  --color-primary-solid-hover: #d0e0ff;
-  --color-on-primary: #183353;
-  --color-link: #c4d9ff;
-
-  box-shadow: 0 16px 56px #0005, 0 0 0 1px #ffffff08;
-}
-
-.dark-theme .mail-compose-heading {
-  min-height: 48px;
-  padding-inline: 20px;
-  background-color: var(--color-titlebar);
-  border-bottom: 1px solid var(--color-line-soft);
-  color: var(--color-titlebar-ink);
-}
-
-.dark-theme .mail-compose-field {
-  margin-inline: 16px;
-  padding-inline: 4px;
-}
-
-.dark-theme .mail-compose-field:focus-within {
-  background-color: #ffffff05;
-  border-color: #a9c7ef;
-}
-
-.dark-theme .mail-compose-field input[formcontrolname="subject"] {
-  font-weight: 500;
+  --color-surface: var(--color-elevated);
+  --color-titlebar: var(--color-hover);
+  --color-row-line: var(--color-line-soft);
 }
 
 .dark-theme .mail-compose-field option {
-  background-color: var(--color-surface);
   color: var(--color-ink);
-}
-
-.dark-theme .mail-compose-toolbar {
-  margin: 12px 12px 0;
-  padding-inline: 8px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 10px 10px 0 0;
-  background-color: var(--color-surface-muted);
-}
-
-.dark-theme .mail-compose-toolbar button {
-  border-radius: 6px;
-  white-space: nowrap;
-}
-
-.dark-theme .mail-compose-editor {
-  width: calc(100% - 24px);
-  margin: 0 12px 12px;
-  padding: 16px;
-  border: 1px solid var(--color-line-soft);
-  border-top: 0;
-  border-radius: 0 0 10px 10px;
-  background-color: var(--color-field);
-  line-height: 1.65;
-  caret-color: var(--color-primary);
-}
-
-.dark-theme .mail-compose-editor:focus {
-  box-shadow: inset 0 0 0 1px #bdd4ff45;
-}
-
-.dark-theme .mail-compose-actions {
-  height: auto;
-  min-height: 64px;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding-block: 8px;
-  border-top: 1px solid var(--color-line-soft);
-  background-color: var(--color-surface-muted);
-}
-
-.dark-theme .mail-compose-actions :is(button, label) {
-  flex-shrink: 0;
-}
-
-@media (height <= 720px) {
-  .dark-theme .mail-compose-window {
-    overflow-y: auto;
-  }
-
-  .dark-theme .mail-compose-window .mail-compose-editor {
-    min-height: 112px;
-  }
+  background-color: var(--color-elevated);
 }
 
 .dark-theme .mail-configure-logo {

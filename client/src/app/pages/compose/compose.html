@@ -46,9 +46,6 @@
   <div class="mail-compose-field relative z-20 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25">
     <label [attr.for]="'receiver-' + uid()" class="w-12 shrink-0 text-sm text-muted">To</label>
     <input #receiverInput [id]="'receiver-' + uid()" type="email" aria-label="To" [attr.aria-invalid]="form.controls.receiver_address.touched && form.controls.receiver_address.invalid ? true : null" [attr.aria-describedby]="form.controls.receiver_address.touched && form.controls.receiver_address.invalid ? 'receiver-error-' + uid() : null" autocomplete="off" role="combobox" aria-autocomplete="list" [attr.aria-controls]="uid() + '-to-recipient-hints'" [attr.aria-activedescendant]="activeHintOptionId('to')" [attr.aria-expanded]="activeHintField() === 'to' && receiverHints().length > 0" formControlName="receiver_address" placeholder="Recipient" class="h-10 w-full min-w-0 border-none bg-transparent text-sm text-ink outline-none placeholder:text-placeholder" (focus)="openHints('to')" (blur)="closeHintsSoon()" (keydown)="handleHintKeydown($event, 'to')" data-testid="receiver-input" />
-    @if (form.controls.receiver_address.touched && form.controls.receiver_address.invalid) {
-    <span [id]="'receiver-error-' + uid()" role="alert" title="Enter a valid recipient email address." class="ml-2 shrink-0 rounded-full bg-danger-soft px-2 py-1 text-[11px] font-medium whitespace-nowrap text-danger" data-testid="receiver-error"><span aria-hidden="true">Invalid email</span><span class="sr-only">Enter a valid recipient email address.</span></span>
-    }
     @if (activeHintField() === 'to' && receiverHints().length > 0) {
     <div [id]="uid() + '-to-recipient-hints'" role="listbox" aria-label="Recipient suggestions" class="mail-google-dropdown absolute top-[calc(100%-1px)] right-3 left-3 z-50 max-h-56 overflow-y-auto rounded-lg border py-1">
       @for (hint of receiverHints(); track hint.email_address; let i = $index) {
@@ -61,6 +58,10 @@
     </div>
     }
   </div>
+
+  @if (form.controls.receiver_address.touched && form.controls.receiver_address.invalid) {
+  <div [id]="'receiver-error-' + uid()" role="alert" animate.enter="mail-motion-notice-enter" animate.leave="mail-motion-notice-leave" class="bg-danger-soft px-4 py-1 text-xs text-danger" data-testid="receiver-error">Enter a valid recipient email address.</div>
+  }
 
   <div class="mail-compose-field relative z-10 flex min-h-11 shrink-0 items-center border-b border-row-line px-4 transition-colors focus-within:border-primary focus-within:bg-primary-soft/25" data-testid="cc-field">
     <label [attr.for]="'cc-addresses-' + uid()" class="w-12 shrink-0 text-sm text-muted">Cc</label>

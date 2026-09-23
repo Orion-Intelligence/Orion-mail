@@ -28,7 +28,7 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
         cy.intercept('GET', '**/messages/progress-message/thread', []);
         cy.visit('/inbox');
         cy.get('[data-testid="inbox-message-item"]').should('be.visible');
-        cy.get(progressBar).should('not.exist');
+        cy.get(progressBar).should('not.be.visible');
     });
 
     for (const width of [1280, 390]) {
@@ -59,7 +59,7 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
                     expect($current[0].getBoundingClientRect().top).to.eq(originalTop);
                 });
                 cy.then(() => releaseInbox());
-                cy.get(progressBar).should('not.exist');
+                cy.get(progressBar).should('not.be.visible');
                 cy.get('[data-testid="inbox-message-item"]').should(($current) => {
                     expect($current[0].getBoundingClientRect().top).to.eq(originalTop);
                 });
@@ -87,7 +87,7 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
             });
         });
         cy.get('app-sent [data-testid="message-row"]').should('be.visible');
-        cy.get(progressBar).should('not.exist');
+        cy.get(progressBar).should('not.be.visible');
     });
 
     it('stays visible until overlapping requests have all finished', () => {
@@ -102,7 +102,7 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
             expect(threadFinished).to.eq(false);
         });
         cy.wait('@thread');
-        cy.get(progressBar).should('not.exist');
+        cy.get(progressBar).should('not.be.visible');
     });
 
     it('clears progress after a failed request', () => {
@@ -112,7 +112,7 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
         cy.get('a[data-testid="sent-section"]').click();
         cy.get(progressBar).should('be.visible');
         cy.get('app-sent [role="alert"]').should('contain.text', 'Could not load sent emails');
-        cy.get(progressBar).should('not.exist');
+        cy.get(progressBar).should('not.be.visible');
     });
 
     it('clears cancelled requests when leaving a message', () => {
@@ -122,7 +122,7 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
         cy.get(progressBar).should('be.visible');
         cy.get('[data-testid="back-button"]').click();
         cy.get('[data-testid="inbox-message-item"]').should('be.visible');
-        cy.get(progressBar, { timeout: 1000 }).should('not.exist');
+        cy.get(progressBar, { timeout: 1000 }).should('not.be.visible');
     });
 
     it('does not start another bar for the background count refresh', () => {
@@ -135,10 +135,10 @@ describe('Shared request progress', { defaultCommandTimeout: 5000 }, () => {
         cy.get('[data-testid="refresh-inbox-button"]').click();
         cy.get(progressBar).should('be.visible');
         cy.wait('@inbox');
-        cy.get(progressBar, { timeout: 700 }).should('not.exist').then(() => {
+        cy.get(progressBar, { timeout: 700 }).should('not.be.visible').then(() => {
             expect(countsFinished).to.eq(false);
         });
         cy.wait('@counts');
-        cy.get(progressBar).should('not.exist');
+        cy.get(progressBar).should('not.be.visible');
     });
 });

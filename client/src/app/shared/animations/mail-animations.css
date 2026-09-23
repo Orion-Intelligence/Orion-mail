@@ -167,13 +167,13 @@ article.mail-message-surface.mail-motion-page,
 
 .mail-request-progress {
   position: relative;
-  margin-bottom: -0.125rem;
+  margin-bottom: -5px;
   overflow: hidden;
   pointer-events: none;
 }
 
 .mail-motion-progress-bar {
-  animation: mail-progress 1.15s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: mail-progress 1.5s linear infinite;
   transform-origin: left center;
   will-change: transform;
 }
@@ -354,15 +354,28 @@ article.mail-message-surface.mail-motion-page,
 
 @keyframes mail-progress {
   0% {
-    transform: translateX(-30%) scaleX(0.65);
+    opacity: 80%;
+    transform: translateX(0) scaleX(0.05);
   }
 
-  55% {
-    transform: translateX(135%) scaleX(1.15);
+  25% {
+    opacity: 100%;
+    transform: translateX(25%) scaleX(0.3);
+  }
+
+  50% {
+    opacity: 100%;
+    transform: translateX(50%) scaleX(0.6);
+  }
+
+  75% {
+    opacity: 100%;
+    transform: translateX(75%) scaleX(0.3);
   }
 
   100% {
-    transform: translateX(330%) scaleX(0.75);
+    opacity: 50%;
+    transform: translateX(100%) scaleX(0.1);
   }
 }
 
@@ -413,12 +426,16 @@ article.mail-message-surface.mail-motion-page,
   .mail-motion-row-leave,
   .mail-motion-chip-enter,
   .mail-motion-chip-leave,
-  .mail-motion-progress-bar,
   .mail-skeleton,
   .mail-message-surface > app-message-list-skeleton,
   app-root input:is([type="checkbox"], [type="radio"]):checked {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .mail-motion-progress-bar {
+    animation: none !important;
+    transform: scaleX(0.3);
   }
 }
 
