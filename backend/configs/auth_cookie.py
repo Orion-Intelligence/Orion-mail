@@ -1,5 +1,5 @@
 import re
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlsplit
 
 from fastapi import Request, Response
 
@@ -49,6 +49,15 @@ def allowed_sso_redirect_uri(redirect_uri: str) -> str:
         callback_uri = f"{public_url}{SSO_CALLBACK_PATH}"
         if redirect_uri == callback_uri:
             return callback_uri
+    parsed = urlsplit(redirect_uri)
+    if (
+        parsed.scheme == "https"
+        and parsed.path == SSO_CALLBACK_PATH
+        and not parsed.query
+        and not parsed.fragment
+        and CONSTANTS.S_MAIL_TENANT_HOST_PATTERN.fullmatch(parsed.hostname or "")
+    ):
+        return f"https://{parsed.hostname}{SSO_CALLBACK_PATH}"
     return f"{CONSTANTS.S_ORION_MAIL_PUBLIC_URLS[0]}{SSO_CALLBACK_PATH}"
 
 

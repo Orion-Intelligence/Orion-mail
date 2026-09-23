@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -9,6 +10,7 @@ class CONSTANTS:
 
     S_MAIL_DOMAIN = env_handler.get_instance().env("MAIL_DOMAIN", "mail.orionintelligence.org")
     S_MAIL_BASE_DOMAIN = env_handler.get_instance().env("MAIL_BASE_DOMAIN", "mail.orionintelligence.org").strip().lower().rstrip(".")
+    S_MAIL_TENANT_HOST_PATTERN = re.compile(rf"^[a-z0-9-]+\.{re.escape(S_MAIL_BASE_DOMAIN)}$")
     S_SEED_LOCAL_TEST_MAILBOXES = env_handler.get_instance().env("SEED_LOCAL_TEST_MAILBOXES", "false").lower() == "true"
 
     S_ORION_MAIL_SESSION_MAX_AGE_SECONDS = int(
@@ -69,7 +71,7 @@ class CONSTANTS:
 
     S_COOKIE_SECURE = env_handler.get_instance().env("COOKIE_SECURE", "true").lower() == "true"
     S_INCOMING_MAIL_TOKEN = env_handler.get_instance().env("INCOMING_MAIL_TOKEN", "")
-    S_ALLOWED_HOSTS = [host.strip() for host in env_handler.get_instance().env("ALLOWED_HOSTS", f"{S_MAIL_DOMAIN},localhost,127.0.0.1").split(",") if host.strip()]
+    S_ALLOWED_HOSTS = [host.strip() for host in env_handler.get_instance().env("ALLOWED_HOSTS", f"{S_MAIL_DOMAIN},localhost,127.0.0.1").split(",") if host.strip()] + [f"*.{S_MAIL_BASE_DOMAIN}"]
     S_CORS_ALLOWED_ORIGINS = [origin.strip() for origin in env_handler.get_instance().env("CORS_ALLOWED_ORIGINS", "http://localhost:4300,http://127.0.0.1:4300").split(",") if origin.strip()]
 
     S_DISPOSABLE_MAILBOX_LIMIT = int(env_handler.get_instance().env("DISPOSABLE_MAILBOX_LIMIT", "5"))

@@ -56,8 +56,9 @@ def allowed_mail_origin(value: str | None) -> str:
     if not candidate:
         candidate = CONSTANTS.S_ORION_MAIL_PUBLIC_URLS[0]
     parsed = urlsplit(candidate)
+    is_tenant_host = parsed.scheme == "https" and bool(CONSTANTS.S_MAIL_TENANT_HOST_PATTERN.fullmatch(parsed.hostname or ""))
     if (
-        candidate not in CONSTANTS.S_ORION_MAIL_PUBLIC_URLS
+        (candidate not in CONSTANTS.S_ORION_MAIL_PUBLIC_URLS and not is_tenant_host)
         or parsed.scheme not in {"http", "https"}
         or not parsed.netloc
         or parsed.path not in {"", "/"}

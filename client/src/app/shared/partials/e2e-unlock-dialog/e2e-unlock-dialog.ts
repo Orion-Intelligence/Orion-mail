@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
+import { BrandService } from '../../../services/brand';
 import { E2eService } from '../../../services/e2e';
 import { Icon } from '../../icons/icon/icon';
 import { E2E_MIN_PASSPHRASE_LENGTH } from '../../constants/e2e.constants';
@@ -16,6 +17,7 @@ export class E2eUnlockDialog {
   private readonly override = signal<E2eDialogView | null>(null);
 
   readonly e2e = inject(E2eService);
+  readonly brand = inject(BrandService);
   readonly minLength = E2E_MIN_PASSPHRASE_LENGTH;
   readonly form = new FormGroup({ passphrase: new FormControl('', { nonNullable: true }), confirm: new FormControl('', { nonNullable: true }), recoveryCode: new FormControl('', { nonNullable: true }) });
   readonly view = computed<E2eDialogView>(() => this.override() ?? (this.recoveryCode() ? 'recovery-code' : this.e2e.prompt() === 'setup' ? 'setup' : this.e2e.prompt() === 'mismatch' ? 'mismatch' : this.e2e.prompt() === 'key-changed' ? 'key-changed' : 'unlock'));
@@ -78,11 +80,11 @@ export class E2eUnlockDialog {
   }
 
   downloadRecoveryCode(): void {
-    const text = `Orion Mail recovery code\nMailbox: ${this.e2e.mailboxAddress()}\nKey fingerprint: ${this.e2e.fingerprint()}\n\n${this.recoveryCode()}\n\nKeep this file somewhere safe and offline. Anyone with this code can read your encrypted mail. Orion Mail cannot recover it for you.\n`;
+    const text = `${this.brand.name()} recovery code\nMailbox: ${this.e2e.mailboxAddress()}\nKey fingerprint: ${this.e2e.fingerprint()}\n\n${this.recoveryCode()}\n\nKeep this file somewhere safe and offline. Anyone with this code can read your encrypted mail. ${this.brand.name()} cannot recover it for you.\n`;
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'orion-mail-recovery-code.txt';
+    link.download = 'mail-recovery-code.txt';
     document.body.appendChild(link);
     link.click();
     link.remove();
