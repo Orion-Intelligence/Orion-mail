@@ -163,6 +163,10 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.mail-shell-canvas aside a.bg-selected:hover {
+  background-color: color-mix(in srgb, var(--color-selected) 88%, black);
+}
+
 .mail-message-surface > header:first-child {
   height: 48px;
   padding-inline: 16px;

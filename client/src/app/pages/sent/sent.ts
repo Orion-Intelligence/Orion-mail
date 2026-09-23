@@ -11,10 +11,11 @@ import { Icon } from '../../shared/icons/icon/icon';
 import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 import { MessagePreview } from '../../shared/pipes/message-preview';
+import { RequestProgress } from '../../shared/partials/request-progress/request-progress';
 
 @Component({
   selector: 'app-sent',
-  imports: [MessagePreview, Icon, MessageListSkeleton],
+  imports: [MessagePreview, Icon, MessageListSkeleton, RequestProgress],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './sent.html',
 })

@@ -165,9 +165,11 @@ article.mail-message-surface.mail-motion-page,
   pointer-events: none;
 }
 
-.mail-motion-progress {
-  overflow: hidden;
+.mail-request-progress {
   position: relative;
+  margin-bottom: -0.125rem;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .mail-motion-progress-bar {
@@ -176,19 +178,8 @@ article.mail-message-surface.mail-motion-page,
   will-change: transform;
 }
 
-/* Show progress immediately without moving rows; let it fade out on completion. */
-.mail-message-surface > .mail-motion-progress {
-  margin-bottom: -0.125rem;
-  pointer-events: none;
-}
-
 .mail-message-surface > app-message-list-skeleton {
   animation: mail-loader-in 100ms ease-out 180ms both;
-}
-
-.mail-motion-loader-leave {
-  animation: mail-backdrop-out var(--mail-motion-fast) ease-in both;
-  pointer-events: none;
 }
 
 @keyframes mail-loader-in {
@@ -424,7 +415,6 @@ article.mail-message-surface.mail-motion-page,
   .mail-motion-chip-leave,
   .mail-motion-progress-bar,
   .mail-skeleton,
-  .mail-motion-loader-leave,
   .mail-message-surface > app-message-list-skeleton,
   app-root input:is([type="checkbox"], [type="radio"]):checked {
     animation-duration: 1ms !important;
@@ -435,7 +425,6 @@ article.mail-message-surface.mail-motion-page,
 @media print {
   .mail-motion-page,
   .mail-motion-card-enter,
-  .mail-motion-loader-leave,
   .mail-motion-content-enter,
   .mail-motion-menu-enter,
   .mail-motion-menu-leave,

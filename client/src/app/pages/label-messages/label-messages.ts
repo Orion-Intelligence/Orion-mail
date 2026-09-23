@@ -13,10 +13,11 @@ import { filterMessagesByTerm } from '../../shared/utils/message-filter';
 import { MessageListSkeleton } from '../../shared/partials/message-list-skeleton/message-list-skeleton';
 
 import { MessagePreview } from '../../shared/pipes/message-preview';
+import { RequestProgress } from '../../shared/partials/request-progress/request-progress';
 
 @Component({
   selector: 'app-label-messages',
-  imports: [MessagePreview, Icon, MessageListSkeleton],
+  imports: [MessagePreview, Icon, MessageListSkeleton, RequestProgress],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './label-messages.html',
 })

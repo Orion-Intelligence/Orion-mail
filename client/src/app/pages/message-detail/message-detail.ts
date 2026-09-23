@@ -20,10 +20,11 @@ import { SOURCE_NAMES, TRANSLATION_LANGUAGES } from '../../shared/constants/mess
 import { MessageSource, RecipientMenu } from '../../shared/model/message-detail.model';
 
 import { MessagePreview } from '../../shared/pipes/message-preview';
+import { RequestProgress } from '../../shared/partials/request-progress/request-progress';
 
 @Component({
   selector: 'app-message-detail',
-  imports: [MessagePreview, Icon, Compose],
+  imports: [MessagePreview, Icon, Compose, RequestProgress],
   host: { class: 'flex min-h-full flex-col' },
   templateUrl: './message-detail.html',
 })

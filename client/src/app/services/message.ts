@@ -1,10 +1,11 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { Observable, from, map, of, switchMap, tap } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import { EMPTY_FOLDER_COUNTS } from '../shared/constants/message.constants';
 import { E2eService } from './e2e';
+import { SKIP_REQUEST_PROGRESS } from './request-progress';
 import { BulkMessageAction, BulkMessageOptions, BulkMessageResponse, DeleteMessageResponse, DraftMessageRequest, FolderCounts, InboxMessage, Mailbox, MessageDetailResponse, MessageFolder, MessageTranslationResponse, ReportType, SavedPgpKey, SendMessageRequest, SendMessageResponse, SenderIdentity, SenderIdentityResponse, SenderReportResponse, SentMessage } from '../shared/model/message.model';
 
 @Injectable({
@@ -138,7 +139,9 @@ export class MessageService {
   }
 
   loadFolderCounts(): Observable<FolderCounts> {
-    return this.http.get<FolderCounts>(`${this.baseUrl}/folder-counts`).pipe(tap((counts) => {
+    return this.http.get<FolderCounts>(`${this.baseUrl}/folder-counts`, {
+      context: new HttpContext().set(SKIP_REQUEST_PROGRESS, true),
+    }).pipe(tap((counts) => {
       this.folderCounts.set(counts);
     }));
   }
