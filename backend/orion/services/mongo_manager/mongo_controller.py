@@ -17,7 +17,7 @@ from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model impor
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_messenger_conversation_model import db_messenger_conversation_model
 from orion.services.mongo_manager.shared_model.db_messenger_message_model import db_messenger_message_model
-
+from orion.services.mongo_manager.shared_model.db_email_daily_quota_model import db_email_daily_quota_model
 
 class mongo_controller:
     __instance = None
@@ -43,6 +43,7 @@ class mongo_controller:
 
     async def ensure_indexes(self) -> None:
         user_collection = self.__engine.get_collection(db_user_model)
+        email_quota_collection = self.__engine.get_collection(db_email_daily_quota_model)
         await user_collection.update_many({"password_hash": {"$exists": True}}, {"$unset": {"password_hash": ""}})  # nosec B105
         await user_collection.create_index("email", unique=True)
         await user_collection.create_index("orion_user_id", unique=True, sparse=True)
@@ -59,6 +60,9 @@ class mongo_controller:
                 await mailbox_collection.update_one({"_id": mailbox["_id"]}, {"$set": {"mailbox_address": new_address, "mail_domain": CONSTANTS.S_MAIL_DOMAIN}})
             except DuplicateKeyError:
                 continue
+        await email_quota_collection.create_index([("owner_mailbox_id", 1), ("day_key", 1)], unique=True)
+        await email_quota_collection.create_index("expires_at", expireAfterSeconds=0)
+
         await self.__engine.get_collection(db_address_book_entry_model).create_index([("owner_mailbox_id", 1), ("email_address", 1)], unique=True)
         await self.__engine.get_collection(db_address_book_entry_model).create_index([("owner_mailbox_id", 1), ("last_used_at", -1)])
         await self.__engine.get_collection(db_system_config_model).create_index("key", unique=True)
@@ -72,6 +76,7 @@ class mongo_controller:
         await self.__engine.get_collection(db_message_model).create_index([("owner_mailbox_id", 1), ("label_ids", 1), ("created_at", -1)])
         await self.__engine.get_collection(db_message_model).create_index([("owner_mailbox_id", 1), ("message_id_header", 1)], sparse=True)
         await self.__engine.get_collection(db_message_model).create_index([("owner_mailbox_id", 1), ("thread_id", 1), ("created_at", 1)], sparse=True)
+        await self.__engine.get_collection(db_message_model).create_index([("owner_mailbox_id", 1), ("direction", 1), ("created_at", -1)])
         await self.__engine.get_collection(db_attachment_model).create_index("message_id")
         await self.__engine.get_collection(db_attachment_model).create_index([("status", 1), ("expires_at", 1)])
         await self.__engine.get_collection(db_disposable_mailbox_model).create_index("mailbox_address", unique=True)
@@ -86,6 +91,7 @@ class mongo_controller:
         await self.__engine.get_collection(db_messenger_message_model).create_index([("conversation_id", 1), ("created_at", 1)])
         await self.__engine.get_collection(db_messenger_message_model).create_index([("sender_user_id", 1), ("created_at", -1)])
         await self.__engine.get_collection(db_messenger_message_model).create_index([("receiver_user_id", 1), ("read_at", 1)])
+
 
     async def close_connection(self) -> None:
         self.__client.close()

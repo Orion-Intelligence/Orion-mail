@@ -74,7 +74,10 @@ def patch_spam(monkeypatch, spam):
 def prepare_deep_send_manager(key, owned_message):
     manager = make_manager(engine=RecordingEngine(find_one={db_pgp_key_model: key}))
 
-    async def no_op_quota(_mailbox):
+    async def no_op_quota(_mailbox, _recipient_addresses):
+        return None
+
+    async def no_op_storage_quota(_mailbox):
         return None
 
     async def fake_partition(addresses):
@@ -84,7 +87,7 @@ def prepare_deep_send_manager(key, owned_message):
         return owned_message
 
     manager.enforce_send_quota = no_op_quota
-    manager.enforce_storage_quota = no_op_quota
+    manager.enforce_storage_quota = no_op_storage_quota
     manager.partition_recipient_addresses = fake_partition
     manager.get_owned_message = fake_owned
     return manager

@@ -13,6 +13,8 @@ from fastapi.responses import Response
 from odmantic.exceptions import DocumentNotFoundError
 from odmantic.query import QueryExpression, and_, desc, eq, in_, match, ne, or_
 from starlette.datastructures import Headers
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 
 from orion.api.interactive.address_book_manager.address_book_manager import address_book_manager
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
@@ -38,6 +40,7 @@ from orion.services.mongo_manager.shared_model.db_user_model import db_user_mode
 from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
 from orion.services.pgp_manager.pgp_manager import pgp_manager
+from orion.services.mongo_manager.shared_model.db_email_daily_quota_model import db_email_daily_quota_model
 
 
 class message_manager:
@@ -444,7 +447,6 @@ class message_manager:
         if len(recipient_addresses) > MESSAGE_LIMITS.MAX_RECIPIENTS:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_RECIPIENTS} recipients")
 
-        await self.enforce_send_quota(sender_mailbox)
         await self.enforce_storage_quota(sender_mailbox)
         internal_recipient_addresses, external_recipient_addresses = await self.partition_recipient_addresses(recipient_addresses)
         await self.assert_end_to_end_when_possible(sender_mailbox, sender_identity_type, recipient_addresses, external_recipient_addresses, normalized_body)
@@ -493,9 +495,16 @@ class message_manager:
             thread_id=(reply_parent.thread_id or reply_parent.id) if reply_parent else None,
             forwarded_from_message_id=forward_source.id if forward_source else None,
         )
-        message.message_id_header = f"<{uuid4().hex}@{CONSTANTS.S_MAIL_DOMAIN}>"
+        message.message_id_header = (f"<{uuid4().hex}@{CONSTANTS.S_MAIL_DOMAIN}>")
         message.thread_id = message.thread_id or message.id
-        message = await message_crypto_manager.get_instance().save_message(message)
+        quota_day_key = await self.enforce_send_quota(sender_mailbox, recipient_addresses)
+        
+        try:
+            message = await message_crypto_manager.get_instance().save_message(message)
+        
+        except Exception:
+            await self.release_send_quota(sender_mailbox, recipient_addresses, quota_day_key)
+            raise
 
         staged_attachments: list[dict] = []
         try:
@@ -732,11 +741,318 @@ class message_manager:
                 await message_crypto_manager.get_instance().save_message(draft)
         return {"sent": sent, "failed": failed}
 
-    async def enforce_send_quota(self, mailbox: db_mailbox_model) -> None:
-        window_start = datetime.now(UTC) - timedelta(seconds=MESSAGE_LIMITS.SEND_WINDOW_SECONDS)
-        recent_sends = await self._engine.get_collection(db_message_model).count_documents({"owner_mailbox_id": mailbox.id, "direction": MESSAGE_DIRECTION.OUTGOING.value, "folder": MESSAGE_FOLDER.SENT.value, "created_at": {"$gte": window_start}})
-        if recent_sends >= MESSAGE_LIMITS.MAX_SENDS_PER_WINDOW:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=f"Send limit reached. A mailbox can send at most {MESSAGE_LIMITS.MAX_SENDS_PER_WINDOW} messages per hour.", headers={"Retry-After": str(MESSAGE_LIMITS.SEND_WINDOW_SECONDS)})
+    async def enforce_send_quota(self, mailbox: db_mailbox_model, recipient_addresses: list[str]) -> str:
+        now = datetime.now(UTC)
+
+        day_start = now.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        day_end = day_start + timedelta(days=1)
+
+        day_key = day_start.date().isoformat()
+
+        recipients = sorted(
+            {
+                address.strip().lower()
+                for address in recipient_addresses
+                if address.strip()
+            }
+        )
+
+        if not recipients:
+            return day_key
+
+        collection = self._engine.get_collection(db_email_daily_quota_model)
+
+        try:
+            await collection.update_one(
+                {
+                    "owner_mailbox_id": mailbox.id,
+                    "day_key": day_key,
+                },
+                {
+                    "$setOnInsert": {
+                        "owner_mailbox_id": mailbox.id,
+                        "day_key": day_key,
+                        "recipients": [],
+                        "created_at": now,
+                        "expires_at": day_end + timedelta(days=1),
+                    },
+                    "$set": {
+                        "updated_at": now,
+                    },
+                },
+                upsert=True,
+            )
+
+        except DuplicateKeyError:
+            pass
+
+        incoming_recipients = {"$literal": recipients}
+
+        quota_filter = {
+            "owner_mailbox_id": mailbox.id,
+            "day_key": day_key,
+            "$expr": {
+                "$and": [
+                    {
+                        "$lte": [
+                            {
+                                "$size": {
+                                    "$setUnion": [
+                                        {
+                                            "$map": {
+                                                "input": {
+                                                    "$ifNull": [
+                                                        "$recipients",
+                                                        [],
+                                                    ]
+                                                },
+                                                "as": "recipient",
+                                                "in": "$$recipient.address",
+                                            }
+                                        },
+                                        incoming_recipients,
+                                    ]
+                                }
+                            },
+                            MESSAGE_LIMITS.MAX_DAILY_UNIQUE_RECIPIENTS,
+                        ]
+                    },
+                    {
+                        "$eq": [
+                            {
+                                "$size": {
+                                    "$filter": {
+                                        "input": {
+                                            "$ifNull": [
+                                                "$recipients",
+                                                [],
+                                            ]
+                                        },
+                                        "as": "recipient",
+                                        "cond": {
+                                            "$and": [
+                                                {
+                                                    "$in": [
+                                                        "$$recipient.address",
+                                                        incoming_recipients,
+                                                    ]
+                                                },
+                                                {
+                                                    "$gte": [
+                                                        "$$recipient.count",
+                                                        MESSAGE_LIMITS.MAX_DAILY_EMAILS_PER_RECIPIENT,
+                                                    ]
+                                                },
+                                            ]
+                                        },
+                                    }
+                                }
+                            },
+                            0,
+                        ]
+                    },
+                ]
+            },
+        }
+
+        update_pipeline = [
+            {
+                "$set": {
+                    "recipients": {
+                        "$let": {
+                            "vars": {
+                                "existing": {
+                                    "$ifNull": [
+                                        "$recipients",
+                                        [],
+                                    ]
+                                },
+                                "incoming": incoming_recipients,
+                            },
+                            "in": {
+                                "$concatArrays": [
+                                    {
+                                        "$map": {
+                                            "input": "$$existing",
+                                            "as": "recipient",
+                                            "in": {
+                                                "$cond": [
+                                                    {
+                                                        "$in": [
+                                                            "$$recipient.address",
+                                                            "$$incoming",
+                                                        ]
+                                                    },
+                                                    {
+                                                        "address": "$$recipient.address",
+                                                        "count": {
+                                                            "$add": [
+                                                                "$$recipient.count",
+                                                                1,
+                                                            ]
+                                                        },
+                                                    },
+                                                    "$$recipient",
+                                                ]
+                                            },
+                                        }
+                                    },
+                                    {
+                                        "$map": {
+                                            "input": {
+                                                "$setDifference": [
+                                                    "$$incoming",
+                                                    {
+                                                        "$map": {
+                                                            "input": "$$existing",
+                                                            "as": "recipient",
+                                                            "in": "$$recipient.address",
+                                                        }
+                                                    },
+                                                ]
+                                            },
+                                            "as": "address",
+                                            "in": {
+                                                "address": "$$address",
+                                                "count": 1,
+                                            },
+                                        }
+                                    },
+                                ]
+                            },
+                        }
+                    },
+                    "updated_at": now,
+                }
+            }
+        ]
+
+        updated = await collection.find_one_and_update(quota_filter, update_pipeline, return_document=ReturnDocument.AFTER)
+
+        if updated is not None:
+            return day_key
+
+        current = await collection.find_one({"owner_mailbox_id": mailbox.id, "day_key": day_key})
+
+        counts = {
+            item["address"]: item["count"]
+            for item in (current or {}).get("recipients", [])
+        }
+
+        retry_after = max(1, int((day_end - now).total_seconds()))
+
+        for recipient in recipients:
+            if (
+                counts.get(recipient, 0)
+                >= MESSAGE_LIMITS.MAX_DAILY_EMAILS_PER_RECIPIENT
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=(
+                        f"Daily email limit reached for {recipient}. "
+                        f"You can send at most "
+                        f"{MESSAGE_LIMITS.MAX_DAILY_EMAILS_PER_RECIPIENT} "
+                        "emails to the same recipient per day."
+                    ),
+                    headers={
+                        "Retry-After": str(retry_after)
+                    },
+                )
+
+        if (
+            len(set(counts.keys()) | set(recipients))
+            > MESSAGE_LIMITS.MAX_DAILY_UNIQUE_RECIPIENTS
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=(
+                    "Daily recipient limit reached. "
+                    f"You can send email to at most "
+                    f"{MESSAGE_LIMITS.MAX_DAILY_UNIQUE_RECIPIENTS} "
+                    "different recipients per day."
+                ),
+                headers={
+                    "Retry-After": str(retry_after)
+                },
+            )
+
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Daily email sending limit reached.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    async def release_send_quota(self, mailbox: db_mailbox_model, recipient_addresses: list[str], day_key: str) -> None:
+        recipients = sorted(
+            {
+                address.strip().lower()
+                for address in recipient_addresses
+                if address.strip()
+            }
+        )
+
+        if not recipients:
+            return
+
+        collection = self._engine.get_collection(db_email_daily_quota_model)
+
+        incoming = {"$literal": recipients}
+
+        await collection.update_one({"owner_mailbox_id": mailbox.id, "day_key": day_key},
+            [
+                {
+                    "$set": {
+                        "recipients": {
+                            "$filter": {
+                                "input": {
+                                    "$map": {
+                                        "input": {
+                                            "$ifNull": [
+                                                "$recipients",
+                                                [],
+                                            ]
+                                        },
+                                        "as": "recipient",
+                                        "in": {
+                                            "$cond": [
+                                                {
+                                                    "$in": [
+                                                        "$$recipient.address",
+                                                        incoming,
+                                                    ]
+                                                },
+                                                {
+                                                    "address": "$$recipient.address",
+                                                    "count": {
+                                                        "$subtract": [
+                                                            "$$recipient.count",
+                                                            1,
+                                                        ]
+                                                    },
+                                                },
+                                                "$$recipient",
+                                            ]
+                                        },
+                                    }
+                                },
+                                "as": "recipient",
+                                "cond": {
+                                    "$gt": [
+                                        "$$recipient.count",
+                                        0,
+                                    ]
+                                },
+                            }
+                        },
+                        "updated_at": datetime.now(UTC),
+                    }
+                }
+            ],
+        )
 
     async def get_inbox_messages(self, current_user: db_user_model, limit: int | None = None, offset: int = 0, oldest_first: bool = False) -> list[dict]:
         return await self.get_folder_messages(current_user, MESSAGE_FOLDER.INBOX, limit, offset, oldest_first)

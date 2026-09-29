@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import asyncio
+
 from bson import ObjectId
 from fastapi import HTTPException
 from fastapi.responses import Response
@@ -21,7 +23,8 @@ from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbo
 from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_model
 from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
-from tests.model.fakes import RecordingEngine
+from orion.services.mongo_manager.shared_model.db_email_daily_quota_model import db_email_daily_quota_model
+from tests.model.fakes import FakeEmailQuotaCollection, RecordingEngine
 from tests.scripts.message_manager.fakes import FakeAggEngine, FakeAttachments, FakeCryptoManager, FakePath, FakeSafety, FakeSearchEngine, FakeSpam, FakeUpdateEngine
 from tests.scripts.message_manager.fixtures import fake_crypto
 from tests.scripts.message_manager.helpers import USER, build_sent_message, default_mailbox, make_manager, make_message, make_pgp_key, make_scheduling_manager, manager_with_mailboxes, patch_attachments, patch_safety, patch_spam, prepare_deep_send_manager, search_manager
@@ -239,6 +242,15 @@ def test_get_original_source_path_returns_existing(monkeypatch):
     patch_attachments(monkeypatch, FakeAttachments(path=path))
     message = make_message(raw_source_filename="raw.eml")
     assert message_manager.get_original_source_path(message) is path
+
+
+def make_quota_manager():
+    mailbox = default_mailbox()
+    quota_collection = FakeEmailQuotaCollection()
+    manager = object.__new__(message_manager)
+    manager._engine = RecordingEngine(collections={db_email_daily_quota_model: quota_collection})
+
+    return manager, mailbox, quota_collection
 
 
 @pytest.mark.anyio
@@ -562,19 +574,139 @@ async def test_cancel_scheduled_message_clears_scheduled_at():
 
 
 @pytest.mark.anyio
-async def test_enforce_send_quota_raises_when_limit_reached():
-    manager = object.__new__(message_manager)
-    manager._engine = RecordingEngine(counts={db_message_model: MESSAGE_LIMITS.MAX_SENDS_PER_WINDOW})
-    with pytest.raises(HTTPException) as error:
-        await manager.enforce_send_quota(default_mailbox())
-    assert error.value.status_code == 429
+async def test_daily_quota_allows_ten_emails_to_same_recipient():
+    manager, mailbox, quota = make_quota_manager()
+
+    recipient = "bob@example.org"
+
+    for _ in range(MESSAGE_LIMITS.MAX_DAILY_EMAILS_PER_RECIPIENT):
+        await manager.enforce_send_quota(mailbox, [recipient])
+
+    assert quota.count_for(recipient) == 10
 
 
 @pytest.mark.anyio
-async def test_enforce_send_quota_allows_under_limit():
-    manager = object.__new__(message_manager)
-    manager._engine = RecordingEngine(counts={db_message_model: 0})
-    assert await manager.enforce_send_quota(default_mailbox()) is None
+async def test_daily_quota_rejects_eleventh_email_to_same_recipient():
+    manager, mailbox, quota = make_quota_manager()
+
+    recipient = "bob@example.org"
+
+    for _ in range(MESSAGE_LIMITS.MAX_DAILY_EMAILS_PER_RECIPIENT):
+        await manager.enforce_send_quota(mailbox, [recipient])
+
+    with pytest.raises(HTTPException) as error:
+        await manager.enforce_send_quota(mailbox, [recipient])
+
+    assert error.value.status_code == 429
+    assert quota.count_for(recipient) == 10
+
+
+@pytest.mark.anyio
+async def test_daily_quota_rejects_101st_unique_recipient():
+    manager, mailbox, quota = make_quota_manager()
+
+    recipients = [
+        f"user{i}@example.org"
+        for i in range(MESSAGE_LIMITS.MAX_DAILY_UNIQUE_RECIPIENTS)
+    ]
+
+    await manager.enforce_send_quota(mailbox, recipients)
+
+    assert quota.unique_recipient_count() == 100
+
+    with pytest.raises(HTTPException) as error:
+        await manager.enforce_send_quota(mailbox, ["new-user@example.org"])
+
+    assert error.value.status_code == 429
+    assert quota.unique_recipient_count() == 100
+
+
+@pytest.mark.anyio
+async def test_daily_quota_allows_existing_recipient_after_100_unique():
+    manager, mailbox, quota = make_quota_manager()
+
+    recipients = [
+        f"user{i}@example.org"
+        for i in range(
+            MESSAGE_LIMITS.MAX_DAILY_UNIQUE_RECIPIENTS
+        )
+    ]
+
+    await manager.enforce_send_quota(mailbox, recipients)
+
+    await manager.enforce_send_quota(mailbox, ["user0@example.org"])
+
+    assert quota.unique_recipient_count() == 100
+    assert quota.count_for("user0@example.org") == 2
+
+
+@pytest.mark.anyio
+async def test_release_send_quota_removes_reserved_email():
+    manager, mailbox, quota = make_quota_manager()
+
+    recipient = "bob@example.org"
+
+    day_key = await manager.enforce_send_quota(mailbox, [recipient])
+
+    assert quota.count_for(recipient) == 1
+
+    await manager.release_send_quota(mailbox, [recipient], day_key)
+
+    assert quota.count_for(recipient) == 0
+    assert quota.unique_recipient_count() == 0
+
+
+@pytest.mark.anyio
+async def test_daily_quota_concurrent_requests_cannot_exceed_ten():
+    manager, mailbox, quota = make_quota_manager()
+
+    recipient = "bob@example.org"
+
+    for _ in range(9):
+        await manager.enforce_send_quota(mailbox, [recipient])
+
+    async def send():
+        try:
+            await manager.enforce_send_quota(mailbox, [recipient])
+            return "success"
+        except HTTPException as error:
+            return error.status_code
+
+    results = await asyncio.gather(send(), send())
+
+    assert results.count("success") == 1
+    assert results.count(429) == 1
+
+    assert quota.count_for(recipient) == 10
+
+
+@pytest.mark.anyio
+async def test_daily_quota_concurrent_requests_cannot_exceed_100_unique():
+    manager, mailbox, quota = make_quota_manager()
+
+    existing = [
+        f"user{i}@example.org"
+        for i in range(99)
+    ]
+
+    await manager.enforce_send_quota(mailbox, existing)
+
+    async def send(recipient):
+        try:
+            await manager.enforce_send_quota(
+                mailbox,
+                [recipient],
+            )
+            return "success"
+        except HTTPException as error:
+            return error.status_code
+
+    results = await asyncio.gather(send("alice@example.org"), send("bob@example.org"))
+
+    assert results.count("success") == 1
+    assert results.count(429) == 1
+
+    assert quota.unique_recipient_count() == 100
 
 
 @pytest.mark.anyio
