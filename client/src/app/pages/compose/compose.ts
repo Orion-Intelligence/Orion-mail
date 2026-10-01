@@ -11,19 +11,19 @@ import { E2eService } from '../../services/e2e';
 import { E2eKeyChange, E2eSendMode, E2eSendPlan } from '../../shared/model/e2e.model';
 import { ComposeRequest } from '../../shared/model/compose.model';
 import { MessageService } from '../../services/message';
-import { Attachment, DraftMessageRequest, SenderIdentity } from '../../shared/model/message.model';
+import { DraftMessageRequest, SenderIdentity } from '../../shared/model/message.model';
 import { RecipientHintField, RichTextCommandRunner } from '../../shared/model/compose.model';
+import { FilePicker } from '../../shared/partials/file-picker/file-picker';
+import { FileService } from '../../services/file';
+import { OrionLinkedFile } from '../../shared/model/file.model';
 
 @Component({
   selector: 'app-compose',
-  imports: [ReactiveFormsModule, Icon],
+  imports: [ReactiveFormsModule, Icon, FilePicker],
   host: { class: 'block' },
   templateUrl: './compose.html',
 })
 export class Compose implements AfterViewInit, OnDestroy {
-  private readonly maxTotalFileSize = 1 * 1024 * 1024;
-  private readonly maxFileSizeLabel = '1 MB';
-  private readonly maxAttachmentCount = 10;
   private readonly autosave: Subscription;
   private readonly hintSubscriptions = new Subscription();
   private generation = 0;
@@ -33,6 +33,8 @@ export class Compose implements AfterViewInit, OnDestroy {
   private pendingDiscard = false;
   private lockedDraftId = '';
   private readonly e2e = inject(E2eService);
+  private readonly fileService = inject(FileService);
+  private readonly maxSecureFileSize = 100 * 1024 * 1024;
 
   request = input<ComposeRequest | null>(null);
   inline = input(false);
@@ -40,8 +42,6 @@ export class Compose implements AfterViewInit, OnDestroy {
   sent = output<string>();
   loading = signal(false);
   errorMessage = signal('');
-  selectedFiles = signal<File[]>([]);
-  forwardedAttachments = signal<Attachment[]>([]);
   fileError = signal('');
   dragActive = signal(false);
   richText = signal(true);
@@ -61,6 +61,9 @@ export class Compose implements AfterViewInit, OnDestroy {
   senderIdentities = signal<SenderIdentity[]>([]);
   e2eMode = signal<E2eSendMode>('plain');
   e2eChanges = signal<E2eKeyChange[]>([]);
+  linkedFiles = signal<OrionLinkedFile[]>([]);
+  filePickerOpen = signal(false);
+  fileUploading = signal(false);
   @ViewChild('bodyArea') bodyArea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('richEditor') richEditor?: ElementRef<HTMLDivElement>;
   @ViewChild('receiverInput') receiverInput?: ElementRef<HTMLInputElement>;
@@ -269,6 +272,11 @@ export class Compose implements AfterViewInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   closeOnEscape(): void {
+    if (this.filePickerOpen()) {
+      this.filePickerOpen.set(false);
+      return;
+    }
+
     if (!this.inline()) {
       this.close();
     }
@@ -393,6 +401,195 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.form.controls.body_html.setValue(/*safe*/ editor.innerHTML);
   }
 
+  openFilePicker(): void {
+    this.filePickerOpen.set(true);
+  }
+
+  closeFilePicker(): void {
+    this.filePickerOpen.set(false);
+  }
+
+  private escapeHtml(value: string,): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  private fileTextBlock(file: OrionLinkedFile,): string {
+    return (
+      `📎 ${file.original_filename}\n` +
+      `Open secure file:\n` +
+      `${file.secure_url}`
+    );
+  }
+
+  private fileHtmlBlock(file: OrionLinkedFile,): string {
+    const name = this.escapeHtml(file.original_filename,);
+
+    const url = this.escapeHtml(file.secure_url,);
+
+    const publicId = this.escapeHtml(file.public_id,);
+
+    return `
+  <div
+    data-orion-file="${publicId}"
+    style="
+      margin:12px 0;
+      padding:12px;
+      border:1px solid #d9d9d9;
+      border-radius:10px;
+    "
+  >
+    <div style="font-weight:600;">
+      📎 ${name}
+    </div>
+
+    <div style="margin-top:6px;">
+      <a
+        href="${url}"
+      >
+        Open secure file
+      </a>
+    </div>
+  </div>
+  `.trim();
+  }
+
+  private insertLinkedFile(file: OrionLinkedFile,): void {
+    if (
+      this.linkedFiles().some((item) =>
+        item.public_id === file.public_id,)
+    ) {
+      return;
+    }
+
+    this.linkedFiles.update((files) => [
+      ...files,
+      file,
+    ],);
+
+    const value =
+      this.form.getRawValue();
+
+    const textBlock =
+      this.fileTextBlock(file);
+
+    const currentBody =
+      value.body.trimEnd();
+
+    const updatedBody =
+      currentBody
+        ? `${currentBody}\n\n${textBlock}`
+        : textBlock;
+
+    this.form.controls.body.setValue(updatedBody,);
+
+    if (this.richText()) {
+      const existingHtml =
+        value.body_html ||
+        this.plainTextToHtml(currentBody,);
+
+      const htmlBlock =
+        this.fileHtmlBlock(file);
+
+      const updatedHtml =
+        existingHtml.trim()
+          ? `${existingHtml}<br>${htmlBlock}`
+          : htmlBlock;
+
+      this.form.controls.body_html.setValue(updatedHtml,);
+
+      setTimeout(() => this.syncEditorFromForm(),
+        0,);
+    }
+
+    this.fileError.set('');
+  }
+
+  onFilePicked(file: OrionLinkedFile,): void {
+    this.insertLinkedFile(file);
+  }
+
+  removeLinkedFile(publicId: string,): void {
+    const file =
+      this.linkedFiles().find((item) =>
+        item.public_id === publicId,);
+
+    if (!file) {
+      return;
+    }
+
+    this.linkedFiles.update((files) =>
+      files.filter((item) =>
+        item.public_id !== publicId,),);
+
+    const textBlock =
+      this.fileTextBlock(file);
+
+    const body =
+      this.form.controls.body.value
+        .replace(textBlock, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trimEnd();
+
+    this.form.controls.body.setValue(body,);
+
+    const html =
+      this.form.controls.body_html.value;
+
+    if (html) {
+      const documentValue = new DOMParser().parseFromString(/*safe*/ html, 'text/html');
+
+      documentValue
+        .querySelector(`[data-orion-file="${file.public_id}"]`,)
+        ?.remove();
+
+      this.form.controls.body_html.setValue(/*safe*/ documentValue.body.innerHTML,);
+
+      setTimeout(() => this.syncEditorFromForm(),
+        0,);
+    }
+  }
+
+  private async uploadDroppedFiles(files: File[],): Promise<void> {
+    if (
+      files.length === 0 ||
+      this.fileUploading()
+    ) {
+      return;
+    }
+
+    const oversizedFile = files.find((file) =>
+      file.size > this.maxSecureFileSize,);
+
+    if (oversizedFile) {
+      this.fileError.set(`${oversizedFile.name} exceeds the 100 MB file limit.`,);
+
+      return;
+    }
+
+    this.fileUploading.set(true);
+    this.fileError.set('');
+
+    try {
+      for (const file of files) {
+        const uploaded =
+          await this.fileService.uploadFile(file,);
+
+        this.insertLinkedFile(uploaded);
+      }
+    }
+    catch {
+      this.fileError.set('File could not be encrypted or uploaded.',);
+    }
+    finally {
+      this.fileUploading.set(false);
+    }
+  }
+
   private syncEditorFromForm(): void {
     const editor = this.richEditor?.nativeElement;
     if (!editor) {
@@ -408,13 +605,14 @@ export class Compose implements AfterViewInit, OnDestroy {
     return escaped.replace(/\n/g, /*safe*/ '<br>');
   }
 
-  onFilesDropped(event: DragEvent): void {
+  onFilesDropped(event: DragEvent,): void {
     event.preventDefault();
+
     this.dragActive.set(false);
-    const dropped = Array.from(event.dataTransfer?.files ?? []);
-    if (dropped.length > 0) {
-      this.addFiles(dropped);
-    }
+
+    const files = Array.from(event.dataTransfer?.files ?? [],);
+
+    void this.uploadDroppedFiles(files);
   }
 
   onDragOver(event: DragEvent): void {
@@ -424,78 +622,6 @@ export class Compose implements AfterViewInit, OnDestroy {
 
   onDragLeave(): void {
     this.dragActive.set(false);
-  }
-
-  private addFiles(newFiles: File[]): void {
-    const previousFiles = this.selectedFiles();
-    const oversizedFile = newFiles.find((file) => file.size > this.maxTotalFileSize);
-    if (oversizedFile) {
-      this.fileError.set(`${oversizedFile.name} is larger than the ${this.maxFileSizeLabel} attachment limit.`);
-      return;
-    }
-
-    const combinedFiles = [...previousFiles, ...newFiles];
-    if (combinedFiles.length + this.forwardedAttachments().length > this.maxAttachmentCount) {
-      this.fileError.set(`A message cannot have more than ${this.maxAttachmentCount} attachments.`);
-      return;
-    }
-
-    this.selectedFiles.set(combinedFiles);
-    if (!this.validateAttachmentLimits()) {
-      this.selectedFiles.set(previousFiles);
-    }
-  }
-
-  onFilesSelected(event: Event): void {
-    const /*safe*/ input = event.target as HTMLInputElement;
-
-    if (!input.files) {
-      return;
-    }
-
-    const newFiles = Array.from(input.files);
-    const previousFiles = this.selectedFiles();
-    const oversizedFile = newFiles.find((file) => file.size > this.maxTotalFileSize);
-
-    if (oversizedFile) {
-      this.fileError.set(`${oversizedFile.name} is larger than the ${this.maxFileSizeLabel} attachment limit.`);
-      input.value = '';
-      return;
-    }
-
-    const combinedFiles = [...previousFiles, ...newFiles];
-
-    if (combinedFiles.length + this.forwardedAttachments().length > this.maxAttachmentCount) {
-      this.fileError.set(`A message cannot have more than ${this.maxAttachmentCount} attachments.`);
-      input.value = '';
-      return;
-    }
-
-    this.selectedFiles.set(combinedFiles);
-    if (!this.validateAttachmentLimits()) {
-      this.selectedFiles.set(previousFiles);
-    }
-
-    input.value = '';
-  }
-
-  removeFile(index: number): void {
-    this.selectedFiles.update((files) => files.filter((_, i) => i !== index));
-
-    this.fileError.set('');
-    this.validateAttachmentLimits();
-  }
-
-  removeForwardedAttachment(attachmentId: string): void {
-    this.forwardedAttachments.update((attachments) => attachments.filter((attachment) => attachment.id !== attachmentId));
-    this.fileError.set('');
-    this.validateAttachmentLimits();
-  }
-
-  getTotalFileSize(): string {
-    const totalBytes = this.totalAttachmentBytes();
-
-    return (totalBytes / (1024 * 1024)).toFixed(2);
   }
 
   private applyRequest(request: ComposeRequest | null): void {
@@ -514,7 +640,6 @@ export class Compose implements AfterViewInit, OnDestroy {
 
     this.inReplyToMessageId = request.inReplyToMessageId;
     this.forwardMessageId = request.forwardMessageId;
-    this.forwardedAttachments.set((request.forwardedAttachments ?? []).filter((attachment) => attachment.status === 'available'));
     this.composeTitle.set(request.mode === 'reply-all' ? 'Reply All' : request.mode === 'reply' ? 'Reply' : request.mode === 'forward' ? 'Forward' : 'New Message');
     this.modeIcon.set(request.mode === 'reply-all' ? 'replyAll' : request.mode === 'reply' ? 'reply' : request.mode === 'forward' ? 'forward' : 'edit');
     this.form.patchValue({ receiver_address: request.to ?? '', cc_addresses: request.cc?.join(', ') ?? '', bcc_addresses: '', subject: request.subject ?? '', body: request.body ?? '' });
@@ -522,7 +647,6 @@ export class Compose implements AfterViewInit, OnDestroy {
     setTimeout(() => {
       this.syncEditorFromForm();
     }, 0);
-    this.validateAttachmentLimits();
     this.focusComposer();
   }
 
@@ -611,8 +735,9 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.form.controls.sender_identity_type.setValue('original');
     this.form.controls.disposable_mailbox_id.setValue('');
     this.form.reset();
-    this.selectedFiles.set([]);
-    this.forwardedAttachments.set([]);
+    this.linkedFiles.set([]);
+    this.filePickerOpen.set(false);
+    this.fileUploading.set(false);
     this.inReplyToMessageId = undefined;
     this.forwardMessageId = undefined;
     this.fileError.set('');
@@ -629,25 +754,6 @@ export class Compose implements AfterViewInit, OnDestroy {
     this.draftStatus.set('');
   }
 
-  private totalAttachmentBytes(): number {
-    return this.selectedFiles().reduce((total, file) => total + file.size, 0)
-      + this.forwardedAttachments().reduce((total, attachment) => total + attachment.size, 0);
-  }
-
-  private validateAttachmentLimits(): boolean {
-    const count = this.selectedFiles().length + this.forwardedAttachments().length;
-    if (count > this.maxAttachmentCount) {
-      this.fileError.set(`A message cannot have more than ${this.maxAttachmentCount} attachments.`);
-      return false;
-    }
-    if (this.totalAttachmentBytes() > this.maxTotalFileSize) {
-      this.fileError.set(`Total attachment size cannot exceed ${this.maxFileSizeLabel}.`);
-      return false;
-    }
-    this.fileError.set('');
-    return true;
-  }
-
   private parseCcAddresses(value: string): string[] | null {
     const addresses = [...new Set(value.split(/[;,]/).map((address) => address.trim().toLowerCase()).filter(Boolean))];
     if (addresses.some((address) => !/^[^\s@]+@[^\s@]+$/.test(address))) {
@@ -660,7 +766,13 @@ export class Compose implements AfterViewInit, OnDestroy {
     const ccAddresses = this.parseCcAddresses(this.form.controls.cc_addresses.value);
     const bccAddresses = this.parseCcAddresses(this.form.controls.bcc_addresses.value);
     this.ccError.set(ccAddresses === null ? 'Enter valid Cc addresses separated by commas.' : bccAddresses === null ? 'Enter valid Bcc addresses separated by commas.' : '');
-    if (this.form.invalid || ccAddresses === null || bccAddresses === null || !this.validateAttachmentLimits() || this.loading()) {
+    if (
+      this.form.invalid ||
+      ccAddresses === null ||
+      bccAddresses === null ||
+      this.loading() ||
+      this.fileUploading()
+    ) {
       this.form.markAllAsTouched();
       return;
     }
@@ -699,10 +811,8 @@ export class Compose implements AfterViewInit, OnDestroy {
       subject: formValue.subject,
       body: formValue.body,
       body_html: this.richText() ? formValue.body_html : /*safe*/ undefined,
-      files: this.selectedFiles(),
       in_reply_to_message_id: this.inReplyToMessageId,
       forward_message_id: this.forwardMessageId,
-      forward_attachment_ids: this.forwardedAttachments().map((attachment) => attachment.id),
       draft_id: this.draftId() ?? undefined,
     });
 

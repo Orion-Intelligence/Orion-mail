@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Form, Query, status
 
 from configs.app_dependency import get_current_user
 from orion.api.interactive.message_manager.message_manager import message_manager
@@ -12,23 +12,18 @@ message_routes = APIRouter(prefix="/api/messages", tags=["Messages"])
 
 
 @message_routes.post("/send")
-async def send_user_message(receiver_address: Annotated[str, Form()], subject: Annotated[str, Form()], body: Annotated[str, Form()], files: Annotated[list[UploadFile] | None, File()] = None, sender_identity_type: Annotated[str, Form()] = "original", disposable_mailbox_id: Annotated[str | None, Form()] = None, cc_addresses: Annotated[list[str] | None, Form()] = None, in_reply_to_message_id: Annotated[str | None, Form()] = None, forward_message_id: Annotated[str | None, Form()] = None, forward_attachment_ids: Annotated[list[str] | None, Form()] = None, draft_id: Annotated[str | None, Form()] = None, bcc_addresses: Annotated[list[str] | None, Form()] = None, body_html: Annotated[str | None, Form()] = None, current_user: db_user_model = Depends(get_current_user)):
-    return await message_manager.get_instance().send_message(
-        current_user=current_user,
-        receiver_address=receiver_address,
-        subject=subject,
-        body=body,
-        files=files or [],
-        sender_identity_type=sender_identity_type,
-        disposable_mailbox_id=disposable_mailbox_id,
-        cc_addresses=cc_addresses,
-        bcc_addresses=bcc_addresses,
-        body_html=body_html,
-        in_reply_to_message_id=in_reply_to_message_id,
-        forward_message_id=forward_message_id,
-        forward_attachment_ids=forward_attachment_ids,
-        draft_id=draft_id,
-    )
+async def send_user_message(receiver_address: Annotated[str, Form()], subject: Annotated[str, Form()], body: Annotated[str, Form()],
+    sender_identity_type: Annotated[str, Form()] = "original",
+    disposable_mailbox_id: Annotated[str | None, Form()] = None,
+    cc_addresses: Annotated[list[str] | None, Form()] = None,
+    bcc_addresses: Annotated[list[str] | None, Form()] = None,
+    body_html: Annotated[str | None, Form()] = None,
+    in_reply_to_message_id: Annotated[str | None, Form()] = None,
+    forward_message_id: Annotated[str | None, Form()] = None,
+    draft_id: Annotated[str | None, Form()] = None,
+    current_user: db_user_model = Depends(get_current_user),
+):
+    return await message_manager.get_instance().send_message(current_user=current_user, receiver_address=receiver_address, subject=subject, body=body, sender_identity_type=sender_identity_type, disposable_mailbox_id=disposable_mailbox_id, cc_addresses=cc_addresses, bcc_addresses=bcc_addresses, body_html=body_html, in_reply_to_message_id=in_reply_to_message_id, forward_message_id=forward_message_id, draft_id=draft_id)
 
 
 @message_routes.get("/drafts")

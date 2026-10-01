@@ -22,3 +22,4 @@ class MONGO_COLLECTIONS:
     USER_KEYS = "user_keys"
     MESSENGER_CONVERSATIONS = "messenger_conversations"
     MESSENGER_MESSAGES = "messenger_messages"
+    SHARED_FILES = "shared_files"

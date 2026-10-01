@@ -28,55 +28,66 @@ export class MessageService {
     });
   }
 
-  sendMessage(request: SendMessageRequest): Observable<SendMessageResponse> {
-    return from(this.e2e.sealOutgoing(request)).pipe(switchMap((data) => this.postMessage(data)), this.e2e.open());
+  sendMessage(request: SendMessageRequest,): Observable<SendMessageResponse> {
+    return from(this.e2e.sealOutgoing(request),).pipe(switchMap((data) => this.postMessage(data),),
+      this.e2e.open(),);
   }
 
-  private postMessage(data: SendMessageRequest): Observable<SendMessageResponse> {
+  private postMessage(data: SendMessageRequest,): Observable<SendMessageResponse> {
     const formData = new FormData();
-    formData.append('receiver_address', data.receiver_address);
-    formData.append('subject', data.subject);
-    formData.append('body', data.body);
+
+    formData.append('receiver_address',
+      data.receiver_address,);
+
+    formData.append('subject',
+      data.subject,);
+
+    formData.append('body',
+      data.body,);
 
     if (data.body_html) {
-      formData.append('body_html', /*safe*/ data.body_html);
+      formData.append('body_html',
+        /*safe*/ data.body_html,);
     }
 
     for (const ccAddress of data.cc_addresses) {
-      formData.append('cc_addresses', ccAddress);
+      formData.append('cc_addresses',
+        ccAddress,);
     }
 
-    for (const bccAddress of data.bcc_addresses ?? []) {
-      formData.append('bcc_addresses', bccAddress);
+    for (
+      const bccAddress of
+      data.bcc_addresses ?? []
+    ) {
+      formData.append('bcc_addresses',
+        bccAddress,);
     }
 
     if (data.in_reply_to_message_id) {
-      formData.append('in_reply_to_message_id', data.in_reply_to_message_id);
+      formData.append('in_reply_to_message_id',
+        data.in_reply_to_message_id,);
     }
 
     if (data.forward_message_id) {
-      formData.append('forward_message_id', data.forward_message_id);
-    }
-
-    for (const attachmentId of data.forward_attachment_ids) {
-      formData.append('forward_attachment_ids', attachmentId);
-    }
-
-    for (const file of data.files) {
-      formData.append('files', file, file.name);
+      formData.append('forward_message_id',
+        data.forward_message_id,);
     }
 
     if (data.draft_id) {
-      formData.append('draft_id', data.draft_id);
+      formData.append('draft_id',
+        data.draft_id,);
     }
 
-    formData.append('sender_identity_type', data.sender_identity_type);
+    formData.append('sender_identity_type',
+      data.sender_identity_type,);
 
     if (data.disposable_mailbox_id) {
-      formData.append('disposable_mailbox_id', data.disposable_mailbox_id);
+      formData.append('disposable_mailbox_id',
+        data.disposable_mailbox_id,);
     }
 
-    return this.http.post<SendMessageResponse>(`${this.baseUrl}/send`, formData);
+    return this.http.post<SendMessageResponse>(`${this.baseUrl}/send`,
+      formData,);
   }
 
   saveDraft(draft: DraftMessageRequest, draftId?: string): Observable<MessageDetailResponse> {

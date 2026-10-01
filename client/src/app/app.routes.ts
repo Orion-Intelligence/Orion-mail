@@ -10,6 +10,7 @@ import { FolderMessages } from './pages/folder-messages/folder-messages';
 import { ConfigureEmail } from './pages/configure-email/configure-email';
 import { Settings } from './pages/settings/settings';
 import { Messenger } from './pages/messenger/messenger';
+import { FileViewer } from './pages/file-viewer/file-viewer';
 
 export const routes: Routes = [
   {
@@ -84,6 +85,10 @@ export const routes: Routes = [
     path: 'messenger',
     component: Messenger,
     canActivate: [authGuard],
+  },
+  {
+    path: 'file/:publicId',
+    component: FileViewer,
   },
   {
     path: 'settings',

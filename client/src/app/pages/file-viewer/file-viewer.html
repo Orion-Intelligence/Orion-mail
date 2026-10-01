@@ -1,0 +1,63 @@
+<div class="min-h-dvh bg-surface-muted p-4 md:p-8">
+    <div class="mx-auto max-w-5xl overflow-hidden rounded-2xl border border-line bg-surface shadow-lg">
+        @if (loading()) {
+        <div class="p-10 text-center text-sm text-muted">
+            Opening secure file…
+        </div>
+        }
+
+        @if (error()) {
+        <div class="p-10">
+            <div class="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+                {{ error() }}
+            </div>
+        </div>
+        }
+
+        @if (!loading() && !error() && metadata()) {
+        <div class="flex items-center gap-4 border-b border-row-line px-5 py-4">
+            <div class="min-w-0 flex-1">
+                <h1 class="truncate text-base font-semibold text-ink">
+                    {{ metadata()!.original_filename }}
+                </h1>
+
+                <p class="mt-1 text-xs text-muted">
+                    Decrypted locally in your browser
+                </p>
+            </div>
+
+            <button type="button" (click)="download()" class="h-9 rounded-full bg-primary-solid px-5 text-sm font-medium text-on-primary hover:bg-primary-solid-hover">
+                Download
+            </button>
+        </div>
+
+        <div class="min-h-[65dvh] bg-surface-muted p-4">
+            @if (previewKind() === 'image') {
+            <div class="flex min-h-[60dvh] items-center justify-center">
+                <img [src]="previewUrl()" [alt]="metadata()!.original_filename" class="max-h-[75dvh] max-w-full object-contain" />
+            </div>
+            }
+
+            @if (previewKind() === 'pdf') {
+            <iframe [src]="safePdfUrl()" title="PDF preview" class="h-[75dvh] w-full rounded-xl border border-line bg-white"></iframe>
+            }
+
+            @if (previewKind() === 'text') {
+            <pre class="min-h-[60dvh] overflow-auto whitespace-pre-wrap rounded-xl border border-line bg-surface p-4 text-sm text-ink">{{ textPreview() }}</pre>
+            }
+
+            @if (previewKind() === 'download') {
+            <div class="flex min-h-[60dvh] flex-col items-center justify-center gap-4 text-center">
+                <p class="text-sm text-muted">
+                    Preview is not available for this file type.
+                </p>
+
+                <button type="button" (click)="download()" class="h-10 rounded-full bg-primary-solid px-6 text-sm font-medium text-on-primary">
+                    Download decrypted file
+                </button>
+            </div>
+            }
+        </div>
+        }
+    </div>
+</div>

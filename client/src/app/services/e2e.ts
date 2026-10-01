@@ -4,10 +4,10 @@ import type { PrivateKey, PublicKey } from 'openpgp';
 import { Observable, OperatorFunction, firstValueFrom, from, switchMap } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import { E2E_FAILED_TEXT, E2E_KEY_CACHE_MS, E2E_LOCKED_TEXT, E2E_MAX_SEALED_ATTACHMENT_BYTES, E2E_MIN_PASSPHRASE_LENGTH, E2E_NO_CHAT_KEY_TEXT, E2E_OWN_KEY_STORAGE, E2E_PIN_STORAGE, E2E_STORED_KEY_STORAGE, E2E_SUBJECT, E2E_TEST_OPT_IN_STORAGE } from '../shared/constants/e2e.constants';
+import { E2E_FAILED_TEXT, E2E_KEY_CACHE_MS, E2E_LOCKED_TEXT, E2E_MIN_PASSPHRASE_LENGTH, E2E_NO_CHAT_KEY_TEXT, E2E_OWN_KEY_STORAGE, E2E_PIN_STORAGE, E2E_STORED_KEY_STORAGE, E2E_SUBJECT, E2E_TEST_OPT_IN_STORAGE } from '../shared/constants/e2e.constants';
 import { E2eAttachmentEntry, E2eDerivedSecrets, E2eKeyChange, E2eKeyState, E2eKeyUpload, E2eMessageInfo, E2eOpenedCache, E2ePayload, E2ePrompt, E2ePublicKeyRecord, E2eResolvedKey, E2eSendPlan, E2eStatus, E2eUnlockResponse } from '../shared/model/e2e.model';
 import { Attachment, DraftMessageRequest, MessageBase, MessengerConversation, MessengerMessage, MessengerUser, SendMessageRequest } from '../shared/model/message.model';
-import { E2eError, deriveSecrets, generatePrivateKey, generateRecoveryCode, isE2eBody, lockPrivateKey, newSalt, normalizeRecoveryCode, openBytes, openEnvelope, publicKeyFingerprint, readPublicKey, sealBytes, sealEnvelope, sha256Hex, splitE2eBody, unlockPrivateKey } from '../shared/utils/e2e-crypto';
+import { E2eError, deriveSecrets, generatePrivateKey, generateRecoveryCode, isE2eBody, lockPrivateKey, newSalt, normalizeRecoveryCode, openBytes, openEnvelope, publicKeyFingerprint, readPublicKey, sealEnvelope, sha256Hex, splitE2eBody, unlockPrivateKey } from '../shared/utils/e2e-crypto';
 
 @Injectable({
   providedIn: 'root',
@@ -407,64 +407,79 @@ export class E2eService {
     }
   }
 
-  private async materializeForwarded(request: SendMessageRequest, all: boolean): Promise<SendMessageRequest> {
-    const ids = request.forward_attachment_ids.filter((id) => all || this.attachmentIndex.has(id));
-    if (ids.length === 0) {
+  async sealOutgoing(request: SendMessageRequest,): Promise<SendMessageRequest> {
+    const plan = await this.planSend(request);
+
+    if (plan.mode === 'locked') {
+      this.requestUnlock();
+
+      throw new E2eError('Unlock your encryption key to send this message end-to-end encrypted. It is saved in Drafts.',);
+    }
+
+    if (plan.mode === 'key-changed') {
+      throw new E2eError(`The encryption key for ${plan.changes
+        .map((change) => change.address)
+        .join(', ')
+      } has changed. Review it in the compose window before sending. The message is saved in Drafts.`,);
+    }
+
+    if (
+      plan.mode !== 'e2e' ||
+      !this.privateKey ||
+      !this.ownKey
+    ) {
       return request;
     }
 
-    const files: File[] = [];
-    for (const id of ids) {
-      const blob = await this.openAttachment(id, await firstValueFrom(this.http.get(`${environment.apiBaseUrl}/attachments/${id}/download`, { responseType: 'blob' })));
-      const entry = this.attachmentIndex.get(id);
-      files.push(new File([blob], entry?.name ?? `attachment-${files.length + 1}`, { type: entry?.type ?? blob.type }));
-    }
-    return { ...request, files: [...request.files, ...files], forward_attachment_ids: request.forward_attachment_ids.filter((id) => !ids.includes(id)) };
-  }
+    const recipients =
+      this.recipientsOf(request);
 
-  async sealOutgoing(request: SendMessageRequest): Promise<SendMessageRequest> {
-    const plan = await this.planSend(request);
-    if (plan.mode === 'locked') {
-      this.requestUnlock();
-      throw new E2eError('Unlock your encryption key to send this message end-to-end encrypted. It is saved in Drafts.');
-    }
-    if (plan.mode === 'key-changed') {
-      throw new E2eError(`The encryption key for ${plan.changes.map((change) => change.address).join(', ')} has changed. Review it in the compose window before sending. The message is saved in Drafts.`);
-    }
+    const resolved =
+      await this.resolveKeys(recipients);
 
-    const prepared = await this.materializeForwarded(request, plan.mode === 'e2e');
-    if (plan.mode !== 'e2e' || !this.privateKey || !this.ownKey) {
-      return prepared;
-    }
+    const keys = [
+      ...recipients
+        .map((address) =>
+          resolved.get(address)?.key,)
+        .filter((key): key is PublicKey =>
+          Boolean(key),),
+      this.ownKey.key,
+    ];
 
-    const recipients = this.recipientsOf(prepared);
-    const resolved = await this.resolveKeys(recipients);
-    const keys = [...recipients.map((address) => resolved.get(address)?.key).filter((key): key is PublicKey => Boolean(key)), this.ownKey.key];
-    const attachments: E2eAttachmentEntry[] = [];
-    const sealedFiles: File[] = [];
-    let sealedBytes = 0;
+    const payload: E2ePayload = {
+      v: 1,
+      from: this.mailboxAddress(),
+      to: [
+        request.receiver_address,
+        ...request.cc_addresses,
+      ].map((address) =>
+        address.trim().toLowerCase(),),
+      subject: request.subject,
+      body: request.body,
+      body_html: request.body_html ?? '',
+      attachments: [],
+    };
 
-    for (const [index, file] of prepared.files.entries()) {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const sealed = await sealBytes(bytes, keys);
-      const name = `e2e-${index + 1}.bin`;
-      sealedBytes += sealed.length;
-      attachments.push({ file: name, name: file.name, type: file.type || 'application/octet-stream', size: file.size, sha256: await sha256Hex(bytes) });
-      sealedFiles.push(new File([sealed], name, { type: 'application/octet-stream' }));
-    }
-    if (sealedBytes > E2E_MAX_SEALED_ATTACHMENT_BYTES) {
-      throw new E2eError('These attachments are slightly over the 1 MB limit once encrypted. Remove one and send again. The message is saved in Drafts.');
-    }
+    const armored = await sealEnvelope(payload,
+      keys,
+      this.privateKey,);
 
-    const payload: E2ePayload = { v: 1, from: this.mailboxAddress(), to: [prepared.receiver_address, ...prepared.cc_addresses].map((address) => address.trim().toLowerCase()), subject: prepared.subject, body: prepared.body, body_html: prepared.body_html ?? '', attachments };
-    const armored = await sealEnvelope(payload, keys, this.privateKey);
     for (const address of recipients) {
-      const fingerprint = resolved.get(address)?.fingerprint;
+      const fingerprint =
+        resolved.get(address)?.fingerprint;
+
       if (fingerprint) {
-        this.pin(address, fingerprint);
+        this.pin(address,
+          fingerprint,);
       }
     }
-    return { ...prepared, subject: E2E_SUBJECT, body: armored, body_html: undefined, files: sealedFiles, forward_attachment_ids: [] };
+
+    return {
+      ...request,
+      subject: E2E_SUBJECT,
+      body: armored,
+      body_html: undefined,
+    };
   }
 
   async sealDraft(draft: DraftMessageRequest): Promise<DraftMessageRequest> {

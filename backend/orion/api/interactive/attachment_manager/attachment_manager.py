@@ -127,9 +127,14 @@ class attachment_manager:
         return await self.save_attachments(message_id, files, STORAGE_TYPE.INCOMING, CONFIG_KEYS.INCOMING_ATTACHMENT_MAX_SIZE_MB, "Total attachment size cannot exceed {limit_mb} MB", "Attachment could not be saved")
 
     async def outgoing_size_limit(self) -> tuple[int, int]:
-        limit_mb = await config_controller.get_instance().get_config_int(CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB)
-        return limit_mb, limit_mb * 1024 * 1024
+        limit_mb = await (config_controller
+            .get_instance()
+            .get_config_int(CONFIG_KEYS.OUTGOING_ATTACHMENT_MAX_SIZE_MB)
+        )
 
+        return (limit_mb, limit_mb * 1024 * 1024)
+
+    
     @staticmethod
     def staging_directory() -> Path:
         return attachment_manager.get_storage_directory(STORAGE_TYPE.STAGING)
@@ -144,38 +149,6 @@ class attachment_manager:
                     file_path.unlink()
             except (OSError, ValueError):
                 continue
-
-    async def stage_outgoing_attachments(self, files: list[UploadFile]) -> list[dict]:
-        if not files:
-            return []
-
-        if len(files) > MESSAGE_LIMITS.MAX_ATTACHMENTS:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_ATTACHMENTS} attachments")
-
-        limit_mb, max_total_size = await self.outgoing_size_limit()
-        staging_directory = self.staging_directory()
-        total_size = 0
-        staged: list[dict] = []
-
-        try:
-            for file in files:
-                file_content = await file.read()
-                original_filename = self.sanitize_original_filename(file.filename)
-                file_size = len(file_content)
-                if file_size > max_total_size:
-                    raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"{original_filename} is larger than the {limit_mb} MB attachment limit")
-                total_size += file_size
-                if total_size > max_total_size:
-                    raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"Total attachment size cannot exceed {limit_mb} MB")
-                await antivirus_manager.get_instance().assert_clean(file_content, original_filename)
-                stored_filename = self.generate_stored_filename(original_filename)
-                staged.append({"original_filename": original_filename, "stored_filename": stored_filename, "size": file_size, "content_type": file.content_type or "application/octet-stream", "storage_type": STORAGE_TYPE.STAGING.value})
-                self.get_attachment_path(staging_directory, stored_filename).write_bytes(file_content)
-        except Exception:
-            self.discard_staged_attachments(staged)
-            raise
-
-        return staged
 
     async def stage_generated_attachment(self, original_filename: str, content: bytes, content_type: str) -> dict:
         if not content:
@@ -199,52 +172,6 @@ class attachment_manager:
             "content_type": content_type,
             "storage_type": STORAGE_TYPE.STAGING.value,
         }
-
-    async def stage_forwarded_attachments(self, source_message_id: ObjectId, attachment_ids: list[str], staged: list[dict]) -> list[dict]:
-        if not attachment_ids:
-            return []
-
-        try:
-            object_ids = [ObjectId(attachment_id) for attachment_id in attachment_ids]
-        except (InvalidId, TypeError) as error:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more forwarded attachment IDs are invalid") from error
-
-        source_attachments = await self._engine.find(db_attachment_model, and_(eq(db_attachment_model.message_id, source_message_id), in_(db_attachment_model.id, object_ids), eq(db_attachment_model.status, ATTACHMENT_STATUS.AVAILABLE)))
-
-        if len(source_attachments) != len(object_ids):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more forwarded attachments are unavailable")
-
-        if len(staged) + len(source_attachments) > MESSAGE_LIMITS.MAX_ATTACHMENTS:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_ATTACHMENTS} attachments")
-
-        limit_mb, max_total_size = await self.outgoing_size_limit()
-        staging_directory = self.staging_directory()
-        total_size = sum(item["size"] for item in staged)
-        forwarded: list[dict] = []
-
-        try:
-            for source_attachment in source_attachments:
-                source_path = self.get_attachment_path(self.get_storage_directory(source_attachment.storage_type), source_attachment.stored_filename)
-                if not source_path.is_file():
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="One or more forwarded attachments are unavailable")
-
-                source_bytes = source_path.read_bytes()
-                if source_attachment.is_encrypted:
-                    source_cipher = await self.message_cipher(source_attachment.message_id)
-                    source_bytes = source_cipher.decrypt_bytes(source_bytes) if source_cipher else source_bytes
-
-                total_size += len(source_bytes)
-                if total_size > max_total_size:
-                    raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=f"Total attachment size cannot exceed {limit_mb} MB")
-
-                stored_filename = self.generate_stored_filename(source_attachment.original_filename)
-                forwarded.append({"original_filename": source_attachment.original_filename, "stored_filename": stored_filename, "size": len(source_bytes), "content_type": source_attachment.content_type, "storage_type": STORAGE_TYPE.STAGING.value})
-                self.get_attachment_path(staging_directory, stored_filename).write_bytes(source_bytes)
-        except Exception:
-            self.discard_staged_attachments(forwarded)
-            raise
-
-        return forwarded
 
     @staticmethod
     def get_raw_source_path(stored_filename: str) -> Path:

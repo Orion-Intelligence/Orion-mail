@@ -371,7 +371,7 @@ class message_manager:
         await message_crypto_manager.get_instance().save_message(message)
         return {**self.serialize_message(message), **self.message_state(message)}
 
-    async def send_message(self, current_user: db_user_model, receiver_address: str, subject: str, body: str, files: list[UploadFile], sender_identity_type: str = "original", disposable_mailbox_id: str | None = None, cc_addresses: list[str] | None = None, bcc_addresses: list[str] | None = None, in_reply_to_message_id: str | None = None, forward_message_id: str | None = None, forward_attachment_ids: list[str] | None = None, draft_id: str | None = None, body_html: str | None = None) -> dict:
+    async def send_message(self, current_user: db_user_model, receiver_address: str, subject: str, body: str, sender_identity_type: str = "original", disposable_mailbox_id: str | None = None, cc_addresses: list[str] | None = None, bcc_addresses: list[str] | None = None, in_reply_to_message_id: str | None = None, forward_message_id: str | None = None, draft_id: str | None = None, body_html: str | None = None) -> dict:
         sender_mailbox = await self.get_active_user_mailbox(current_user)
 
         if sender_identity_type not in {"original", "disposable"}:
@@ -452,8 +452,6 @@ class message_manager:
         await self.assert_end_to_end_when_possible(sender_mailbox, sender_identity_type, recipient_addresses, external_recipient_addresses, normalized_body)
         reply_parent = await self.get_owned_message(sender_mailbox, in_reply_to_message_id) if in_reply_to_message_id else None
         forward_source = await self.get_owned_message(sender_mailbox, forward_message_id) if forward_message_id else None
-        if forward_attachment_ids and forward_source is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A source message is required to forward attachments")
         if reply_parent and forward_source:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A message cannot be a reply and a forward at the same time")
         draft = await self.get_owned_message(sender_mailbox, draft_id) if draft_id else None
@@ -506,100 +504,159 @@ class message_manager:
             await self.release_send_quota(sender_mailbox, recipient_addresses, quota_day_key)
             raise
 
-        staged_attachments: list[dict] = []
+        system_attachments: list[dict] = []
+
         try:
-            staged_attachments = await attachment_manager.get_instance().stage_outgoing_attachments(files=files)
-
-            if len(staged_attachments) + 2 > MESSAGE_LIMITS.MAX_ATTACHMENTS:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A message cannot have more than {MESSAGE_LIMITS.MAX_ATTACHMENTS} attachments")
-
-            public_key_attachment = await attachment_manager.get_instance().stage_generated_attachment(
-                original_filename=f"public-key-{pgp_key.fingerprint[-16:]}.asc",
-                content=pgp_key.public_key.encode("utf-8"),
-                content_type="application/pgp-keys",
+            public_key_attachment = (await attachment_manager
+                .get_instance()
+                .stage_generated_attachment(
+                    original_filename=(f"public-key-" f"{pgp_key.fingerprint[-16:]}.asc"),
+                    content=pgp_key.public_key.encode("utf-8"),
+                    content_type="application/pgp-keys",
+                )
             )
 
-            staged_attachments.append(public_key_attachment)
+            system_attachments.append(public_key_attachment)
 
-            identity_signature_attachment = await attachment_manager.get_instance().stage_generated_attachment(
-                original_filename="identity-signature.txt",
-                content=self.build_identity_signature_block(identity_signature_text, pgp_identity_signature).strip().encode("utf-8"),
-                content_type="text/plain",
+            identity_signature_attachment = (await attachment_manager
+                .get_instance()
+                .stage_generated_attachment(
+                    original_filename=("identity-signature.txt"),
+                    content=(
+                        self
+                        .build_identity_signature_block(
+                            identity_signature_text,
+                            pgp_identity_signature,
+                        )
+                        .strip()
+                        .encode("utf-8")
+                    ),
+                    content_type="text/plain",
+                )
             )
-            staged_attachments.append(identity_signature_attachment)
-            if forward_source:
-                staged_attachments = [*staged_attachments, *await attachment_manager.get_instance().stage_forwarded_attachments(
-                    source_message_id=forward_source.id,
-                    attachment_ids=forward_attachment_ids or [],
-                    staged=staged_attachments,
-                )]
+
+            system_attachments.append(identity_signature_attachment)
 
             message.attachments = [
                 db_message_attachment(
                     **{
                         **attachment,
-                        "id": attachment.get("id") or uuid4().hex,
+                        "id": (attachment.get("id") or uuid4().hex),
                     }
                 )
-                for attachment in staged_attachments
+                for attachment
+                in system_attachments
             ]
-            message.updated_at = datetime.now(UTC)
-            await message_crypto_manager.get_instance().save_message(message)
 
-            email_message = mail_manager.get_instance().build_email_message(
-                sender_address=sender_address,
-                receiver_addresses=[normalized_receiver_address],
-                cc_addresses=normalized_cc_addresses,
-                subject=normalized_subject,
-                body=final_body,
-                body_html=final_body_html,
-                attachments=staged_attachments,
-                message_id_header=message.message_id_header,
-                in_reply_to=message.in_reply_to,
-                references=message.references,
+            message.updated_at = datetime.now(UTC)
+
+            await (message_crypto_manager
+                .get_instance()
+                .save_message(message)
             )
-            raw_source = mail_manager.get_instance().serialize_email_message(email_message)
-            raw_source_filename, raw_source_encrypted, raw_source_size = await attachment_manager.get_instance().save_raw_source(
-                raw_source, message.owner_mailbox_id)
 
-            message.raw_source_filename = raw_source_filename
-            message.raw_source_encrypted = raw_source_encrypted
-            message.raw_source_size = raw_source_size
+            email_message = (
+                mail_manager
+                .get_instance()
+                .build_email_message(
+                    sender_address=sender_address,
+                    receiver_addresses=[normalized_receiver_address],
+                    cc_addresses=normalized_cc_addresses,
+                    subject=normalized_subject,
+                    body=final_body,
+                    body_html=final_body_html,
+                    attachments=system_attachments,
+                    message_id_header=message.message_id_header,
+                    in_reply_to=message.in_reply_to,
+                    references=message.references,
+                )
+            )
+
+            raw_source = (
+                mail_manager
+                .get_instance()
+                .serialize_email_message(email_message)
+            )
+
+            (raw_source_filename, raw_source_encrypted, raw_source_size) = (
+                await attachment_manager
+                .get_instance()
+                .save_raw_source(raw_source, message.owner_mailbox_id)
+            )
+
+            message.raw_source_filename = (raw_source_filename)
+            message.raw_source_encrypted = (raw_source_encrypted)
+            message.raw_source_size = (raw_source_size)
             message.updated_at = datetime.now(UTC)
-            await message_crypto_manager.get_instance().save_message(message)
+
+            await (
+                message_crypto_manager
+                .get_instance()
+                .save_message(message)
+            )
+
             undeliverable_internal_recipients: list[str] = []
-            for recipient_address in internal_recipient_addresses:
+
+            for recipient_address in (internal_recipient_addresses):
                 try:
                     await self.deliver_internal_email(
-                        recipient_address=recipient_address,
-                        sender_address=sender_address,
+                        recipient_address = recipient_address,
+                        sender_address = sender_address,
                         to_addresses=[normalized_receiver_address],
-                        cc_addresses=normalized_cc_addresses,
-                        subject=normalized_subject,
-                        body=final_body,
-                        body_html=final_body_html,
-                        attachments=staged_attachments,
-                        raw_source=raw_source,
-                        message_id_header=message.message_id_header,
-                        in_reply_to=message.in_reply_to,
-                        references=message.references,
+                        cc_addresses = normalized_cc_addresses,
+                        subject = normalized_subject,
+                        body = final_body,
+                        body_html = final_body_html,
+                        attachments = system_attachments,
+                        raw_source = raw_source,
+                        message_id_header = message.message_id_header,
+                        in_reply_to = message.in_reply_to,
+                        references = message.references,
                     )
+
                 except HTTPException:
                     undeliverable_internal_recipients.append(recipient_address)
-            failed_recipients = await mail_manager.get_instance().send_email_source(raw_source=raw_source, sender_address=sender_address, recipient_addresses=external_recipient_addresses) if external_recipient_addresses else {}
-            message.failed_recipients = sorted({*failed_recipients, *undeliverable_internal_recipients})
-            message.delivery_status = DELIVERY_STATUS.PARTIAL if message.failed_recipients else DELIVERY_STATUS.SENT
+
+            failed_recipients = (
+                await mail_manager
+                .get_instance()
+                .send_email_source(raw_source=raw_source, sender_address=sender_address, recipient_addresses=external_recipient_addresses)
+                if external_recipient_addresses
+                else {}
+            )
+
+            message.failed_recipients = sorted(
+                {
+                    *failed_recipients,
+                    *undeliverable_internal_recipients,
+                }
+            )
+
+            message.delivery_status = (
+                DELIVERY_STATUS.PARTIAL
+                if message.failed_recipients
+                else DELIVERY_STATUS.SENT
+            )
+
             message.updated_at = datetime.now(UTC)
-            await message_crypto_manager.get_instance().save_message(message)
+
+            await (
+                message_crypto_manager
+                .get_instance()
+                .save_message(message)
+            )
+
         except HTTPException:
             await self.mark_delivery_failed(message)
             raise
+
         except Exception as error:
-            log.g().e(f"Email delivery failed: {log.safe_error(error)}")
+            log.g().e("Email delivery failed: "f"{log.safe_error(error)}")
             await self.mark_delivery_failed(message)
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Email delivery failed") from error
+
         finally:
-            attachment_manager.get_instance().discard_staged_attachments(staged_attachments)
+            attachment_manager.get_instance().discard_staged_attachments(system_attachments)
 
         with contextlib.suppress(Exception):
             await address_book_manager.get_instance().record_recipients(mailbox=sender_mailbox, recipient_addresses=recipient_addresses)
@@ -732,7 +789,7 @@ class message_manager:
                 await message_crypto_manager.get_instance().save_message(draft)
                 continue
             try:
-                await self.send_message(current_user=owner, receiver_address=draft.receiver_address, subject=draft.subject, body=draft.body, files=[], cc_addresses=list(draft.cc_addresses), bcc_addresses=list(draft.bcc_addresses), body_html=draft.body_html, draft_id=str(draft.id))
+                await self.send_message(current_user=owner, receiver_address=draft.receiver_address, subject=draft.subject, body=draft.body, cc_addresses=list(draft.cc_addresses), bcc_addresses=list(draft.bcc_addresses), body_html=draft.body_html, draft_id=str(draft.id))
                 sent += 1
             except Exception:
                 failed += 1

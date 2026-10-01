@@ -30,10 +30,8 @@ export interface SendMessageRequest {
   body_html?: string;
   subject: string;
   body: string;
-  files: File[];
   in_reply_to_message_id?: string;
   forward_message_id?: string;
-  forward_attachment_ids: string[];
   draft_id?: string;
   sender_identity_type: SenderIdentityType;
   disposable_mailbox_id?: string;
