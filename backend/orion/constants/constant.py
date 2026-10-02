@@ -71,7 +71,7 @@ class CONSTANTS:
 
     S_COOKIE_SECURE = env_handler.get_instance().env("COOKIE_SECURE", "true").lower() == "true"
     S_INCOMING_MAIL_TOKEN = env_handler.get_instance().env("INCOMING_MAIL_TOKEN", "")
-    S_ALLOWED_HOSTS = [host.strip() for host in env_handler.get_instance().env("ALLOWED_HOSTS", f"{S_MAIL_DOMAIN},localhost,127.0.0.1").split(",") if host.strip()] + [f"*.{S_MAIL_BASE_DOMAIN.split('.', 1)[1]}"]
+    S_ALLOWED_HOSTS = [host.strip() for host in env_handler.get_instance().env("ALLOWED_HOSTS", f"{S_MAIL_DOMAIN},localhost,127.0.0.1,orion-mail-web").split(",") if host.strip()] + [f"*.{S_MAIL_BASE_DOMAIN.split('.', 1)[1]}"]
     S_CORS_ALLOWED_ORIGINS = [origin.strip() for origin in env_handler.get_instance().env("CORS_ALLOWED_ORIGINS", "http://localhost:4300,http://127.0.0.1:4300").split(",") if origin.strip()]
 
     S_DISPOSABLE_MAILBOX_LIMIT = int(env_handler.get_instance().env("DISPOSABLE_MAILBOX_LIMIT", "5"))

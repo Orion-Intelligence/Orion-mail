@@ -35,10 +35,10 @@ from orion.services.mongo_manager.shared_model.db_attachment_model import ATTACH
 from orion.services.mongo_manager.shared_model.db_domain_safety_model import REPORT_TYPE
 from orion.services.mongo_manager.shared_model.db_label_model import db_label_model
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
-from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
+from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MAIL_TYPE, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
 from orion.services.mongo_manager.shared_model.db_user_model import db_user_model
 from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
-from orion.services.mongo_manager.shared_model.db_pgp_key_model import db_pgp_key_model
+from orion.services.mongo_manager.shared_model.db_pgp_key_model import PGP_KEY_TYPE, db_pgp_key_model
 from orion.services.pgp_manager.pgp_manager import pgp_manager
 from orion.services.mongo_manager.shared_model.db_email_daily_quota_model import db_email_daily_quota_model
 
@@ -238,6 +238,7 @@ class message_manager:
             "authentication": {"spf": message.spf_result, "dkim": message.dkim_result, "dmarc": message.dmarc_result},
             "spam_score": message.spam_score,
             "thread_id": str(message.thread_id) if message.thread_id else str(message.id),
+            "mail_type": getattr(message, "mail_type", None),
             "has_original_source": bool(message.raw_source_filename),
             "created_at": message.created_at,
         }
@@ -1465,3 +1466,136 @@ class message_manager:
             )
 
         return disposable.identity_signature.strip()
+
+    async def send_takedown_email(self, tenant_id: str, to_email: str, subject: str, target_domain: str, custom_message: str = "", html_content: str = "", screenshot_base64: str = "", screenshot_filename: str = "", html_filename: str = "", takedown_id: str = "", body_html: str = "", body_text: str = "") -> dict:
+        import base64
+        from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manager
+
+        tenant_id = str(tenant_id).strip()
+        report_user_id = f"tenant_report_{tenant_id}"
+        user = await self._engine.find_one(db_user_model, db_user_model.orion_user_id == report_user_id)
+        if user is None:
+            raise HTTPException(status_code=404, detail="Tenant report mailbox user not found")
+
+        mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == user.id)
+        if mailbox is None:
+            raise HTTPException(status_code=404, detail="Tenant report mailbox not found")
+
+        pgp_key = await self._engine.find_one(
+            db_pgp_key_model,
+            and_(eq(db_pgp_key_model.user_id, user.id), eq(db_pgp_key_model.owner_mailbox_id, mailbox.id), eq(db_pgp_key_model.key_type, "original")),
+        )
+        if pgp_key is None:
+            from orion.api.interactive.disposable_mailbox_manager.disposable_mailbox_manager import disposable_mailbox_manager
+            pgp_key = await disposable_mailbox_manager.get_instance().get_or_create_original_pgp(user, mailbox)
+
+        normalized_receiver = to_email.strip().lower()
+        normalized_subject = subject.strip()
+
+        if body_text and str(body_text).strip():
+            final_body_text = str(body_text).strip()
+        else:
+            final_body_text = f"Takedown request regarding domain: {target_domain}."
+            if custom_message:
+                final_body_text += f"\n\nAnalyst Note:\n{custom_message}"
+
+        if body_html and str(body_html).strip():
+            final_body_html = str(body_html).strip()
+        else:
+            final_body_html = f"<p>Takedown request regarding domain: <strong>{escape(target_domain)}</strong>.</p>"
+            if custom_message:
+                final_body_html += f"<div style='margin-top:16px;padding:12px;background:#f1f5f9;border-left:4px solid #0284c7;'><strong>Analyst Note:</strong><p>{escape(custom_message)}</p></div>"
+
+        staged_attachments: list[dict] = []
+        if screenshot_base64:
+            try:
+                raw_bytes = base64.b64decode(screenshot_base64.split(",", 1)[-1])
+                fn = screenshot_filename or f"screenshot_{target_domain}.png"
+                att = await attachment_manager.get_instance().stage_generated_attachment(
+                    original_filename=fn,
+                    content=raw_bytes,
+                    content_type="image/png",
+                )
+                staged_attachments.append(att)
+            except Exception as e:
+                log.g().e(f"Failed to attach screenshot: {e}")
+
+        if html_content:
+            try:
+                raw_bytes = html_content.encode("utf-8")
+                fn = html_filename or f"source_{target_domain}.html"
+                att = await attachment_manager.get_instance().stage_generated_attachment(
+                    original_filename=fn,
+                    content=raw_bytes,
+                    content_type="text/html",
+                )
+                staged_attachments.append(att)
+            except Exception as e:
+                log.g().e(f"Failed to attach html content: {e}")
+
+        message = db_message_model(
+            owner_mailbox_id=mailbox.id,
+            sender_address=mailbox.mailbox_address,
+            receiver_address=normalized_receiver,
+            to_addresses=[normalized_receiver],
+            cc_addresses=[],
+            bcc_addresses=[],
+            subject=normalized_subject,
+            body=final_body_text,
+            body_html=final_body_html,
+            direction=MESSAGE_DIRECTION.OUTGOING,
+            folder=MESSAGE_FOLDER.SENT,
+            delivery_status=DELIVERY_STATUS.SENT,
+            mail_type=MAIL_TYPE.TAKEDOWN,
+            pgp_key_id=pgp_key.id if pgp_key else None,
+            attachments=[
+                db_message_attachment(
+                    **{
+                        **attachment,
+                        "id": attachment.get("id") or uuid4().hex,
+                    }
+                )
+                for attachment in staged_attachments
+            ],
+        )
+        message.message_id_header = f"<{uuid4().hex}@{CONSTANTS.S_MAIL_DOMAIN}>"
+        message.thread_id = message.id
+        message = await message_crypto_manager.get_instance().save_message(message)
+
+        email_message = mail_manager.get_instance().build_email_message(sender_address=mailbox.mailbox_address, receiver_addresses=[normalized_receiver], cc_addresses=[], subject=normalized_subject, body=final_body_text, body_html=final_body_html, attachments=staged_attachments, message_id_header=message.message_id_header)
+        raw_source = mail_manager.get_instance().serialize_email_message(email_message)
+        raw_source_filename, raw_source_encrypted, raw_source_size = await attachment_manager.get_instance().save_raw_source(
+            raw_source, message.owner_mailbox_id
+        )
+        message.raw_source_filename = raw_source_filename
+        message.raw_source_encrypted = raw_source_encrypted
+        message.raw_source_size = raw_source_size
+        message.updated_at = datetime.now(UTC)
+        await message_crypto_manager.get_instance().save_message(message)
+
+        await mail_manager.get_instance().send_email_async(
+            sender_address=mailbox.mailbox_address,
+            receiver_addresses=[normalized_receiver],
+            raw_source=raw_source,
+        )
+
+        return {"status": "sent", "message_id": str(message.id)}
+
+    async def get_unread_takedown_count(self, tenant_id: str) -> int:
+        tenant_id = str(tenant_id).strip()
+        report_user_id = f"tenant_report_{tenant_id}"
+        user = await self._engine.find_one(db_user_model, db_user_model.orion_user_id == report_user_id)
+        if user is None:
+            return 0
+        mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == user.id)
+        if mailbox is None:
+            return 0
+
+        collection = self._engine.get_collection(db_message_model)
+        query = {
+            "owner_mailbox_id": mailbox.id,
+            "folder": MESSAGE_FOLDER.INBOX.value,
+            "direction": MESSAGE_DIRECTION.INCOMING.value,
+            "is_read": False,
+        }
+        return await collection.count_documents(query)

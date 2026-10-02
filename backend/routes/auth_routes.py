@@ -132,15 +132,18 @@ def current_user_response(user: db_user_model, mailbox: db_mailbox_model | None,
 
 
 @auth_routes.get("/login")
-async def begin_orion_login(request: Request, origin: str | None = Query(default=None), return_to: str | None = Query(default=None), orion_origin: str | None = Query(default=None)):
+async def begin_orion_login(request: Request, origin: str | None = Query(default=None), return_to: str | None = Query(default=None), orion_origin: str | None = Query(default=None), tenant_id: str | None = Query(default=None)):
     mail_origin = allowed_mail_origin(origin)
     intelligence_origin = allowed_orion_origin(orion_origin) if orion_origin else remembered_orion_origin(request)
     redirect_uri = f"{mail_origin}{SSO_CALLBACK_PATH}"
     state = secrets.token_urlsafe(32)
     destination = safe_return_to(return_to)
+    auth_params = {"redirect_uri": redirect_uri, "state": state}
+    if tenant_id and tenant_id.strip():
+        auth_params["tenant_id"] = tenant_id.strip()
     authorize_url = (
         f"{intelligence_origin}/api/sso/mail/authorize?"
-        + urlencode({"redirect_uri": redirect_uri, "state": state})
+        + urlencode(auth_params)
     )
     response = RedirectResponse(authorize_url, status_code=status.HTTP_302_FOUND)
     set_sso_cookies(
@@ -181,6 +184,11 @@ async def complete_orion_login(request: Request, code: str, state: str):
 
     user = await orion_identity_manager.get_instance().link_identity(identity)
     mailbox = await mailbox_for_user(user)
+    if not mailbox and getattr(user, "orion_user_id", "").startswith("tenant_report_"):
+        from orion.api.interactive.mailbox_manager.mailbox_manager import mailbox_manager
+        with contextlib.suppress(Exception):
+            await mailbox_manager.get_instance().create_mailbox(user)
+        mailbox = await mailbox_for_user(user)
     return_to = safe_return_to(sso_return_to_from_request(request))
     destination = return_to if mailbox else "/configure-email"
     response = RedirectResponse(destination, status_code=status.HTTP_303_SEE_OTHER)

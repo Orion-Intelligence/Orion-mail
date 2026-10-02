@@ -10,6 +10,9 @@ from odmantic import EmbeddedModel, Field, Model, ObjectId
 from orion.services.mongo_manager.mongo_enums import MONGO_COLLECTIONS
 from orion.services.mongo_manager.shared_model.db_attachment_model import ATTACHMENT_STATUS, STORAGE_TYPE
 
+class MAIL_TYPE(str, Enum):
+    TAKEDOWN = "takedown"
+    MESSAGE = "message"
 
 class MESSAGE_DIRECTION(str, Enum):
     INCOMING = "incoming"
@@ -71,6 +74,7 @@ class db_message_model(Model):
     direction: MESSAGE_DIRECTION
     folder: MESSAGE_FOLDER
     previous_folder: Optional[MESSAGE_FOLDER] = Field(default=None)
+    mail_type: Optional[MAIL_TYPE] = Field(default=MAIL_TYPE.MESSAGE)
     is_read: bool = Field(default=False)
     is_starred: bool = Field(default=False)
     is_important: bool = Field(default=False)

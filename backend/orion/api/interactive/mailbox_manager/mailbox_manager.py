@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
+import re
 
 from fastapi import HTTPException, status
 from odmantic.exceptions import DuplicateKeyError
+from odmantic.query import and_, eq
 from pydantic import ValidationError
 
 from orion.api.interactive.attachment_manager.attachment_manager import attachment_manager
@@ -74,6 +76,93 @@ class mailbox_manager:
             "signature": mailbox.signature,
             "pgp_key_id": str(pgp_key.id),
             "fingerprint": pgp_key.fingerprint,
+        }
+
+    async def create_tenant_report_mailbox(self, tenant_id: str, tenant_slug: str, tenant_name: str) -> dict:
+        tenant_id = str(tenant_id).strip()
+        tenant_slug = str(tenant_slug).strip().lower()
+        tenant_name = str(tenant_name).strip() or tenant_slug
+
+        username = f"{tenant_slug}_report"
+        try:
+            username = MailboxCreateRequest(username=username).username
+        except ValidationError:
+            clean_slug = re.sub(r"[^a-z0-9]", "", tenant_slug)
+            username = f"{clean_slug}_report"
+
+        mail_domain = CONSTANTS.S_MAIL_DOMAIN
+        mailbox_address = f"{username}@{mail_domain}"
+        report_user_id = f"tenant_report_{tenant_id}"
+
+        user = await self._engine.find_one(db_user_model, db_user_model.orion_user_id == report_user_id)
+        if user is None:
+            user = await self._engine.find_one(db_user_model, db_user_model.email == mailbox_address)
+        if user is None:
+            user = db_user_model(
+                full_name=f"{tenant_name} Report Mail",
+                email=mailbox_address,
+                username=username,
+                orion_user_id=report_user_id,
+                orion_tenant_id=tenant_id,
+                orion_tenant_slug=tenant_slug,
+            )
+            user = await self._engine.save(user)
+        else:
+            user.orion_user_id = report_user_id
+            user.orion_tenant_id = tenant_id
+            user.orion_tenant_slug = tenant_slug
+            user.updated_at = datetime.now(UTC)
+            user = await self._engine.save(user)
+
+        mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == user.id)
+        if mailbox is None:
+            mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.mailbox_address == mailbox_address)
+        if mailbox is None:
+            mailbox = await self._engine.save(
+                db_mailbox_model(user_id=user.id, mailbox_address=mailbox_address, mail_domain=mail_domain)
+            )
+
+        pgp_key = await disposable_mailbox_manager.get_instance().get_or_create_original_pgp(user, mailbox)
+
+        return {
+            "mailbox_id": str(mailbox.id),
+            "mailbox_address": mailbox.mailbox_address,
+            "is_active": mailbox.is_active,
+            "pgp_key_id": str(pgp_key.id) if pgp_key else None,
+        }
+
+    async def get_tenant_mailbox_status(self, tenant_id: str) -> dict:
+        tenant_id = str(tenant_id).strip()
+        report_user_id = f"tenant_report_{tenant_id}"
+        user = await self._engine.find_one(db_user_model, db_user_model.orion_user_id == report_user_id)
+        if user is None:
+            return {
+                "mailbox_exists": False,
+                "keys_configured": False,
+                "mailbox_address": None,
+                "is_active": False,
+            }
+        mailbox = await self._engine.find_one(db_mailbox_model, db_mailbox_model.user_id == user.id)
+        if mailbox is None:
+            return {
+                "mailbox_exists": False,
+                "keys_configured": False,
+                "mailbox_address": None,
+                "is_active": False,
+            }
+        e2e_key = await self._engine.find_one(
+            db_pgp_key_model,
+            and_(
+                eq(db_pgp_key_model.owner_mailbox_id, mailbox.id),
+                eq(db_pgp_key_model.key_type, PGP_KEY_TYPE.E2E),
+            ),
+        )
+        keys_configured = e2e_key is not None
+        return {
+            "mailbox_exists": True,
+            "keys_configured": keys_configured,
+            "mailbox_address": mailbox.mailbox_address,
+            "is_active": mailbox.is_active and keys_configured,
         }
 
     async def seed_local_test_mailboxes(self) -> int:

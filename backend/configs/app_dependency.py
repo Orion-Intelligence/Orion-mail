@@ -99,3 +99,10 @@ def require_incoming_mail_token(request: Request) -> None:
     provided = request.headers.get(INGEST_AUTH_HEADER, "")
     if not expected or not secrets.compare_digest(provided.encode(), expected.encode()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+
+
+def require_orion_client_secret(request: Request) -> None:
+    expected = CONSTANTS.S_ORION_MAIL_SSO_CLIENT_SECRET
+    provided = request.headers.get("x-orion-mail-client-secret", "")
+    if not expected or len(expected) < 16 or not secrets.compare_digest(provided.encode(), expected.encode()):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid client secret")

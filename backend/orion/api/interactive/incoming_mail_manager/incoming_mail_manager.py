@@ -14,7 +14,7 @@ from orion.constants.constant import CONSTANTS
 from orion.services.encryption_manager.message_crypto_manager import message_crypto_manager
 from orion.services.mongo_manager.mongo_controller import mongo_controller
 from orion.services.mongo_manager.shared_model.db_mailbox_model import db_mailbox_model
-from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
+from orion.services.mongo_manager.shared_model.db_message_model import DELIVERY_STATUS, MAIL_TYPE, MESSAGE_DIRECTION, MESSAGE_FOLDER, db_message_attachment, db_message_model
 from orion.services.mongo_manager.shared_model.db_disposable_mailbox_model import db_disposable_mailbox_model
 
 
@@ -160,6 +160,18 @@ class incoming_mail_manager:
         routed_to_spam = sender_is_blocked or scanner_flagged_spam
         initial_folder = MESSAGE_FOLDER.SPAM if routed_to_spam else MESSAGE_FOLDER.INBOX
         previous_folder = MESSAGE_FOLDER.INBOX if routed_to_spam else None
+
+        is_takedown = False
+        if thread_parent and getattr(thread_parent, "mail_type", None) == MAIL_TYPE.TAKEDOWN:
+            is_takedown = True
+        else:
+            sender_is_abuse_mailbox = (re.search(r"(^|[._-])abuse([@._-]|$)", normalized_sender_address) is not None)
+            takedown_text = f"{subject} {body}".lower()
+
+            takedown_keywords = ("takedown", "dmca", "copyright infringement", "copyright violation", "abuse report", "abuse complaint", "infringing content")
+
+            is_takedown = (sender_is_abuse_mailbox or any(keyword in takedown_text for keyword in takedown_keywords))
+
         message = db_message_model(
             owner_mailbox_id=mailbox.id,
             sender_address=normalized_sender_address,
@@ -172,6 +184,7 @@ class incoming_mail_manager:
             direction=MESSAGE_DIRECTION.INCOMING,
             folder=initial_folder,
             previous_folder=previous_folder,
+            mail_type=MAIL_TYPE.TAKEDOWN if is_takedown else MAIL_TYPE.MESSAGE,
             is_read=False,
             delivery_status=DELIVERY_STATUS.RECEIVED,
             body_html=(body_html or "").strip() or None,

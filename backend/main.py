@@ -24,6 +24,7 @@ from routes.mailbox_routes import mailbox_routes
 from routes.message_routes import message_routes
 from routes.testing_auth_routes import test_auth_routes
 from routes.messenger_routes import messenger_routes
+from routes.internal_routes import internal_routes
 
 
 @asynccontextmanager
@@ -81,6 +82,7 @@ app.include_router(attachment_routes)
 app.include_router(config_routes)
 app.include_router(disposable_mailbox_routes)
 app.include_router(messenger_routes)
+app.include_router(internal_routes)
 
 if os.getenv("ORION_TESTING", "false").lower() == "true":
     app.include_router(test_auth_routes)
