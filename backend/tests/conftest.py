@@ -5,3 +5,4 @@ import os
 os.environ.setdefault("ORION_TESTING", "true")
 os.environ.setdefault("MAIL_DOMAIN", "mail.orionintelligence.org")
 os.environ.setdefault("SEED_LOCAL_TEST_MAILBOXES", "false")
+os.environ.setdefault("ORION_INTELLIGENCE_TENANT_BASE_DOMAIN", "localhost")
